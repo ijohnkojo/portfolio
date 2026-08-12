@@ -820,3 +820,55 @@ content 7/7. Build clean, 12/12 diagrams.
 Context menus, rename and delete from the desktop, then Files, Editor and
 Settings. Double-clicking a folder does nothing today — Files is what it is
 waiting for.
+
+---
+
+## 2026-08-12 — The file manager (step 4 of 6)
+
+Plan: [plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md)
+
+**Taken out of order, ahead of context menus.** Steps 1–2 left exactly one dead
+interaction — double-clicking a folder on the desktop did nothing — and Files is
+what fills it. There was no dependency either way, and shipping the menus first
+would only have left the dead end in place for longer.
+
+### Built
+
+- **`files`**, the fifth app: breadcrumb, back/forward/up, descend, open, new
+  folder, delete. The third view of one filesystem, after the shell and the
+  desktop.
+- **`apps/files/navigation.ts`** holds everything with logic — the history
+  stack, the breadcrumb, the ordering, the size column — and tests in bare node.
+  Forward history is dropped once you go somewhere new, as a browser does.
+- **Double-clicking a folder now opens Files there**, which is `launchFor`
+  returning null and the desktop supplying its own opinion
+  ([D-032](decisions.md)). The three surfaces still disagree about directories
+  on purpose: the shell errors, the desktop hands them to Files, Files descends.
+
+### It gets no privileges the shell lacks
+
+Deleting published content from Files is refused **in the same words `rm`
+uses** — "read-only, part of the published content" — because both go through
+the same `unlink` ([D-027](decisions.md)). That is worth stating rather than
+assuming: a GUI is exactly where a second, more permissive path tends to appear.
+
+### Two deviations from the plan
+
+**No `handles` declaration.** The plan gave Files `inode/directory`. Nothing in
+this VFS carries that mime, and directories are resolved by caller opinion
+rather than by mime — so it would have been data nothing reads, which is the
+kind of thing this repo has been careful to avoid.
+
+**New folder names itself** rather than prompting. Inline rename lands with the
+context menus, and a `window.prompt` inside an OS that has its own windows would
+be a lie.
+
+### Verified
+
+**456 unit tests** (+13). `verify-desktop` **22/22**, six of them new and
+covering the folder→Files path, walking the tree, back, the refused delete, and
+opening a file into its handler. All five other suites green: terminal 36/36,
+phase2 29/29, WM 20/20, viewer 8/8, content 7/7. Build clean.
+
+### Left
+Context menus, Editor, Settings.

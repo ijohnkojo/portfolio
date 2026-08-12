@@ -214,6 +214,71 @@ check(
   'markdown → viewer'
 )
 
+/* ------------------------------------------------------------------ Files */
+
+await minimizeAll()
+await run('mkdir /desktop/scratch')
+await page.waitForTimeout(300)
+await minimizeAll()
+
+// The interaction the desktop had no answer for until Files existed.
+await icon('scratch').dblclick()
+await page.waitForTimeout(800)
+const filesWindow = page.locator('[data-app="files"]').first()
+check(
+  'double-clicking a folder opens Files, pointed at it',
+  (await filesWindow.count()) === 1 &&
+    (await filesWindow.locator('nav').innerText()).includes('scratch'),
+  'the desktop hands directories to Files'
+)
+
+const entries = () =>
+  filesWindow.locator('[data-entry]').evaluateAll((els) =>
+    els.map((e) => e.getAttribute('data-entry'))
+  )
+
+await filesWindow.getByRole('button', { name: 'up' }).click()
+await page.waitForTimeout(300)
+await filesWindow.getByRole('button', { name: 'up' }).click()
+await page.waitForTimeout(300)
+check(
+  'Files walks the same tree the shell does',
+  (await entries()).includes('papers') && (await entries()).includes('home'),
+  (await entries()).join(', ')
+)
+
+await filesWindow.locator('[data-entry="papers"]').dblclick()
+await page.waitForTimeout(400)
+const inPapers = await entries()
+check('descending into a directory lists it', inPapers.length > 0, inPapers.join(', '))
+
+await filesWindow.getByRole('button', { name: 'back' }).click()
+await page.waitForTimeout(300)
+check(
+  'back returns to where it came from',
+  (await filesWindow.locator('nav').innerText()).trim().endsWith('/'),
+  'at the root again'
+)
+
+// The desktop and Files get no privileges the shell lacks (D-027).
+await filesWindow.locator('[data-entry="home"]').dblclick()
+await page.waitForTimeout(400)
+await filesWindow.locator('[data-entry="readme.md"]').click()
+await filesWindow.getByRole('button', { name: 'delete' }).click()
+await page.waitForTimeout(300)
+check(
+  'deleting published content is refused, in the words rm uses',
+  (await filesWindow.innerText()).includes('read-only, part of the published content')
+)
+
+const beforeFilesOpen = await page.locator('[data-app="viewer"]').count()
+await filesWindow.locator('[data-entry="readme.md"]').dblclick()
+await page.waitForTimeout(800)
+check(
+  'double-clicking a file in Files opens its handler',
+  (await page.locator('[data-app="viewer"]').count()) === beforeFilesOpen + 1
+)
+
 /* ---------------------------------------------------------------- reload */
 
 await page.reload({ waitUntil: 'networkidle' })

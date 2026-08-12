@@ -9,8 +9,8 @@ right and the design doc needs a patch.
 
 **Status:** design doc Phases 1 and 2 complete. Kernel, syscall boundary,
 registry, window manager with snapping and tiling, crawlable SSG content,
-shell with pipelines, completion and persisted history, file viewer, a desktop
-with arrangeable icons, wired persistence. No game yet.
+shell with pipelines, completion and persisted history, file viewer, file
+manager, a desktop with arrangeable icons, wired persistence. No game yet.
 
 ---
 
@@ -96,7 +96,7 @@ the obvious owner — completion has to return the completed string. Pick the
 part of the system it should not hold a reference to — the shell should not be
 able to reach the window manager at all.
 
-The payoff is concrete and measurable: **443 unit tests run in bare node in
+The payoff is concrete and measurable: **456 unit tests run in bare node in
 well under a second** — no jsdom, no browser, no component harness. That holds
 only because the line editor has no filesystem and the command table has no DOM,
 and it stops holding the first time either is handed a capability "just for this
@@ -634,22 +634,38 @@ takes its button's text colour and hover and selection come for free. The
 taskbar launchers use the same technique, which is what finally put a file
 behind the `icon` field every manifest has declared since the foundation slice.
 
-**Not built yet** — steps 3 to 6 of
-[the plan](plans/2026-08-12-desktop-and-apps.md): context menus, rename and
-delete from the desktop, and the Files, Editor and Settings apps. Double-clicking
-a *folder* currently does nothing, because Files is what it is waiting for.
+**Double-clicking a folder hands it to Files**, pointed at that directory —
+which is `launchFor` returning null and the desktop supplying its own opinion
+([D-032](decisions.md)).
+
+**Not built yet** — steps 3, 5 and 6 of
+[the plan](plans/2026-08-12-desktop-and-apps.md): context menus and rename from
+the desktop, and the Editor and Settings apps.
 
 ## 9. Apps
 
-Four, all reached the same way: a manifest in `registry/index.tsx`, a lazily
+Five, all reached the same way: a manifest in `registry/index.tsx`, a lazily
 imported component, and a `kernelAPI` scoped to its declared permissions.
 
 | App | Permissions | Notes |
 |---|---|---|
 | `terminal` | `fs.read` `fs.write` `proc.*` | boots by default; see § 7. `fs.write` is history and `>` |
+| `files` | `fs.read` `fs.write` `proc.*` | browses the tree; new folder and delete |
 | `viewer` | `fs.read` | opens files; `handles` declares its mime types |
 | `about` | `fs.read` | reads `/home/about.md`; can crash on demand |
 | `sysinfo` | `fs.read` `events.listen` | live kernel state |
+
+**`files` is the third view of one filesystem** — the shell walks it, the
+desktop shows a corner of it, and this browses it. `apps/files/navigation.ts`
+holds the parts with logic (history, breadcrumb, ordering) and is tested in bare
+node; the component holds the DOM.
+
+It declares **no `handles`**, deliberately. A directory is resolved by caller
+opinion rather than by mime, so a declaration would be data nothing reads.
+
+It also gets **no privileges the shell lacks**: deleting published content is
+refused in the same words `rm` uses, because both go through the same `unlink`
+([D-027](decisions.md)).
 
 ### How `open <file>` finds an app
 

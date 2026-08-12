@@ -70,10 +70,12 @@ export function Desktop() {
   const open = useCallback((icon: Icon) => {
     const launch = launchFor(icon.path, icon.node, findHandlerFor)
 
-    // Null is a directory. Each caller has its own opinion and the desktop's is
-    // "open it in Files" — which does not exist until step 4 of this plan, so
-    // for now a folder selects and does nothing else.
-    if (!launch) return
+    // Null is a directory, and each surface has its own opinion about those
+    // (D-032). The desktop's is to hand it to Files, pointed at that folder.
+    if (!launch) {
+      systemAPI.proc.spawn('files', [icon.path], icon.name)
+      return
+    }
 
     performLaunch(systemAPI, launch, (appId) => getManifest(appId)?.name ?? appId)
   }, [])

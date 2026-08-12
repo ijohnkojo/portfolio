@@ -7,13 +7,27 @@
 >
 > - [x] 1. Icons + `/desktop` + the surface
 > - [x] 2. Drag to arrange
-> - [ ] 3. Context menus
-> - [ ] 4. Files
+> - [ ] 3. Context menus — **deferred behind step 4**, see below
+> - [x] 4. Files
 > - [ ] 5. Editor
 > - [ ] 6. Settings
 >
 > Read [../../AGENTS.md](../../AGENTS.md) and [../README.md](../README.md)
 > first; everything below assumes them.
+>
+> **Deviations so far:**
+>
+> 1. **Step 4 was brought forward, ahead of step 3.** Steps 1–2 left one dead
+>    interaction — double-clicking a folder did nothing — and Files is what
+>    fills it. Shipping context menus first would have left the dead end in
+>    place for longer, with no dependency either way.
+> 2. **Files declares no `handles`.** The plan gave it `inode/directory`; no
+>    node in this VFS carries that mime, and directories are resolved by caller
+>    opinion rather than by mime, so the declaration would have been data
+>    nothing reads.
+> 3. **New folder names itself** rather than prompting. Inline rename arrives
+>    with the context menus in step 3, and a `window.prompt` inside an OS with
+>    its own windows would be a lie.
 
 ## Context
 

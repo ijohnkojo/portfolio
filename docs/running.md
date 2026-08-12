@@ -130,7 +130,7 @@ mkdir /desktop/scratch          a folder appears
 | Gesture | Result |
 |---|---|
 | Click | Select. Click the background to deselect |
-| Double-click, or Enter | Open — an app starts, a file goes to whatever handles its type |
+| Double-click, or Enter | Open — an app starts, a file goes to whatever handles its type, a folder opens in Files |
 | Drag | Arrange. Where you drop it is where it stays, across reloads |
 
 The arrangement is a file too: `cat /desktop/.positions`. Delete it and
@@ -140,8 +140,23 @@ Terminal, About and System Info are seeded as shortcuts at boot. Removing one
 holds for the session but comes back on reload — the shortcuts are not content,
 so the overlay has nothing to persist. Files you copy there do persist.
 
-**Not built yet:** right-click menus, and double-clicking a folder, which is
-waiting on the Files app. See
+## Files
+
+The file manager — the same tree the shell walks, without typing. Launch it from
+the taskbar or the desktop, or double-click any folder.
+
+| Control | Does |
+|---|---|
+| `←` `→` `↑` | back, forward, up. Forward is dropped once you go somewhere new |
+| breadcrumb | every ancestor is a click |
+| double-click | descend into a folder, or open a file in its handler |
+| `+` | new folder, named for you |
+| `␡` | delete what is selected |
+
+It gets no privileges the shell lacks: deleting published content is refused in
+the same words `rm` uses, and for the same reason.
+
+**Not built yet:** right-click menus, and the Editor and Settings apps. See
 [plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md).
 
 ## Windows
@@ -175,7 +190,7 @@ fresh.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 443 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
+| `pnpm test` | 456 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
@@ -183,7 +198,7 @@ fresh.
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 | `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
 | `pnpm verify:viewer` | opens files in the viewer — **needs `pnpm dev` running** |
-| `pnpm verify:desktop` | icons, opening, and the icon-drag contract — **needs `pnpm dev` running** |
+| `pnpm verify:desktop` | icons, the icon-drag contract, and Files — **needs `pnpm dev` running** |
 | `pnpm verify:phase2` | persistence, snapping, repaint fix — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:

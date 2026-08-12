@@ -68,6 +68,20 @@ export const registry: Record<string, AppManifest> = {
       loading: AppLoading,
     }),
   },
+  files: {
+    id: 'files',
+    name: 'Files',
+    icon: '/icons/files.svg',
+    // fs.write is new folder and delete; proc.spawn is opening what you click.
+    permissions: ['fs.read', 'fs.write', 'proc.spawn', 'proc.focus', 'proc.list'],
+    // No `handles`, deliberately. A directory is resolved by caller opinion
+    // rather than by mime (D-032) — `launchFor` returns null for one — so a
+    // declaration here would be data nothing reads.
+    component: dynamic(() => import('@/apps/files/Files'), {
+      ssr: false,
+      loading: AppLoading,
+    }),
+  },
   sysinfo: {
     id: 'sysinfo',
     name: 'System Info',
