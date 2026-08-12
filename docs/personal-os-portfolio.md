@@ -37,9 +37,9 @@ A JS/TS object graph, not a component. Three things live here:
 Kernel state should be serializable to JSON on its own, independent of the rendering framework.
 
 ### Shell / terminal
-- **xterm.js** handles emulation (cursor, scrollback, ANSI) — don't hand-roll this.
-- A small command dispatcher on top: tokenize input → look up in a command table (`ls`, `cd`, `cat`, `open`, `help`, ~8 commands to start) → call function → read/write kernel state.
-- Piping/redirection: skip for V1, real scope creep magnet.
+- **xterm.js** handles emulation (cursor, scrollback, ANSI) — don't hand-roll this. **▸ Built** — note the package is now `@xterm/xterm` (6.0); the unscoped `xterm` on npm is the old one.
+- A small command dispatcher on top: tokenize input → look up in a command table (`ls`, `cd`, `cat`, `open`, `help`, ~8 commands to start) → call function → read/write kernel state. **▸ Built** — ten commands. The dispatcher and the line editor are pure TypeScript with **no xterm dependency at all**: xterm is a *device* attached to the shell, not the shell itself, which is the same mechanism/policy split as the kernel and means every command is tested in bare node.
+- Piping/redirection: skip for V1, real scope creep magnet. **▸ Held** — still skipped.
 
 ### Window manager
 - Renders the process table; doesn't own state.
@@ -99,7 +99,7 @@ One constraint discovered while building: each manifest must carry its own **lit
 ## 4. Phased Build
 
 **Phase 1 (ship this)** — *in progress*
-VFS ✅, process table ✅, WM ✅, shell with ~8 commands ⬜, 2–3 real apps (terminal ⬜, file/PDF viewer ⬜, one game ⬜), your content loaded as VFS nodes ✅ (real MDX pipeline; placeholder prose pending).
+VFS ✅, process table ✅, WM ✅, shell with ~8 commands ✅ (ten), 2–3 real apps (terminal ✅, file/PDF viewer ⬜, one game ⬜), your content loaded as VFS nodes ✅ (real MDX pipeline; placeholder prose pending).
 
 Also done and not originally listed here: the syscall boundary with permission checks, the app registry with per-app code splitting, per-window error boundaries, and the persistence *shape* (see Phase 2). The SSG content routes from §5 are also done, and were arguably always part of this phase.
 
@@ -140,9 +140,9 @@ Don't build Phase 3 primitives now. A permissions system with no second user is 
 - Zustand 5.0 — process table, VFS, focus state. Used via `zustand/vanilla`, not the React entry point, so `kernel/` has no React import at all and its tests run in a bare node environment ([D-001](decisions.md)). React bindings live in `hooks/kernel.ts`.
 - Plain JS/TS objects for the VFS tree itself (serializable, framework-agnostic)
 
-**Terminal/shell** — not yet built
-- xterm.js — terminal emulation. Note the package moved to the `@xterm/xterm` scope (6.0.0); `xterm` on npm is the old one.
-- Custom command parser/dispatcher (plain TS)
+**Terminal/shell** — **▸ Built**
+- `@xterm/xterm` 6.0 + `@xterm/addon-fit` — emulation only. The scope changed from the old `xterm` package.
+- Custom command parser/dispatcher (plain TS), plus a pure line-editor state machine. Neither imports xterm ([D-013](decisions.md), [D-014](decisions.md) cover the two changes it forced elsewhere).
 
 **Windowing**
 - **▸ Decided** ([D-002](decisions.md)): react-rnd 10.5. `position`/`size` are passed as *controlled* props but written only on drag/resize stop — react-draggable renders from its own internal state while dragging and ignores the prop until the pointer lifts, so nothing re-renders mid-gesture, and maximize becomes a prop change instead of a remount that would destroy the app's state inside the window. `wm/Window.tsx` is the only file that imports it.
@@ -304,7 +304,7 @@ double-click be the same operation.
 /apps
 ○   /about/About.tsx
 ○   /sysinfo/SysInfo.tsx
-·   /terminal/{Terminal.tsx, commands.ts}
+○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts}
 ·   /file-viewer/FileViewer.tsx
 ·   /games/<game-name>/Game.tsx
 
@@ -326,6 +326,7 @@ double-click be the same operation.
 /scripts
 ○   verify-wm.mjs            → drives real Chrome; asserts the drag contract
 ○   verify-content.mjs       → asserts routes render with JS disabled
+○   verify-terminal.mjs      → drives the shell with real keystrokes
 ○   check-diagrams.mjs       → parses every mermaid block in the docs
 ○   sync-content-assets.mjs  → mirrors entry assets into /public
 

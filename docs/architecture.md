@@ -7,9 +7,9 @@ that file is the design and the intent, this one tracks the implementation and
 is updated whenever the implementation moves. Where they disagree, this file is
 right and the design doc needs a patch.
 
-**Status:** kernel, syscall boundary, registry, window manager, two stub apps,
-and the content pipeline with crawlable SSG routes. No shell/terminal, no file
-viewer, no games; persistence shaped but not wired.
+**Status:** kernel, syscall boundary, registry, window manager, the content
+pipeline with crawlable SSG routes, and a working shell. No file viewer, no
+games; persistence shaped but not wired.
 
 ---
 
@@ -130,16 +130,16 @@ stateDiagram-v2
     maximized --> [*]: proc.kill
 
     note right of minimized
-        Window returns null — the frame
-        unmounts, the app unmounts with it.
-        App-internal state does not survive.
+        Hidden with display:none, still
+        mounted. Scrollback, cwd, and a
+        half-typed line all survive.
     end note
 ```
 
-That last note is a real limitation, not a design choice: minimizing currently
-throws away whatever the app was holding. It hasn't mattered with two stateless
-stub apps. It will matter the first time a game or a half-typed terminal command
-is minimized, and the fix is to keep the frame mounted and hide it with CSS.
+Minimizing used to `return null`, which unmounted the app and destroyed its
+state. [D-013](decisions.md) changed that: the frame stays mounted and is hidden
+with `display: none`. The cost is memory rather than frame time, and it is what
+makes a terminal survivable across a minimize.
 
 ### `kernel/events.ts`
 
@@ -164,6 +164,7 @@ fs.stat(path)            → VFSNode | null  // metadata: mime, src, appId
 proc.spawn(appId, args?, title?) → number
 proc.kill(pid)           → void
 proc.focus(pid)          → void
+proc.list()              → Process[]   // snapshot ordered by pid; backs `ps`
 
 window.move(pid, pos)              → void
 window.resize(pid, dims, pos?)     → void   // pos when a top/left handle moved the origin
@@ -174,7 +175,7 @@ events.on(name, handler)    → Unsubscribe
 ```
 
 Permissions: `fs.read` `fs.write` `proc.spawn` `proc.kill` `proc.focus`
-`window.manage` `events.emit` `events.listen`.
+`proc.list` `window.manage` `events.emit` `events.listen`.
 
 `systemAPI` is a handle with all permissions, used by the WM and taskbar — they
 are policy layers of the system, not apps running on top of it, but they still
@@ -394,19 +395,61 @@ from `listEntries`, `generateMetadata` from frontmatter, `notFound()` otherwise.
 `components/mdx.tsx` holds the typographic component map, and is the seam where
 a writeup's own React components get registered.
 
-## 7. Known gaps
+## 7. The shell
 
+The terminal is the first app with structure worth describing, and the structure
+is the same idea as the kernel: **the shell does not know xterm exists.**
+
+```mermaid
+flowchart LR
+    KEYS(["keystrokes"]) --> TERM["Terminal.tsx<br/>xterm host"]
+    TERM --> LE["lineEditor.ts<br/>pure state machine"]
+    LE -- "submit" --> SH["shell.ts<br/>tokenize + dispatch"]
+    SH --> CMD["commands.ts<br/>the command table"]
+    CMD --> API{{"kernelAPI"}}
+    SH -- "output lines" --> TERM
+```
+
+`lineEditor.ts` and `shell.ts` are plain TypeScript — no xterm, no React, no
+DOM. xterm is one possible *device* attached to the shell. That is what lets all
+of it be tested in a bare node environment; the terminal's browser checks only
+have to prove the wiring, not the logic.
+
+| File | Knows about |
+|---|---|
+| `Terminal.tsx` | xterm, the DOM, and nothing else worth testing |
+| `lineEditor.ts` | buffer, cursor, history. Pure `(state, input) => [state, effects]` |
+| `shell.ts` | tokenising and dispatch; formats `CommandError` into a line |
+| `commands.ts` | the syscall boundary and a cwd |
+
+**cwd is app state**, held per terminal instance, not in the kernel — design doc
+§8.4 puts app-internal state in the app. Two terminals have two working
+directories, which is the point of opening a second one.
+
+Path handling reuses `resolvePath`/`resolve` from `kernel/vfs.ts` rather than
+reimplementing it, so `cd ..` and the VFS agree by construction.
+
+The terminal reacts to its **own box** via a `ResizeObserver` rather than
+subscribing to the process table, so the WM stays unaware it exists. The
+observer is rAF-debounced because a resize gesture fires it continuously, and it
+skips `fit()` at 0×0 — which is exactly what a minimized window is under
+[D-013](decisions.md).
+
+Not implemented, deliberately: piping and redirection (design doc §2 calls them
+a scope-creep magnet), persisted history, and tab completion. History exists but
+only for the session.
+
+## 8. Known gaps
+
+- **`open` on a file is a dead end.** It names the missing handler
+  (`no application registered for text/markdown`) rather than doing anything.
+  The file viewer is the next app and will register as the handler.
 - **All content ships in the `/os` payload.** `kernel.fs.read` is synchronous,
   so the whole tree — every entry's full text — must be in memory client-side
   for `cat` to work at all ([D-011](decisions.md)). Fine at tens of entries,
   wrong at hundreds. The fix is `FileNode.src` plus an async read path, which
   makes it a kernel change rather than a content one.
 - **Persistence not wired** (§ above).
-- **Minimizing a window unmounts its app.** `Window.tsx:56` returns `null` for
-  `state === 'minimized'`, so app-internal state is destroyed and rebuilt on
-  restore. Invisible with two stateless stub apps; it will be wrong the first
-  time a game or a half-typed terminal command gets minimized. Fix is to keep
-  the frame mounted and hide it with CSS.
 - **Permissions are per-app, not per-pid** — [D-004](decisions.md).
 - **No accessibility work.** Design doc §5 asks for ARIA roles, per-window focus
   traps, and keyboard equivalents. Windows are divs; only the buttons are

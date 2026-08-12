@@ -9,8 +9,33 @@ pnpm dev
 - **http://localhost:3000/os** — the OS shell
 - **http://localhost:3000** — placeholder landing page with a "boot →" link
 
-At boot you get an **About** window and a taskbar: the `personal-os` label,
-launcher buttons for each registered app, then one button per running window.
+At boot you get a **Terminal** and a taskbar: the `personal-os` label, launcher
+buttons for each registered app, then one button per running window.
+
+## The shell
+
+Type `help`. Ten commands:
+
+| Command | Does |
+|---|---|
+| `ls [path]` | list; `dir/` and `app*` markers carry the type |
+| `cd [path]` | relative, absolute, and `..`; bare `cd` goes to `/` |
+| `pwd` | print the working directory |
+| `cat <path…>` | print file contents |
+| `open <path>` | launch an app node, or focus it if already running |
+| `ps` | the process table |
+| `kill <pid>` | terminate a process, including the terminal itself |
+| `echo`, `clear`, `help` | as expected |
+
+Worth trying: `ls /apps`, then `open /apps/sysinfo` — spawning a window from the
+shell. And `cd /papers && ls` shows `paper-draft/`, which the web 404s: drafts
+are hidden from crawlers, not from the OS.
+
+Line editing: arrows, Home/End, Ctrl+A/E/U/L, Ctrl+C to abandon a line, Ctrl+D
+on an empty line to exit. Up/down walk this session's history — persisted
+history and tab completion are still Phase 2.
+
+No piping or redirection, deliberately (design doc §2).
 
 ## Commands
 
@@ -19,12 +44,13 @@ launcher buttons for each registered app, then one button per running window.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 62 unit tests, kernel + content loader (node env, ~300ms) |
+| `pnpm test` | 121 unit tests — kernel, content loader, shell, line editor (node env) |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
 | `pnpm check:diagrams` | parses every ```` ```mermaid ```` block in the repo's markdown |
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
+| `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:
 

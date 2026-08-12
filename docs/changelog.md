@@ -157,3 +157,54 @@ The cost of D-011 is now recorded in known gaps: `kernel.fs.read` is
 synchronous, so every published entry's full text ships in the `/os` RSC
 payload. Fine at this scale, wrong at hundreds of entries, and the fix is a
 kernel change rather than a content one.
+
+---
+
+## 2026-08-12 — Terminal + shell
+
+Plan: [plans/2026-08-12-terminal.md](plans/2026-08-12-terminal.md)
+
+### Built
+
+- **The shell, which does not know xterm exists.** `apps/terminal/shell.ts` and
+  `lineEditor.ts` are plain TypeScript — no xterm, no React, no DOM. xterm is a
+  *device* attached to the shell, the same mechanism/policy split the kernel
+  uses one level up. The whole shell is therefore tested in bare node.
+- **Ten commands** — `ls`, `cd`, `pwd`, `cat`, `open`, `ps`, `kill`, `echo`,
+  `clear`, `help` — all thin wrappers over the syscall boundary, with errors in
+  the shape a UNIX user expects. Path handling reuses `resolvePath`/`resolve`
+  from the kernel rather than reimplementing it.
+- **`Terminal.tsx`** — `@xterm/xterm` 6.0 + `FitAddon`, refit from a
+  rAF-debounced `ResizeObserver` on its own container, so the terminal never
+  subscribes to the process table and the WM stays unaware it exists.
+- **Line editing** — arrows, Home/End, Ctrl+A/E/U/L/C/D, and in-session history.
+- **The OS boots into a terminal** instead of About.
+
+### Decided
+
+- **[D-013](decisions.md)** — a minimized window is hidden with `display: none`,
+  not unmounted. It has to go through the `style` prop: react-rnd sets
+  `display: inline-block` *inline*, so a `hidden` class silently loses.
+- **[D-014](decisions.md)** — `proc.list()` added to the syscall boundary. The
+  first genuinely new capability the boundary has grown, and it came from an app
+  needing it rather than from guessing up front.
+
+### Verified
+
+- **121 unit tests** (kernel, content loader, shell, line editor) — all node.
+- **`pnpm verify:terminal` — 25/25**, real keystrokes in real Chrome. The one
+  that matters: after minimize and restore, the **scrollback, the cwd, and a
+  half-typed command line all survive**. That is D-013 paying for itself.
+- **`pnpm verify` — 20/20** and **`pnpm verify:content` — 13/13** after
+  updating both for the new boot app and the inverted minimize semantics.
+
+### Notes
+
+Both older E2E scripts failed on first run, and both were the scripts asserting
+the *old* contract rather than regressions: the boot window changed, and D-013
+deliberately inverted what minimize does. `verify-wm.mjs` now asserts the new
+rule directly — minimized windows are **hidden but still mounted**.
+
+Scope held: no piping or redirection (design doc §2), no persisted history, no
+tab completion. `open` on a file is a deliberate dead end that names the missing
+handler — the file viewer is next and slots into exactly that seam.

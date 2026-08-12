@@ -53,14 +53,11 @@ export function Window({ pid }: { pid: number }) {
     if (DEBUG_RENDERS) console.debug(`[wm] pid ${pid} commit #${commits.current}`)
   })
 
-  if (!proc || proc.state === 'minimized') return null
-
-  if (!manifest || !kernel) {
-    return null
-  }
+  if (!proc || !manifest || !kernel) return null
 
   const AppComponent = manifest.component
   const maximized = proc.state === 'maximized'
+  const minimized = proc.state === 'minimized'
 
   return (
     <Rnd
@@ -73,7 +70,15 @@ export function Window({ pid }: { pid: number }) {
       enableResizing={!maximized}
       position={maximized ? { x: 0, y: 0 } : proc.position}
       size={maximized ? { width: '100%', height: '100%' } : proc.size}
-      style={{ zIndex: proc.zIndex }}
+      // D-013: a minimized window is hidden, not unmounted. Unmounting would
+      // throw away whatever the app was holding — the terminal's scrollback, its
+      // cwd, a half-typed command line. `display: none` costs memory rather
+      // than frame time: no paint, no layout, no hit-testing.
+      //
+      // It has to go through `style` rather than a class: react-rnd sets
+      // `display: inline-block` as an inline style, and only `style` is merged
+      // after its own defaults.
+      style={{ zIndex: proc.zIndex, display: minimized ? 'none' : undefined }}
       onMouseDown={() => systemAPI.proc.focus(pid)}
       onDragStop={(_e, d) => systemAPI.window.move(pid, { x: d.x, y: d.y })}
       onResizeStop={(_e, _dir, ref, _delta, position) =>

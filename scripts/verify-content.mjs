@@ -85,10 +85,12 @@ await os.goto(`${BASE}/os`, { waitUntil: 'networkidle' })
 // The kernel stores are module-scoped, not on `window`, so the VFS can only be
 // observed through the UI — which is the better test anyway: it exercises the
 // real path from app to syscall boundary to filesystem.
-check(
-  'the OS reads /home/about.md through the syscall boundary',
-  await os.locator('text=mechanism, not policy').first().isVisible()
-)
+//
+// The OS boots into a terminal now, so About is launched rather than assumed.
+await os.getByRole('button', { name: 'About', exact: true }).click()
+const aboutBody = os.locator('text=mechanism, not policy').first()
+await aboutBody.waitFor({ state: 'visible', timeout: 10000 })
+check('the OS reads /home/about.md through the syscall boundary', await aboutBody.isVisible())
 
 await os.getByRole('button', { name: 'System Info' }).click()
 await os.locator('text=vfs nodes').first().waitFor({ state: 'visible', timeout: 10000 })
@@ -104,7 +106,8 @@ check(
   papers?.[1] === '2',
   `/papers = ${papers?.[1]} (paper-one + paper-draft)`
 )
-check('app nodes are registered under /apps', apps?.[1] === '2', `/apps = ${apps?.[1]}`)
+// One node per registered app: terminal, about, sysinfo.
+check('app nodes are registered under /apps', apps?.[1] === '3', `/apps = ${apps?.[1]}`)
 
 await os.screenshot({ path: 'scripts/content-verify.png', fullPage: false })
 await browser.close()

@@ -8,7 +8,13 @@
  * reworking every call site.
  */
 import { events, type EventHandler, type Unsubscribe } from './events'
-import { processStore, type Position, type Size, type WindowState } from './process'
+import {
+  processStore,
+  type Position,
+  type Process,
+  type Size,
+  type WindowState,
+} from './process'
 import { vfsStore, type VFSNode } from './vfs'
 
 export type Permission =
@@ -17,6 +23,7 @@ export type Permission =
   | 'proc.spawn'
   | 'proc.kill'
   | 'proc.focus'
+  | 'proc.list'
   | 'window.manage'
   | 'events.emit'
   | 'events.listen'
@@ -51,6 +58,8 @@ export interface KernelAPI {
     spawn: (appId: string, args?: string[], title?: string) => number
     kill: (pid: number) => void
     focus: (pid: number) => void
+    /** Snapshot of the process table, ordered by pid. Backs `ps`. */
+    list: () => Process[]
   }
   window: {
     /** `pos` is supplied when a top/left resize handle moved the origin too. */
@@ -107,6 +116,12 @@ export function createKernelAPI(app: AppIdentity): KernelAPI {
         assertPermission(app, 'proc.focus')
         processStore.getState().focus(pid)
       },
+      list: () => {
+        assertPermission(app, 'proc.list')
+        return Object.values(processStore.getState().processes).sort(
+          (a, b) => a.pid - b.pid
+        )
+      },
     },
 
     // NOTE: permissions are per-app, not per-pid, so an app holding
@@ -150,6 +165,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   'proc.spawn',
   'proc.kill',
   'proc.focus',
+  'proc.list',
   'window.manage',
   'events.emit',
   'events.listen',

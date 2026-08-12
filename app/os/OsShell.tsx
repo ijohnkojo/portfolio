@@ -43,7 +43,12 @@ export function OsShell({ tree }: { tree: DirNode }) {
   useEffect(() => {
     if (spawnedInitialWindow) return
     spawnedInitialWindow = true
-    processStore.getState().spawn('about', { title: 'About' })
+    // Boot into a shell. About stays launchable, and its text is `cat`-able at
+    // /home/about.md — the OS should open onto the thing that makes it an OS.
+    processStore.getState().spawn('terminal', {
+      title: 'Terminal',
+      size: { width: 720, height: 440 },
+    })
   }, [])
 
   return (

@@ -24,6 +24,16 @@ function AppLoading() {
 }
 
 export const registry: Record<string, AppManifest> = {
+  terminal: {
+    id: 'terminal',
+    name: 'Terminal',
+    icon: '/icons/terminal.svg',
+    permissions: ['fs.read', 'proc.spawn', 'proc.kill', 'proc.focus', 'proc.list'],
+    component: dynamic(() => import('@/apps/terminal/Terminal'), {
+      ssr: false,
+      loading: AppLoading,
+    }),
+  },
   about: {
     id: 'about',
     name: 'About',

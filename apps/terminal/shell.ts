@@ -1,0 +1,97 @@
+/**
+ * Tokenise, dispatch, format errors. Pure — no xterm, no React.
+ *
+ * xterm is one possible *device* attached to this; the shell has no idea it
+ * exists. That is what lets every command be tested in bare node.
+ */
+import {
+  CommandError,
+  commands,
+  type CommandResult,
+  type ShellContext,
+} from './commands'
+
+export interface ShellResult {
+  output: string[]
+  cwd: string
+  clear: boolean
+}
+
+/**
+ * Split a line into words, honouring single and double quotes so a path with a
+ * space works. No expansion, no globbing, no piping — design doc §2 calls
+ * those a scope-creep magnet, and it is right.
+ */
+export function tokenize(line: string): string[] {
+  const tokens: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+  let started = false
+
+  for (const char of line) {
+    if (quote) {
+      if (char === quote) quote = null
+      else current += char
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      started = true
+      continue
+    }
+    if (/\s/.test(char)) {
+      if (started) {
+        tokens.push(current)
+        current = ''
+        started = false
+      }
+      continue
+    }
+    current += char
+    started = true
+  }
+
+  if (started) tokens.push(current)
+  return tokens
+}
+
+export function runCommand(line: string, ctx: ShellContext): ShellResult {
+  const tokens = tokenize(line)
+
+  if (tokens.length === 0) {
+    return { output: [], cwd: ctx.cwd, clear: false }
+  }
+
+  const [name, ...args] = tokens
+  const command = commands[name]
+
+  if (!command) {
+    return {
+      output: [`${name}: command not found — try 'help'`],
+      cwd: ctx.cwd,
+      clear: false,
+    }
+  }
+
+  let result: CommandResult
+  try {
+    result = command.run(ctx, args)
+  } catch (error) {
+    // CommandError is an expected failure with a message already in UNIX shape.
+    // Anything else is a bug, and saying so beats printing a bare stack.
+    if (error instanceof CommandError) {
+      return { output: [error.message], cwd: ctx.cwd, clear: false }
+    }
+    const detail = error instanceof Error ? error.message : String(error)
+    return { output: [`${name}: internal error: ${detail}`], cwd: ctx.cwd, clear: false }
+  }
+
+  return {
+    output: result.output ?? [],
+    cwd: result.cwd ?? ctx.cwd,
+    clear: result.clear ?? false,
+  }
+}
+
+export { commands }
+export type { ShellContext }

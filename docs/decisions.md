@@ -252,3 +252,52 @@ binaries out of both the RSC payload and the VFS.
 **Cost.** `public/content/` is generated and gitignored, so a fresh clone must
 run `predev`/`prebuild` before assets resolve. The script wipes the directory
 before copying, so deleting an asset also removes the served copy.
+
+---
+
+## D-013 · 2026-08-12 · active
+### A minimized window is hidden, not unmounted
+
+`wm/Window.tsx` used to `return null` for `state === 'minimized'`. It now renders
+as normal with `display: none`.
+
+**Why.** Unmounting destroys everything the app was holding. For the two
+stateless stub apps that was invisible; for a terminal it means losing the
+scrollback, the working directory, and the command you were halfway through
+typing. This was recorded as a known gap when the window state machine was first
+drawn, and the terminal is the app that made it real.
+
+It has to go through the `style` prop rather than a class: react-rnd sets
+`display: inline-block` as an *inline* style, and only `style` is merged after
+its own defaults — a `hidden` class silently loses.
+
+**Cost, which `docs/gotchas.md` anticipated** — "too many windows open with
+complex DOM apps inside — each one is a live component tree, not a frozen
+screenshot." Minimized windows now hold live React trees. `display: none` means
+no paint, no layout, and no hit-testing, so the cost is memory rather than frame
+time, and that is the right trade for anything with state worth keeping.
+
+Anything measuring itself must handle being 0×0 while hidden — the terminal's
+`ResizeObserver` skips `fit()` at zero size for exactly this reason.
+
+**Revisit when** an app is expensive enough to want the old behaviour. The
+escape hatch is a manifest flag, not a WM change.
+
+---
+
+## D-014 · 2026-08-12 · active
+### `proc.list()` added to the syscall boundary
+
+`ps` needs to enumerate processes, and the API had no read path for the process
+table — only `spawn`, `kill`, and `focus`. Added `proc.list()` behind a new
+`proc.list` permission, returning a snapshot ordered by pid.
+
+**Why it is worth recording.** It is the first genuinely new *capability* the
+boundary has grown since it was designed, and it arrived because an app needed
+it rather than from guessing up front. That is the manifest/registry model
+working the way design doc §3 intended: the kernel gained a read primitive, and
+no existing app's permissions changed.
+
+**Cost.** Another permission to reason about, and `list()` copies the process
+array on every call — fine for `ps`, wrong if anything ever polls it in a
+render loop.
