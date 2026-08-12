@@ -641,3 +641,24 @@ reasoning about it.
 round trips (created stays created, deleted stays deleted). `verify-phase2`
 **29/29** with the round trip driven through a real reload; terminal 33/33,
 content 7/7, viewer 8/8, WM 20/20.
+
+---
+
+## 2026-08-12 — Honest errors for unsupported operators
+
+`tokenize` treated `|` and `>` as ordinary characters, so `ls | wc` parsed as
+`ls` with arguments `['|', 'wc']` and reported
+`ls: |: No such file or directory` — sending you to look for a file rather than
+telling you what was actually wrong.
+
+`findUnquotedOperator` now catches `|`, `>`, `>>`, `<`, `2>`, `&&`, and `||`
+before dispatch, longest first so `>>` is not reported as `>`. Quoted operators
+stay ordinary text, because `echo "a | b"` is a legitimate thing to type.
+
+Not a step toward implementing them. Design doc §2 calls piping a scope-creep
+magnet and is right about where the magnet is: `|` and `>` are bounded, but
+`&&`, `$( )`, globs and variables are what follow. Worth noting the *original*
+reason has expired though — it was written when nothing produced output worth
+chaining, and there are now twenty-nine commands and a writable filesystem. If
+it is ever built, the shape is already right: commands return `string[]` rather
+than printing, which is exactly what a pipeline needs.

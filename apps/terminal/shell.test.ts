@@ -10,7 +10,7 @@ import {
   processStore,
   vfsStore,
 } from '@/kernel'
-import { runCommand, tokenize } from './shell'
+import { findUnquotedOperator, runCommand, tokenize } from './shell'
 import type { ShellContext } from './commands'
 
 const TERMINAL_PID = 1
@@ -382,5 +382,38 @@ describe('tile', () => {
     for (const mode of ['grid', 'columns', 'rows', 'cascade']) {
       expect(run(`tile ${mode}`).output[0]).toBe(`tiling: ${mode}`)
     }
+  })
+})
+
+describe('unsupported operators', () => {
+  it('says what is wrong instead of hunting for a file named |', () => {
+    const out = run('ls | wc').output[0]
+    expect(out).toBe('|: not supported — this shell has no piping or redirection')
+  })
+
+  it('names the operator it found', () => {
+    expect(run('echo hi > out.txt').output[0]).toMatch(/^>: not supported/)
+    expect(run('echo hi >> out.txt').output[0]).toMatch(/^>>: not supported/)
+    expect(run('cat < in.txt').output[0]).toMatch(/^<: not supported/)
+    expect(run('ls && pwd').output[0]).toMatch(/^&&: not supported/)
+    expect(run('ls || pwd').output[0]).toMatch(/^\|\|: not supported/)
+  })
+
+  it('prefers the longer operator, so >> is not reported as >', () => {
+    expect(findUnquotedOperator('a >> b')).toBe('>>')
+    expect(findUnquotedOperator('a || b')).toBe('||')
+    expect(findUnquotedOperator('a 2> b')).toBe('2>')
+  })
+
+  // Quoted operators are ordinary text and must keep working.
+  it('ignores operators inside quotes', () => {
+    expect(findUnquotedOperator('echo "a | b"')).toBeNull()
+    expect(findUnquotedOperator("echo 'x > y'")).toBeNull()
+    expect(run('echo "a | b"').output).toEqual(['a | b'])
+  })
+
+  it('leaves ordinary lines alone', () => {
+    expect(findUnquotedOperator('ls -a /home')).toBeNull()
+    expect(findUnquotedOperator('')).toBeNull()
   })
 })

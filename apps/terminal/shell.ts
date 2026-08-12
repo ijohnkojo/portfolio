@@ -56,7 +56,52 @@ export function tokenize(line: string): string[] {
   return tokens
 }
 
+/**
+ * Operators this shell does not implement. Longest first, so `||` is found
+ * before `|` and `>>` before `>`.
+ */
+const UNSUPPORTED_OPERATORS = ['&&', '||', '>>', '2>', '|', '>', '<'] as const
+
+/**
+ * Find an unquoted shell operator, or null.
+ *
+ * Quoted operators are ordinary text — `echo "a | b"` is a legitimate thing to
+ * type and must keep working. Without this check the operator is swallowed as
+ * an argument, so `ls | wc` reports `ls: |: No such file or directory`, which
+ * sends you looking for a file rather than telling you what is actually wrong.
+ */
+export function findUnquotedOperator(line: string): string | null {
+  let quote: '"' | "'" | null = null
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+
+    if (quote) {
+      if (char === quote) quote = null
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+    for (const operator of UNSUPPORTED_OPERATORS) {
+      if (line.startsWith(operator, i)) return operator
+    }
+  }
+  return null
+}
+
 export function runCommand(line: string, ctx: ShellContext): ShellResult {
+  const operator = findUnquotedOperator(line)
+  if (operator) {
+    return {
+      output: [`${operator}: not supported — this shell has no piping or redirection`],
+      cwd: ctx.cwd,
+      clear: false,
+      reset: false,
+    }
+  }
+
   const tokens = tokenize(line)
 
   if (tokens.length === 0) {

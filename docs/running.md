@@ -119,7 +119,9 @@ terminal comes back empty at `/`.
 If a session ever gets into a state you don't want, `reset` clears it and boots
 fresh.
 
-No piping or redirection, deliberately (design doc §2).
+No piping or redirection, deliberately (design doc §2). Typing `|`, `>`, `>>`,
+`<`, `&&` or `||` unquoted says so rather than looking for a file by that name.
+Quoted ones are ordinary text: `echo "a | b"` works.
 
 ## Commands
 
