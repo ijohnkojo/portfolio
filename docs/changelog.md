@@ -511,3 +511,31 @@ Nobody ever chose against them for a reason; they are absences by default rather
 than by choice, and all three are §5 gotchas where every other §5 item became a
 decision. For an artifact whose job is being sent to people, mobile and
 accessibility are plausibly worth more than any remaining feature.
+
+---
+
+## 2026-08-12 — Authoring guide and content-layout guards
+
+Groundwork for real content replacing the placeholders.
+
+### Built
+
+- **[authoring.md](authoring.md)** — where content lives and why it has to,
+  the frontmatter fields, what happens to an entry on both surfaces, how slugs
+  map to URLs, drafts, assets, and the four steps to add a collection.
+- **Four layout guards** in `lib/content.test.ts`. The important one catches a
+  directory under `content/` that is not a declared collection: without it,
+  creating `content/talks/` and forgetting to add it to `COLLECTIONS` would put
+  those entries **in the OS with no web pages** — a silent half-state, and
+  precisely the failure the content pipeline exists to prevent. Also: every
+  collection has a directory, every entry directory has an `index.mdx`, and
+  slugs are lowercase kebab-case.
+
+### The question it settles
+
+Whether to author in `content/` or inside the OS. It is not a preference: work
+written in the OS lands in the localStorage overlay, so it would have no URL, no
+meta tags, no server markup, and would vanish with site data. The VFS already
+draws the line — base tree is published and read-only, overlay is scratch
+([D-003](decisions.md)) — so an in-OS editor remains a reasonable thing to build
+for notes, just not for anything that needs a URL.

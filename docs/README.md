@@ -12,6 +12,7 @@ develops — if the code and a doc disagree, the doc is a bug.
 | [decisions.md](decisions.md) | **Decision log.** D-001…, each with the reason and what it costs. Append-only. | Before re-litigating a choice |
 | [review.md](review.md) | **Periodic audit** of the decisions and gaps: what has gone stale, which costs are now live, what to do next. Re-run it rather than trusting it. | Deciding what to work on |
 | [gotchas.md](gotchas.md) | Performance constraints, mostly about the window manager. The source of the drag rule. | Before touching `wm/` |
+| [authoring.md](authoring.md) | **How to add a project or paper**: directory shape, frontmatter, slugs, drafts, assets, adding a collection. | Writing content |
 | [running.md](running.md) | How to start it, drive it, and verify it. | Getting it on screen |
 | [changelog.md](changelog.md) | One entry per working session: built, decided, verified, deliberately left out. | Catching up |
 | [plans/](plans/) | Implementation plans, dated. Each carries a status header. | Starting or resuming work |

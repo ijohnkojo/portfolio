@@ -1,0 +1,170 @@
+# Authoring content
+
+How to add a project or a paper, and what happens to it afterwards.
+
+---
+
+## Where content lives, and why it has to
+
+**Published work goes in `content/` on disk, in git.** Not by preference — by
+constraint.
+
+The crawlable routes are prerendered at build time from disk. Anything written
+*inside the OS* lands in the localStorage overlay: one browser, one machine. It
+would have no URL, no `<meta>` tags, no server-rendered markup — invisible to
+search engines and to anyone you send a link to, and gone the moment site data
+is cleared. That is exactly the failure design doc §5 names as the most common
+in this genre, and [D-010](decisions.md) exists to prevent it.
+
+The VFS already draws this line ([D-003](decisions.md)):
+
+| Tier | What | Lives in | Who sees it |
+|---|---|---|---|
+| **Base tree** | published work | `content/`, in git | everyone — crawlers, the web, the OS |
+| **Overlay** | scratch, shell history | localStorage | only that browser |
+
+So an in-OS editor would be a legitimate thing to build — for notes and as a
+demonstration that the filesystem is genuinely real — but it is not the path for
+a writeup that needs a URL.
+
+---
+
+## Adding an entry
+
+One directory per entry:
+
+```
+content/papers/hscp-mass-reconstruction/
+  index.mdx        ← required: frontmatter + prose
+  figure.png       ← optional: any assets, beside the writeup that uses them
+  paper.pdf
+```
+
+`index.mdx` starts with frontmatter:
+
+```yaml
+---
+title: HSCP Mass Reconstruction
+summary: One sentence. Used on listing pages and as the meta description.
+date: 2026-08-12
+tags: [physics, cms]
+draft: false
+---
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `title` | yes | `<title>`, the listing heading, and `stat` in the shell |
+| `summary` | yes | listing subtitle and `<meta name="description">` — write it for a stranger |
+| `date` | yes | `YYYY-MM-DD`. Sorts the listings, newest first |
+| `tags` | no | drives the `tags` command; lowercase |
+| `draft` | no | `true` hides it from the web but keeps it in the OS |
+
+`title`, `summary`, and `date` are enforced: a missing one **fails the build**
+with the file path, rather than shipping a blank `<title>`.
+
+Then write MDX — markdown, plus React components if you register them in
+`components/mdx.tsx`. See the caveat at the bottom before you do.
+
+---
+
+## What happens to it
+
+```mermaid
+flowchart LR
+    DISK[("content/papers/&lt;slug&gt;/index.mdx")] --> LOADER["lib/content.ts<br/>read once at build time"]
+    LOADER --> ENTRIES["listEntries() · getEntry()"]
+    LOADER --> TREE["buildVFSTree()"]
+    ENTRIES --> ROUTES["/papers/&lt;slug&gt;<br/>prerendered, crawlable"]
+    TREE --> VFS[("the VFS")]
+    VFS --> OS["the OS: ls · cat · grep · stat · open"]
+    DISK -. "non-MDX files" .-> PUBLIC[("public/content/")]
+    PUBLIC --> ROUTES
+    PUBLIC --> OS
+```
+
+One read on disk feeds both surfaces ([D-010](decisions.md)), which is why the
+web page and the OS can never disagree about what a paper says.
+
+**On the web** — `/papers/<slug>` is prerendered. The prose is in the server
+markup, so it works with JavaScript disabled.
+
+**In the OS** — the same file. `cat` prints it exactly as stored, frontmatter
+and all. `stat` prints the frontmatter on its own. `grep` searches the text,
+`tags` indexes the tags, `open` hands it to the viewer.
+
+**Assets** — anything that is not `.mdx` or `.md` is mirrored into
+`public/content/` by a prebuild step ([D-012](decisions.md)) and appears in the
+VFS as a node carrying a `src` rather than inline bytes. That is how a PDF stays
+out of the page payload.
+
+---
+
+## Slugs
+
+The directory name becomes three things:
+
+```
+content/papers/hscp-mass-reconstruction/index.mdx   ← directory
+        /papers/hscp-mass-reconstruction            ← public URL
+        /papers/hscp-mass-reconstruction/index.mdx  ← VFS path
+```
+
+The mapping is one-to-one with no lookup table, so **renaming an entry is
+renaming its directory** — everything follows.
+
+Cheap now. Once anything links to a URL, renaming means maintaining a redirect
+forever, so settle slugs before publishing. Lowercase kebab-case, no dates (the
+date is frontmatter), and chosen to still make sense in two years. A test
+enforces the character set.
+
+---
+
+## Drafts
+
+`draft: true` removes an entry from the listings, from `generateStaticParams`,
+and from its route — which returns 404. It stays in the VFS, so you can read and
+`grep` work in progress inside the OS without it being crawlable.
+
+The asymmetry is deliberate and asserted by `pnpm verify:content`.
+
+---
+
+## Adding a collection
+
+Collections are the top-level groupings — `projects`, `papers`. Adding one takes
+three steps:
+
+1. `content/<name>/` with at least one entry
+2. add `'<name>'` to `COLLECTIONS` in [lib/content.ts](../lib/content.ts)
+3. copy `app/(site)/papers/` to `app/(site)/<name>/` — the listing page and the
+   `[slug]` route, both of which are thin wrappers; change the collection string
+4. add it to the nav in `app/(site)/layout.tsx`
+
+Step 2 is easy to forget, so `pnpm test` fails if a directory under `content/`
+is not a declared collection. Without that guard, forgetting it means the
+entries appear **in the OS but have no web pages** — a silent half-state, and
+the exact failure this pipeline exists to prevent.
+
+---
+
+## Two caveats
+
+**Embedded React components render differently in the two surfaces.** The web
+route compiles MDX properly; the OS viewer uses `react-markdown`
+([D-016](decisions.md)) and would show raw JSX as text. Nothing uses this yet.
+If you want a live demo inside a writeup, say so and the viewer needs handling
+first.
+
+**`content/home/about.md`** is not an entry — it is loose content, read by the
+About app and by `cat /home/about.md`. It is a good place for a short bio.
+
+---
+
+## Checklist
+
+```bash
+pnpm test        # frontmatter, slugs, collection layout
+pnpm build       # every published entry should appear as ● (SSG)
+pnpm dev         # then check /papers/<slug> and `open` it in the OS
+```

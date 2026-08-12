@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -111,5 +114,58 @@ describe('VFS tree', () => {
 
   it('is JSON-serializable, which is what lets it cross to the client', () => {
     expect(() => JSON.parse(JSON.stringify(tree))).not.toThrow()
+  })
+})
+
+describe('content directory layout', () => {
+  const CONTENT_DIR = path.join(process.cwd(), 'content')
+  /** Loose files, not a collection of entries. */
+  const NOT_A_COLLECTION = new Set(['home'])
+
+  /**
+   * The failure this guards against is silent: a directory under content/ that
+   * is not a declared collection gets read by nothing, so its entries appear in
+   * neither the VFS nor the web routes. Creating `content/talks/` and
+   * forgetting to declare it would just quietly do nothing.
+   */
+  it('has no directory that is not a declared collection', () => {
+    const directories = fs
+      .readdirSync(CONTENT_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => !NOT_A_COLLECTION.has(name))
+
+    expect(directories.sort()).toEqual([...COLLECTIONS].sort())
+  })
+
+  /** The other half: a declared collection with no directory reads as empty. */
+  it('has a directory for every declared collection', () => {
+    for (const collection of COLLECTIONS) {
+      expect(
+        fs.existsSync(path.join(CONTENT_DIR, collection)),
+        `content/${collection}/ is declared but does not exist`
+      ).toBe(true)
+    }
+  })
+
+  it('gives every entry directory an index.mdx', () => {
+    for (const collection of COLLECTIONS) {
+      const dir = path.join(CONTENT_DIR, collection)
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue
+        expect(
+          fs.existsSync(path.join(dir, entry.name, 'index.mdx')),
+          `content/${collection}/${entry.name}/ has no index.mdx`
+        ).toBe(true)
+      }
+    }
+  })
+
+  // A slug becomes a directory name, a URL, and a VFS path. Restricting the
+  // character set keeps all three legible and avoids escaping anywhere.
+  it('uses lowercase kebab-case slugs', () => {
+    for (const entry of allEntries()) {
+      expect(entry.slug, `${entry.collection}/${entry.slug}`).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+    }
   })
 })
