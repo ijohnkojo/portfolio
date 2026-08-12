@@ -18,7 +18,7 @@ import { Terminal } from '@xterm/xterm'
 
 import '@xterm/xterm/css/xterm.css'
 
-import { SCHEMA_VERSION, createLocalStorageAdapter } from '@/kernel'
+import { SCHEMA_VERSION } from '@/kernel'
 import { findHandlerFor, type AppProps } from '@/registry'
 import { HISTORY_PATH, parseHistory, serializeHistory } from './history'
 import { complete } from './completion'
@@ -57,12 +57,6 @@ const RESET = '\x1b[0m'
 /** Minimal prompt: the path, then `$`. No invented user@host. */
 function promptFor(cwd: string): string {
   return `${CYAN}${cwd}${RESET} $ `
-}
-
-/** `reset` discards the saved session. Reload is the simplest clean boot. */
-async function onReset() {
-  await createLocalStorageAdapter().clear()
-  window.location.reload()
 }
 
 export default function TerminalApp({ pid, kernel }: AppProps) {
@@ -150,7 +144,10 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
       }
 
       if (result.reset) {
-        onReset()
+        // The shell owns the adapter and the autosave, so it has to be the one
+        // to clear and reload — otherwise the autosave's pagehide flush writes
+        // the session straight back after the clear (D-023's pattern again).
+        kernel.events.emit('os:reset', {})
         return
       }
 

@@ -52,6 +52,9 @@ export interface KernelAPI {
     list: (path: string) => VFSNode[]
     /** Node metadata without reading contents — for mime, src, app targets. */
     stat: (path: string) => VFSNode | null
+    mkdir: (path: string, recursive?: boolean) => void
+    /** Refuses published content; reverts an edit to it. See kernel/vfs.ts. */
+    unlink: (path: string) => void
   }
   proc: {
     /** `title` labels this instance; it defaults to the appId. */
@@ -104,6 +107,16 @@ export function createKernelAPI(app: AppIdentity): KernelAPI {
       stat: (path) => {
         assertPermission(app, 'fs.read')
         return vfsStore.getState().read(path)
+      },
+      mkdir: (path, recursive) => {
+        assertPermission(app, 'fs.write')
+        vfsStore.getState().mkdir(path, recursive)
+        events.emit('fs:changed', { path, appId: app.id })
+      },
+      unlink: (path) => {
+        assertPermission(app, 'fs.write')
+        vfsStore.getState().unlink(path)
+        events.emit('fs:changed', { path, appId: app.id })
       },
     },
 

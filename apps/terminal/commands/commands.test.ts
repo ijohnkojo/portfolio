@@ -352,3 +352,134 @@ describe('man', () => {
     expect(run('help').output.join('\n')).toContain('man <command>')
   })
 })
+
+describe('writing to the filesystem', () => {
+  // `seed()` uses setState, so baseRoot is untouched — mount() to make the
+  // fixture genuinely "published" for the read-only rules below.
+  beforeEach(() => {
+    vfsStore.getState().mount(vfsStore.getState().root)
+  })
+
+  describe('mkdir', () => {
+    it('creates a directory', () => {
+      run('mkdir /home/notes')
+      expect(ctx.kernel.fs.stat('/home/notes')).toMatchObject({ type: 'dir' })
+    })
+
+    it('needs -p for a missing parent, and succeeds with it', () => {
+      expect(run('mkdir /home/a/b').output[0]).toContain('No such file or directory')
+      run('mkdir -p /home/a/b')
+      expect(ctx.kernel.fs.stat('/home/a/b')).toMatchObject({ type: 'dir' })
+    })
+
+    it('errors on an existing path unless -p', () => {
+      expect(run('mkdir /home').output[0]).toBe('mkdir: /home: File exists')
+      expect(run('mkdir -p /home').output).toEqual([])
+    })
+
+    it('needs an operand', () => {
+      expect(run('mkdir').output[0]).toBe('mkdir: missing operand')
+    })
+  })
+
+  describe('touch', () => {
+    it('creates an empty file', () => {
+      run('touch /home/scratch.md')
+      expect(ctx.kernel.fs.read('/home/scratch.md')).toBe('')
+    })
+
+    it('leaves an existing file exactly as it was', () => {
+      const before = ctx.kernel.fs.read('/home/about.md')
+      run('touch /home/about.md')
+      expect(ctx.kernel.fs.read('/home/about.md')).toBe(before)
+    })
+
+    it('refuses a directory', () => {
+      expect(run('touch /home').output[0]).toBe('touch: /home: Not a file')
+    })
+  })
+
+  describe('rm', () => {
+    it('removes something created in the shell', () => {
+      run('touch /home/scratch.md')
+      expect(run('rm /home/scratch.md').output).toEqual([])
+      expect(ctx.kernel.fs.stat('/home/scratch.md')).toBeNull()
+    })
+
+    // The rule that makes tombstones unnecessary.
+    it('refuses published content, in words a reader can act on', () => {
+      const out = run('rm /home/about.md').output[0]
+      expect(out).toBe('rm: /home/about.md: read-only, part of the published content')
+      expect(ctx.kernel.fs.stat('/home/about.md')).not.toBeNull()
+    })
+
+    it('reverts an edited published file rather than deleting it', () => {
+      const published = ctx.kernel.fs.read('/home/about.md')
+      ctx.kernel.fs.write('/home/about.md', 'my edit')
+
+      const out = run('rm /home/about.md').output[0]
+
+      expect(out).toContain('reverted to the published version')
+      expect(ctx.kernel.fs.read('/home/about.md')).toBe(published)
+    })
+
+    it('needs -r for a directory', () => {
+      run('mkdir /home/notes')
+      expect(run('rm /home/notes').output[0]).toContain('Is a directory — use -r')
+      expect(run('rm -r /home/notes').output).toEqual([])
+      expect(ctx.kernel.fs.stat('/home/notes')).toBeNull()
+    })
+
+    it('takes everything beneath a directory with it', () => {
+      run('mkdir -p /home/notes/deep')
+      run('touch /home/notes/deep/a.md')
+      run('rm -r /home/notes')
+      expect(ctx.kernel.fs.stat('/home/notes/deep/a.md')).toBeNull()
+    })
+
+    it('errors on a missing path and with no operand', () => {
+      expect(run('rm /nope').output[0]).toBe('rm: /nope: No such file or directory')
+      expect(run('rm').output[0]).toBe('rm: missing operand')
+    })
+  })
+
+  describe('cp / mv', () => {
+    it('copies a file', () => {
+      run('cp /home/about.md /home/copy.md')
+      expect(ctx.kernel.fs.read('/home/copy.md')).toBe(ctx.kernel.fs.read('/home/about.md'))
+    })
+
+    it('copies into a directory, keeping the filename', () => {
+      run('mkdir /home/notes')
+      run('cp /home/about.md /home/notes')
+      expect(ctx.kernel.fs.stat('/home/notes/about.md')).not.toBeNull()
+    })
+
+    // A copy of published content is yours, and only the copy can be removed.
+    it('lets you copy published content, and remove the copy', () => {
+      run('cp /home/about.md /home/mine.md')
+      expect(run('rm /home/mine.md').output).toEqual([])
+      expect(ctx.kernel.fs.stat('/home/mine.md')).toBeNull()
+    })
+
+    it('moves a file it created', () => {
+      run('touch /home/a.md')
+      run('mv /home/a.md /home/b.md')
+      expect(ctx.kernel.fs.stat('/home/a.md')).toBeNull()
+      expect(ctx.kernel.fs.stat('/home/b.md')).not.toBeNull()
+    })
+
+    it('refuses to move published content, and points at cp', () => {
+      const out = run('mv /home/about.md /home/moved.md').output[0]
+      expect(out).toContain('read-only')
+      expect(out).toContain('use cp')
+      expect(ctx.kernel.fs.stat('/home/about.md')).not.toBeNull()
+      expect(ctx.kernel.fs.stat('/home/moved.md')).toBeNull()
+    })
+
+    it('errors without both operands', () => {
+      expect(run('cp /home/about.md').output[0]).toBe('cp: missing operand')
+      expect(run('mv').output[0]).toBe('mv: missing operand')
+    })
+  })
+})

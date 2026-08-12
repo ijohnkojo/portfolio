@@ -52,6 +52,7 @@ function ensureMounted(tree: DirNode) {
 
 let booted = false
 let tileModeIndex = -1
+let stopAutosave: (() => void) | undefined
 
 export function OsShell({ tree }: { tree: DirNode }) {
   ensureMounted(tree)
@@ -59,8 +60,6 @@ export function OsShell({ tree }: { tree: DirNode }) {
   useEffect(() => {
     if (booted) return
     booted = true
-
-    let stopAutosave: (() => void) | undefined
 
     void (async () => {
       const saved = await adapter.load()
@@ -85,6 +84,21 @@ export function OsShell({ tree }: { tree: DirNode }) {
 
     return () => stopAutosave?.()
   }, [])
+
+  // `reset` has to be handled here rather than in the terminal: the autosave
+  // flushes on pagehide, so clearing storage and then reloading from anywhere
+  // else would write the session straight back on the way out.
+  useEffect(
+    () =>
+      systemAPI.events.on('os:reset', () => {
+        stopAutosave?.()
+        stopAutosave = undefined
+        void createLocalStorageAdapter()
+          .clear()
+          .then(() => window.location.reload())
+      }),
+    []
+  )
 
   // Apps ask for a layout on the bus; the window manager decides (D-023).
   // This is the second real use of the event bus, and the one design doc §2

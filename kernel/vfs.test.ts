@@ -85,7 +85,7 @@ describe('resolve', () => {
 
 describe('store', () => {
   beforeEach(() => {
-    vfsStore.setState({ root: tree(), overlay: {} })
+    vfsStore.getState().mount(tree())
   })
 
   it('lists directory children and nothing for a file', () => {
@@ -126,13 +126,139 @@ describe('store', () => {
     expect(vfsStore.getState().root).not.toBe(before)
   })
 
-  it('replays an overlay and skips entries whose parent is gone', () => {
+  /**
+   * Parents are recreated on replay rather than the entry being dropped. That
+   * is what lets a directory created in the shell survive a reload — it leaves
+   * no overlay entry of its own, so it has to be implied by the files in it.
+   * It also means a write outlives the deletion of its parent, which is data
+   * preservation over tidiness.
+   */
+  it('replays an overlay, recreating any missing parents', () => {
     vfsStore.getState().applyOverlay({
       '/notes.md': 'restored',
-      '/deleted-dir/file.md': 'orphan',
+      '/made-in-the-shell/file.md': 'kept',
+      '/deep/a/b/c.md': 'nested',
     })
 
     expect(vfsStore.getState().read('/notes.md')).toMatchObject({ content: 'restored' })
-    expect(vfsStore.getState().read('/deleted-dir/file.md')).toBeNull()
+    expect(vfsStore.getState().read('/made-in-the-shell/file.md')).toMatchObject({ content: 'kept' })
+    expect(vfsStore.getState().read('/made-in-the-shell')).toMatchObject({ type: 'dir' })
+    expect(vfsStore.getState().read('/deep/a/b/c.md')).toMatchObject({ content: 'nested' })
+  })
+
+  it('drops an overlay entry whose path collides with a file', () => {
+    vfsStore.getState().applyOverlay({ '/notes.md/impossible.md': 'nope' })
+    expect(vfsStore.getState().read('/notes.md')).toMatchObject({ type: 'file' })
+  })
+})
+
+describe('mkdir', () => {
+  beforeEach(() => vfsStore.getState().mount(tree()))
+
+  it('creates a directory', () => {
+    vfsStore.getState().mkdir('/fresh')
+    expect(vfsStore.getState().read('/fresh')).toMatchObject({ type: 'dir', name: 'fresh' })
+  })
+
+  it('refuses a missing parent without recursive', () => {
+    expect(() => vfsStore.getState().mkdir('/a/b/c')).toThrow(/ENOTDIR/)
+  })
+
+  it('creates every level when recursive', () => {
+    vfsStore.getState().mkdir('/a/b/c', true)
+    expect(vfsStore.getState().read('/a')).toMatchObject({ type: 'dir' })
+    expect(vfsStore.getState().read('/a/b/c')).toMatchObject({ type: 'dir', name: 'c' })
+  })
+
+  it('leaves an existing directory alone', () => {
+    const before = vfsStore.getState().read('/projects')
+    vfsStore.getState().mkdir('/projects', true)
+    expect(vfsStore.getState().read('/projects')).toBe(before)
+  })
+
+  it('refuses to turn a file into a directory', () => {
+    expect(() => vfsStore.getState().mkdir('/notes.md')).toThrow(/ENOTDIR/)
+  })
+})
+
+describe('unlink', () => {
+  beforeEach(() => vfsStore.getState().mount(tree()))
+
+  it('removes a file created in the overlay, and its overlay entry', () => {
+    vfsStore.getState().write('/scratch.md', 'mine')
+    expect(vfsStore.getState().overlay['/scratch.md']).toBe('mine')
+
+    vfsStore.getState().unlink('/scratch.md')
+
+    expect(vfsStore.getState().read('/scratch.md')).toBeNull()
+    expect(vfsStore.getState().overlay['/scratch.md']).toBeUndefined()
+  })
+
+  // The rule that makes tombstones unnecessary: you can only remove what you added.
+  it('refuses published content', () => {
+    expect(() => vfsStore.getState().unlink('/notes.md')).toThrow(/EROFS/)
+    expect(vfsStore.getState().read('/notes.md')).toMatchObject({ content: 'hello' })
+  })
+
+  // Removing an edit is an undo, which is more useful than refusing outright.
+  it('reverts an edited published file instead of deleting it', () => {
+    vfsStore.getState().write('/notes.md', 'edited')
+    expect(vfsStore.getState().read('/notes.md')).toMatchObject({ content: 'edited' })
+
+    vfsStore.getState().unlink('/notes.md')
+
+    expect(vfsStore.getState().read('/notes.md')).toMatchObject({ content: 'hello' })
+    expect(vfsStore.getState().overlay['/notes.md']).toBeUndefined()
+  })
+
+  it('removes a directory it created, with everything beneath it', () => {
+    vfsStore.getState().mkdir('/notes/deep', true)
+    vfsStore.getState().write('/notes/a.md', 'a')
+    vfsStore.getState().write('/notes/deep/b.md', 'b')
+
+    vfsStore.getState().unlink('/notes')
+
+    expect(vfsStore.getState().read('/notes')).toBeNull()
+    expect(Object.keys(vfsStore.getState().overlay)).toEqual([])
+  })
+
+  it('refuses a published directory, so nothing beneath it can be lost', () => {
+    expect(() => vfsStore.getState().unlink('/projects')).toThrow(/EROFS/)
+  })
+
+  it('refuses the root and a missing path', () => {
+    expect(() => vfsStore.getState().unlink('/')).toThrow(/EBUSY/)
+    expect(() => vfsStore.getState().unlink('/nope')).toThrow(/ENOENT/)
+  })
+
+  it('leaves sibling subtrees referentially identical', () => {
+    vfsStore.getState().write('/scratch.md', 'mine')
+    const projects = vfsStore.getState().read('/projects')
+
+    vfsStore.getState().unlink('/scratch.md')
+
+    expect(vfsStore.getState().read('/projects')).toBe(projects)
+  })
+
+  it('survives a persistence round trip: deleted stays deleted', () => {
+    vfsStore.getState().write('/scratch.md', 'mine')
+    vfsStore.getState().unlink('/scratch.md')
+
+    const saved = { ...vfsStore.getState().overlay }
+    vfsStore.getState().mount(tree())
+    vfsStore.getState().applyOverlay(saved)
+
+    expect(vfsStore.getState().read('/scratch.md')).toBeNull()
+  })
+
+  it('survives a persistence round trip: created stays created', () => {
+    vfsStore.getState().mkdir('/notes', true)
+    vfsStore.getState().write('/notes/a.md', 'kept')
+
+    const saved = { ...vfsStore.getState().overlay }
+    vfsStore.getState().mount(tree())
+    vfsStore.getState().applyOverlay(saved)
+
+    expect(vfsStore.getState().read('/notes/a.md')).toMatchObject({ content: 'kept' })
   })
 })

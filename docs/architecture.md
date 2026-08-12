@@ -131,7 +131,16 @@ Two behaviours worth knowing:
   *through* a file — `/notes.md/child` is not a path.
 
 Writes copy only the spine of the tree (`setNode`), so untouched subtrees keep
-their object identity. That is what makes selector-scoping possible at all.
+their object identity. That is what makes selector-scoping possible at all — and
+it is also why `baseRoot` is nearly free: the tree as mounted stays intact
+rather than needing a copy.
+
+**The filesystem is writable**, with one rule: you can only remove what you
+added ([D-027](decisions.md)). `unlink` deletes an overlay-created node, reverts
+an *edited* published node to its published version, and refuses an untouched
+one. That is what makes deletion survive a reload without tombstones — the base
+tree is rebuilt from `content/` every load, so a file that only ever lived in
+the overlay simply never returns.
 
 ### `kernel/process.ts`
 
@@ -581,10 +590,10 @@ than merely claimed.
 
 ## 9. Known gaps
 
-- **The filesystem cannot delete.** No `unlink`, so no `rm` or `mv`. Originally
-  scoped as needing tombstones and a schema bump; re-scoped on review to a
-  kernel `unlink` that only removes overlay-created files, leaving published
-  content read-only ([D-025](decisions.md)).
+- **An empty directory does not survive a reload.** Directories are implied by
+  the files inside them, since a `mkdir` leaves no overlay entry of its own
+  ([D-027](decisions.md)). Files always survive; a directory you created and
+  left empty does not.
 - **The viewer and the routes render markdown differently.** Routes compile MDX;
   the viewer uses `react-markdown` ([D-016](decisions.md)). A writeup that embeds
   a React component renders it on the route and shows raw JSX in the viewer. No

@@ -594,3 +594,50 @@ viewer suite uses `/home/readme.md`, which no rename can move.
   what the About app shows.
 - Nothing is published, so five `verify-content` checks are skipped until the
   first entry flips to `draft: false`.
+
+---
+
+## 2026-08-12 — A writable filesystem
+
+Plan: [plans/2026-08-12-writable-filesystem.md](plans/2026-08-12-writable-filesystem.md)
+
+Scoped as *make the filesystem writable*, not "add mkdir" — `mkdir` alone is a
+demo, and create-plus-delete-plus-move is what unblocks an editor app.
+
+### Built
+
+- **`unlink`** with three behaviours ([D-027](decisions.md)): removes what you
+  created, **reverts** an edited published file rather than deleting it, and
+  refuses an untouched one. That last rule is why this needed no tombstones and
+  no schema bump — the base tree is rebuilt from `content/` on every load, so a
+  file that only ever lived in the overlay never comes back.
+- **`baseRoot`**, the tree as mounted, which is what lets the store answer "is
+  this published?" Nearly free, because writes copy only the spine.
+- **`applyOverlay` creates missing parents** on replay. A `mkdir` leaves no
+  overlay entry of its own, so a shell-created directory has to be implied by
+  the files inside it.
+- **Five commands**: `mkdir [-p]`, `touch`, `rm [-r]`, `cp`, `mv`. Twenty-nine
+  in total now.
+
+### Two things the plan missed
+
+**`mount()` had to start clearing the overlay.** Accumulated writes belong to
+the tree they were made against; leaving them meant a "published" file could
+look edited purely because an earlier test had written to it.
+
+**`reset` was broken, and had been since D-019.** It cleared storage and
+reloaded from inside the terminal — but the autosave flushes on `pagehide`, so
+the reload wrote the session straight back after the clear. `reset` silently did
+nothing whenever a save was pending, which is most of the time. Now the shell
+performs it ([D-028](decisions.md)), stopping the autosave first. Same shape as
+D-023: the app announces intent, the component with the right context acts.
+
+Found by `verify-phase2` reporting three windows where it expected one — not by
+reasoning about it.
+
+### Verified
+
+**357 unit tests**, including the three `unlink` behaviours and two persistence
+round trips (created stays created, deleted stays deleted). `verify-phase2`
+**29/29** with the round trip driven through a real reload; terminal 33/33,
+content 7/7, viewer 8/8, WM 20/20.

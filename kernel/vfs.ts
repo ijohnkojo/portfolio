@@ -140,12 +140,34 @@ function setNode(
   }
 }
 
+/** Immutably drop the node at `segments`, copying only the spine. */
+function removeNode(parent: DirNode, segments: string[]): DirNode {
+  const [head, ...rest] = segments
+  const existing: VFSNode | undefined = parent.children[head]
+  if (!existing) return parent
+
+  if (rest.length === 0) {
+    const children = { ...parent.children }
+    delete children[head]
+    return { ...parent, children }
+  }
+
+  if (existing.type !== 'dir') return parent
+  return { ...parent, children: { ...parent.children, [head]: removeNode(existing, rest) } }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Store                                                                      */
 /* -------------------------------------------------------------------------- */
 
 export interface VFSState {
   root: DirNode
+  /**
+   * The tree exactly as mounted, before any write. Lets the store answer "is
+   * this published content?" — nearly free, because writes copy only the spine,
+   * so this object stays intact rather than being a second copy.
+   */
+  baseRoot: DirNode
   /**
    * Accumulated writes, keyed by absolute path. The base tree ships with the
    * build and is treated as read-only; only this overlay is persisted, so
@@ -155,7 +177,15 @@ export interface VFSState {
   read: (path: string) => VFSNode | null
   list: (path: string) => VFSNode[]
   write: (path: string, content: string) => void
-  mkdir: (path: string) => void
+  /** `recursive` creates missing parents, as `mkdir -p` does. */
+  mkdir: (path: string, recursive?: boolean) => void
+  /**
+   * Remove a node. Three behaviours, and the distinction is the whole design:
+   * an overlay-created node is deleted; a published node that has been edited
+   * *reverts* to the published version; an untouched published node is refused.
+   * You can only remove what you added — D-003 extended.
+   */
+  unlink: (path: string) => void
   /** Place an arbitrary node. Unlike `write`, this can create dirs and app nodes. */
   mknod: (path: string, node: VFSNode) => void
   mount: (root: DirNode) => void
@@ -164,6 +194,7 @@ export interface VFSState {
 
 export const vfsStore = createStore<VFSState>()((set, get) => ({
   root: dir('/'),
+  baseRoot: dir('/'),
   overlay: {},
 
   read: (path) => resolve(get().root, path),
@@ -192,20 +223,60 @@ export const vfsStore = createStore<VFSState>()((set, get) => ({
     }))
   },
 
-  mkdir: (path) => {
+  mkdir: (path, recursive = false) => {
     const n = normalize(path)
     const segments = n.split('/').filter(Boolean)
     if (segments.length === 0) return
 
-    set((state) => ({
-      root: setNode(state.root, segments, (existing) => {
-        if (existing) {
-          if (existing.type !== 'dir') throw new Error(`ENOTDIR: '${n}' exists and is not a directory`)
-          return existing
-        }
-        return dir(basename(n))
-      }),
-    }))
+    // Build each level in turn so a missing parent is created rather than
+    // throwing — which is what `applyOverlay` needs to replay a write into a
+    // directory the shell created.
+    const levels = recursive
+      ? segments.map((_, i) => segments.slice(0, i + 1))
+      : [segments]
+
+    for (const level of levels) {
+      set((state) => ({
+        root: setNode(state.root, level, (existing) => {
+          if (existing) {
+            if (existing.type !== 'dir') {
+              throw new Error(`ENOTDIR: '/${level.join('/')}' exists and is not a directory`)
+            }
+            return existing
+          }
+          return dir(level[level.length - 1])
+        }),
+      }))
+    }
+  },
+
+  unlink: (path) => {
+    const n = normalize(path)
+    const segments = n.split('/').filter(Boolean)
+    if (segments.length === 0) throw new Error('EBUSY: cannot remove /')
+
+    const state = get()
+    if (!resolve(state.root, n)) throw new Error(`ENOENT: '${n}' does not exist`)
+
+    const published = resolve(state.baseRoot, n)
+    if (published) {
+      // Published content is read-only. Removing an *edit* to it is an undo,
+      // which is more useful than refusing outright.
+      if (state.overlay[n] === undefined) {
+        throw new Error(`EROFS: '${n}' is published content`)
+      }
+      const overlay = { ...state.overlay }
+      delete overlay[n]
+      set({ root: setNode(state.root, segments, () => published), overlay })
+      return
+    }
+
+    // Not in the base tree, so nothing beneath it can be published either.
+    const prefix = `${n}/`
+    const overlay = Object.fromEntries(
+      Object.entries(state.overlay).filter(([p]) => p !== n && !p.startsWith(prefix))
+    )
+    set({ root: removeNode(state.root, segments), overlay })
   },
 
   mknod: (path, node) => {
@@ -216,7 +287,9 @@ export const vfsStore = createStore<VFSState>()((set, get) => ({
     set((state) => ({ root: setNode(state.root, segments, () => node) }))
   },
 
-  mount: (root) => set({ root }),
+  // Mounting a base tree starts clean: accumulated writes belong to the tree
+  // they were made against, and are replayed explicitly via `applyOverlay`.
+  mount: (root) => set({ root, baseRoot: root, overlay: {} }),
 
   /**
    * Replay persisted writes onto the base tree. Paths whose parent directory
@@ -226,9 +299,15 @@ export const vfsStore = createStore<VFSState>()((set, get) => ({
   applyOverlay: (overlay) => {
     for (const [path, content] of Object.entries(overlay)) {
       try {
+        // Parents on demand: a directory created in the shell leaves no overlay
+        // entry of its own, so it has to be implied by the files inside it.
+        // This also preserves a write whose parent has since been deleted,
+        // where the previous version dropped it silently.
+        const parent = dirname(path)
+        if (parent !== '/' && parent !== '.') get().mkdir(parent, true)
         get().write(path, content)
       } catch {
-        // Stale overlay entry; drop it.
+        // Unsalvageable entry — e.g. the path now collides with a file.
       }
     }
   },

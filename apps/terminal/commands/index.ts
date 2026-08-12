@@ -12,6 +12,7 @@
 import * as fs from './fs'
 import * as proc from './proc'
 import * as system from './system'
+import * as write from './write'
 import type { Command } from './types'
 
 // `help` and `man` read the finished table, so they are built with a getter
@@ -29,6 +30,12 @@ const table: Command[] = [
   fs.head,
   fs.tail,
   fs.wc,
+  // writing
+  write.mkdir,
+  write.touch,
+  write.rm,
+  write.cp,
+  write.mv,
   // search
   fs.find,
   fs.grep,

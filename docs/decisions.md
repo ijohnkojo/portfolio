@@ -604,8 +604,10 @@ you cannot delete what shipped with the build.** `rm` on published content fails
 with `read-only: part of the published content`, which is true and useful.
 
 That leaves a kernel `unlink` primitive as the only real work — tens of lines
-rather than a migration. Re-scoped, not yet built. See
-[review.md](review.md).
+rather than a migration.
+
+**Resolved by [D-027](#d-027--2026-08-12--active)**, built as re-scoped. `rm`,
+`mkdir`, `touch`, `cp`, and `mv` all exist; no tombstones, no schema bump.
 
 ---
 
@@ -643,3 +645,68 @@ genuinely different artifacts — but it is more upkeep.
 Optional `venue` and `location` frontmatter were added for this collection. They
 cost nothing, since only `title`/`summary`/`date` are required and `stat`
 surfaces every metadata field automatically.
+
+---
+
+## D-027 · 2026-08-12 · active
+### `unlink` has three behaviours, and that is what removes the need for tombstones
+
+`vfsStore.unlink(path)`:
+
+| Target | Result |
+|---|---|
+| overlay-created | removed, along with every overlay entry beneath it |
+| published, but edited | **reverts to the published version** — an undo, not a delete |
+| published, untouched | `EROFS: … is published content` |
+
+**Why.** [D-025](#d-025--2026-08-12--active) originally scoped deletion as
+needing tombstones in `PersistedState` and a schema bump. That is only true if
+you can delete *published* content. Restrict deletion to what the user created
+and it collapses to removing the overlay entry, because the base tree is rebuilt
+from `/content` on every load — a file that only ever lived in the overlay never
+comes back.
+
+The rule is [D-003](#d-003--2026-08-12--active) extended: **you can only remove
+what you added.** The middle row matters as much as the others — refusing to
+remove an edit would be correct but useless, whereas reverting it is an undo
+people actually want.
+
+Implemented with `baseRoot`, the tree as mounted, kept by `mount()`. Nearly
+free: writes copy only the spine, so the original base root object is still
+intact rather than being a second copy. A directory absent from `baseRoot`
+cannot contain published content, so checking the directory alone is sufficient
+for `rm -r`.
+
+**`applyOverlay` now creates missing parents on replay.** A directory created in
+the shell leaves no overlay entry of its own, so it has to be implied by the
+files inside it. Two consequences, both accepted:
+
+- an **empty** directory does not survive a reload
+- a write whose parent was deleted is now **preserved** by recreating the path,
+  where it used to be silently dropped — data preservation over tidiness, and a
+  deliberate reversal of the previous behaviour
+
+**Cost.** `mount()` now clears the overlay, since accumulated writes belong to
+the tree they were made against. Anything that mounted expecting writes to
+survive would break; nothing did.
+
+---
+
+## D-028 · 2026-08-12 · active
+### `reset` is performed by the shell, not the app that asked for it
+
+`reset` emits `os:reset`; `OsShell` stops the autosave, clears storage, and
+reloads.
+
+**Why — this was a live bug, not a preference.** `reset` used to clear storage
+and reload from inside the terminal. But the autosave flushes on `pagehide`
+([D-019](#d-019--2026-08-12--active)), so the reload immediately wrote the
+session straight back after the clear. `reset` silently did nothing whenever a
+save happened to be pending, which is most of the time.
+
+Only the shell holds the autosave handle, so only the shell can stop it first.
+This is [D-023](#d-023--2026-08-12--active) again: the app announces intent, the
+component with the right context performs it.
+
+Found by `verify-phase2`, not by reasoning — the check that reset boots to a
+single window started reporting three.

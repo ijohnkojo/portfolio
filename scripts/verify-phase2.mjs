@@ -337,6 +337,51 @@ check(
   'each offset from the last'
 )
 
+/* ------------------------------------- a writable filesystem, across reloads */
+
+await focusTerminal()
+await run('mkdir -p /home/notes')
+await run('echo scratch')
+await run('touch /home/notes/kept.md')
+await run('cp /home/readme.md /home/notes/copy.md')
+
+let out = await (async () => {
+  await run('ls /home/notes')
+  return screen()
+})()
+check(
+  'files created in the shell exist',
+  out.includes('kept.md') && out.includes('copy.md'),
+  'mkdir + touch + cp'
+)
+
+// Published content is read-only — the rule that makes tombstones unnecessary.
+out = await (async () => {
+  await run('rm /home/readme.md')
+  return screen()
+})()
+check('rm refuses published content', out.includes('read-only'), 'refused with a reason')
+
+// Editing published content and removing the edit is an undo, not a delete.
+await run('cp /home/notes/copy.md /home/notes/tmp.md')
+await run('rm /home/notes/tmp.md')
+
+await page.waitForTimeout(800) // let the debounced save settle
+await page.reload({ waitUntil: 'networkidle' })
+await page.waitForTimeout(1400)
+await focusTerminal()
+
+out = await (async () => {
+  await run('ls /home/notes')
+  return screen()
+})()
+check(
+  'a shell-created directory and its files survive a reload',
+  out.includes('kept.md') && out.includes('copy.md'),
+  'the directory is implied by the files in it'
+)
+check('a file removed before the reload stays removed', !out.includes('tmp.md'))
+
 /* ------------------------------------------------------------- 2. reset */
 
 await focusTerminal()

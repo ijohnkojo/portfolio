@@ -35,6 +35,19 @@ Type `help` for the list, `man <command>` for detail. Twenty-four commands.
 | `find [pattern] [path]` | match names anywhere beneath a directory |
 | `tags [tag]` | every tag with a count, or the entries carrying one |
 
+**Writing** — you can only remove what you created
+
+| Command | Does |
+|---|---|
+| `mkdir [-p] <path…>` | create a directory |
+| `touch <path…>` | create an empty file; existing files are untouched |
+| `rm [-r] <path…>` | remove; **refuses published content**, reverts an edit to it |
+| `cp <src> <dst>` | copy; a copy of published content is yours |
+| `mv <src> <dst>` | move, which is copy + remove — so published files can't move |
+
+Try `mkdir /home/notes`, `touch /home/notes/a.md`, reload — it's still there.
+Then `rm /home/readme.md` and see it refused.
+
 **Processes and windows**
 
 | Command | Does |
@@ -115,7 +128,7 @@ No piping or redirection, deliberately (design doc §2).
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 317 unit tests — kernel, content, shell, editor, render, completion, tiling |
+| `pnpm test` | 357 unit tests — kernel, content, shell, editor, render, completion, tiling |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |

@@ -27,6 +27,11 @@ So an in-OS editor would be a legitimate thing to build — for notes and as a
 demonstration that the filesystem is genuinely real — but it is not the path for
 a writeup that needs a URL.
 
+The shell can now create, copy, move, and delete — but only within the overlay.
+Published content is read-only there ([D-027](decisions.md)): `rm` on a writeup
+is refused, and `rm` on one you have *edited* reverts it rather than deleting
+it. Nothing you do in the OS can change what is in `content/`.
+
 ---
 
 ## Adding an entry
