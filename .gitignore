@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# verification artifacts
+scripts/*.png
+
+# local agent permission state
+.claude/settings.local.json

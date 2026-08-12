@@ -1,0 +1,74 @@
+'use client'
+
+/**
+ * Taskbar: a launcher for registered apps, and one button per running process.
+ *
+ * Each running entry is its own component subscribed to its own process, for
+ * the same reason windows are — so dragging window 1 doesn't re-render the
+ * taskbar entry for window 2.
+ */
+import { systemAPI } from '@/kernel'
+import { useIsFocused, usePids, useProcess } from '@/hooks/kernel'
+import { listApps } from '@/registry'
+
+export function Taskbar() {
+  const pids = usePids()
+  const apps = listApps()
+
+  return (
+    <div className="flex h-10 shrink-0 items-center gap-1 border-t border-neutral-800 bg-neutral-900 px-2">
+      <span className="px-2 font-mono text-xs tracking-wide text-neutral-500 select-none">
+        personal-os
+      </span>
+
+      <div className="mx-1 h-5 w-px bg-neutral-800" />
+
+      {apps.map((app) => (
+        <button
+          key={app.id}
+          type="button"
+          onClick={() => systemAPI.proc.spawn(app.id, [], app.name)}
+          className="rounded px-2 py-1 font-mono text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+        >
+          {app.name}
+        </button>
+      ))}
+
+      <div className="mx-1 h-5 w-px bg-neutral-800" />
+
+      <div className="flex flex-1 items-center gap-1 overflow-x-auto">
+        {pids.map((pid) => (
+          <TaskbarItem key={pid} pid={pid} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TaskbarItem({ pid }: { pid: number }) {
+  const proc = useProcess(pid)
+  const isFocused = useIsFocused(pid)
+  if (!proc) return null
+
+  const minimized = proc.state === 'minimized'
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        // Clicking the focused window's own button tucks it away; clicking any
+        // other one brings it forward (focus() also un-minimizes).
+        if (isFocused && !minimized) systemAPI.window.setState(pid, 'minimized')
+        else systemAPI.proc.focus(pid)
+      }}
+      className={`max-w-40 truncate rounded px-2 py-1 font-mono text-xs ${
+        isFocused && !minimized
+          ? 'bg-neutral-700 text-neutral-100'
+          : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
+      } ${minimized ? 'opacity-50' : ''}`}
+    >
+      {proc.title}
+      <span className="ml-1.5 opacity-40">{pid}</span>
+    </button>
+  )
+}
