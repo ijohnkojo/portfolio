@@ -376,3 +376,86 @@ resolves the computed colour through a canvas because Tailwind v4 emits `lab()`.
 
 **Cost.** Two ways to be in dark mode. Anything that later wants an explicit
 light-mode toggle has to reckon with both.
+
+---
+
+## D-019 · 2026-08-12 · active
+### Persistence is wired: the write overlay and the window session, debounced
+
+`startAutosave` subscribes to both stores and saves through the
+`StorageAdapter` on a 400ms debounce. `OsShell` loads before starting it, so
+hydrating doesn't immediately rewrite what it just read.
+
+**What persists:** the write overlay ([D-003](#d-003--2026-08-12--active)) and
+the session — processes, focus, and the pid/z-index counters.
+
+**What does not: app-internal state.** A restored terminal comes back empty at
+`/`. Persisting it needs a `serialize` hook on the app contract, which is a
+Phase 3 shape. Recorded as a gap rather than built.
+
+**Why debounced.** A drag commits geometry on mouse-up, closing several windows
+fires several updates, and each save is a `JSON.stringify` over the whole
+session. But a debounce means in-flight work is lost when the tab closes —
+which is exactly when it most needs saving — so both the autosave and the
+terminal's history writer flush on `pagehide` and on `visibilitychange` to
+hidden. `pagehide` rather than `beforeunload` because it fires in cases
+`beforeunload` does not, notably on mobile.
+
+**Three failure paths, all degrading rather than breaking:** a process whose
+`appId` is no longer registered is dropped on hydrate and the rest of the
+session kept (focus moves to the topmost survivor); a corrupt or newer-schema
+blob already returns null from `migrate` and boots fresh; and a session that is
+somehow unusable is recoverable from inside the OS via **`reset`**, which clears
+storage and reloads. An escape hatch that needs devtools is not an escape hatch.
+
+**Cost.** Restoring windows means a bad session can persist across reloads.
+`reset` is the answer, and it is listed in `help` so it can be found.
+
+---
+
+## D-020 · 2026-08-12 · active
+### Shell history is a file in the VFS, not a separate store
+
+`/home/.history`, read on spawn and appended on commit through `fs.write`.
+
+**Why.** It needs no new storage mechanism: the write overlay already persists,
+so history rides machinery that exists. It is also more honest to the design —
+`cat /home/.history` works, which is what a user of a UNIX-shaped system would
+reach for, and it makes the shell's own state inspectable with the shell's own
+tools.
+
+`ls` now hides dot-prefixed entries unless given `-a`, as it would anywhere
+else; otherwise `.history` would be in the way in `/home` constantly.
+
+**Cost.** The terminal is the first app to hold `fs.write` — it can now modify
+the filesystem, where before nothing could. Writes are batched at 250ms and
+flushed on `pagehide`, because appending on every committed line would churn the
+overlay and the session save behind it.
+
+---
+
+## D-021 · 2026-08-12 · active
+### Snapping computes on drag-stop; the preview is imperative
+
+Zones from the pointer position: left edge → left half, right → right half, top
+→ maximize, with the top winning in the corners. Also
+**Alt+Shift+Arrow** from the keyboard, Down to restore.
+
+**Why imperative.** The preview updates on every mousemove. Rendering it from
+React state would put a commit inside the drag loop — precisely what
+[D-002](#d-002--2026-08-12--active) and `docs/gotchas.md` forbid. So it is one
+overlay element positioned by direct DOM writes, and `verify-phase2` asserts
+**zero commits while the preview is live**, alongside the existing drag check.
+
+**Why Alt+Shift+Arrow.** Super is grabbed by Windows and GNOME, Cmd+Arrow
+navigates in browsers, Ctrl+Alt+Arrow switches workspaces on GNOME. The
+terminal's custom key handler returns false for this chord so it bubbles to the
+WM instead of reaching the line editor.
+
+`preSnap` on `Process` holds the pre-snap geometry, so restore works and
+dragging a snapped window away recovers its old size at the new position.
+Re-snapping keeps the *original* geometry, so left → right → restore lands where
+the window started rather than on the left half.
+
+**Cost.** `Process` gains a field that only the WM understands, and the snap
+zones are fixed halves — no quarters, no custom grid.

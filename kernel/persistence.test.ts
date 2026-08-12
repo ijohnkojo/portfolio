@@ -8,7 +8,7 @@ import {
   snapshot,
   type PersistedState,
 } from './persistence'
-import { processStore } from './process'
+import { processStore, type Process } from './process'
 import { dir, file, vfsStore } from './vfs'
 
 const baseTree = () =>
@@ -96,5 +96,52 @@ describe('snapshot / hydrate', () => {
 
     expect(loaded).not.toBeNull()
     expect(migrate(loaded)).toMatchObject({ overlay: { '/home/about.md': 'edited' } })
+  })
+})
+
+describe('hydrate with an unknown app', () => {
+  const sessionWith = (processes: Record<number, Process>): PersistedState => ({
+    schemaVersion: SCHEMA_VERSION,
+    overlay: {},
+    session: { processes, focusedPid: 2, nextPid: 3, nextZIndex: 3 },
+  })
+
+  const proc = (pid: number, appId: string): Process => ({
+    pid,
+    appId,
+    args: [],
+    title: appId,
+    position: { x: 0, y: 0 },
+    size: { width: 100, height: 100 },
+    zIndex: pid,
+    state: 'normal',
+  })
+
+  it('drops processes whose app is no longer registered, keeping the rest', () => {
+    hydrate(sessionWith({ 1: proc(1, 'terminal'), 2: proc(2, 'removed-app') }), {
+      isKnownApp: (id) => id === 'terminal',
+    })
+
+    const { processes } = processStore.getState()
+    expect(Object.keys(processes)).toEqual(['1'])
+    expect(processes[1].appId).toBe('terminal')
+  })
+
+  // The saved focus pointed at the dropped window, so it has to move.
+  it('re-focuses the topmost survivor when the focused window is dropped', () => {
+    hydrate(sessionWith({ 1: proc(1, 'terminal'), 2: proc(2, 'removed-app') }), {
+      isKnownApp: (id) => id === 'terminal',
+    })
+    expect(processStore.getState().focusedPid).toBe(1)
+  })
+
+  it('leaves focus null when nothing survives', () => {
+    hydrate(sessionWith({ 2: proc(2, 'removed-app') }), { isKnownApp: () => false })
+    expect(processStore.getState().focusedPid).toBeNull()
+  })
+
+  it('restores everything when no validator is supplied', () => {
+    hydrate(sessionWith({ 1: proc(1, 'terminal'), 2: proc(2, 'anything') }))
+    expect(Object.keys(processStore.getState().processes)).toEqual(['1', '2'])
   })
 })

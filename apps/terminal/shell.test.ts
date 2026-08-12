@@ -83,7 +83,7 @@ describe('tokenize', () => {
 
 describe('dispatch', () => {
   it('does nothing for a blank line', () => {
-    expect(run('')).toEqual({ output: [], cwd: '/', clear: false })
+    expect(run('')).toEqual({ output: [], cwd: '/', clear: false, reset: false })
   })
 
   it('reports an unknown command without throwing', () => {
@@ -291,5 +291,50 @@ describe('permissions', () => {
 
     expect(result.output[0]).toMatch(/internal error: EPERM/)
     expect(result.cwd).toBe('/')
+  })
+})
+
+describe('ls -a and dotfiles', () => {
+  it('hides dot-prefixed entries by default', () => {
+    ctx.kernel.fs.write('/home/.history', 'ls\n')
+    expect(run('ls /home').output).toEqual(['about.md'])
+  })
+
+  it('shows them with -a', () => {
+    ctx.kernel.fs.write('/home/.history', 'ls\n')
+    expect(run('ls -a /home').output).toEqual(['.history', 'about.md'])
+  })
+
+  it('accepts the flag before or after the path', () => {
+    ctx.kernel.fs.write('/home/.history', 'ls\n')
+    expect(run('ls /home -a').output).toEqual(['.history', 'about.md'])
+  })
+})
+
+describe('reset', () => {
+  it('asks the host to clear persisted state', () => {
+    const result = run('reset')
+    expect(result.reset).toBe(true)
+    expect(result.output[0]).toMatch(/clearing saved session/)
+  })
+
+  it('is listed in help, so the escape hatch is discoverable', () => {
+    expect(run('help').output.join('\n')).toContain('reset')
+  })
+})
+
+describe('open picks the topmost instance', () => {
+  it('focuses the most recently raised copy, not the lowest pid', () => {
+    // Two sysinfo windows; raise the older one so pid order and z-order differ.
+    const first = processStore.getState().spawn('sysinfo')
+    const second = processStore.getState().spawn('sysinfo')
+    processStore.getState().focus(first)
+
+    expect(processStore.getState().processes[first].zIndex).toBeGreaterThan(
+      processStore.getState().processes[second].zIndex
+    )
+    expect(run('open /apps/sysinfo').output[0]).toBe(
+      `sysinfo: already running as pid ${first}`
+    )
   })
 })

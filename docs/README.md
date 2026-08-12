@@ -39,13 +39,15 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 ## Current state
 
-**Design doc Phase 1 is complete.** Kernel, syscall boundary, registry, window
-manager, content pipeline with crawlable SSG routes, a shell with ten commands,
-and a file/PDF viewer. The OS boots into a terminal.
+**Phase 1 complete; Phase 2 under way.** Kernel, syscall boundary, registry,
+window manager, crawlable SSG content routes, a shell with eleven commands, a
+file/PDF viewer, wired persistence, window snapping, and shell history that
+survives a reload.
 
-Not yet: a game (the one Phase 1 item left), persistence wiring. Content is real
-MDX with real frontmatter; the prose is still placeholder.
+Not yet: a game, tab completion, tiling. Content is real MDX with real
+frontmatter; the prose is being written separately.
 
-Next is a judgement call rather than an obvious step — Phase 2 (persistence,
-snapping, history), the real writeups, or the defects in
-[architecture.md § known gaps](architecture.md).
+Remaining work is in [architecture.md § known gaps](architecture.md) — all
+absences now rather than defects, the nearest being that app-internal state
+isn't persisted and that the viewer and the routes render markdown through
+different engines.

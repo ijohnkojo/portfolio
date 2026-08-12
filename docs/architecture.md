@@ -7,9 +7,8 @@ that file is the design and the intent, this one tracks the implementation and
 is updated whenever the implementation moves. Where they disagree, this file is
 right and the design doc needs a patch.
 
-**Status:** design doc Phase 1 complete — kernel, syscall boundary, registry,
-window manager, content pipeline with crawlable SSG routes, shell, and file
-viewer. No games; persistence shaped but not wired.
+**Status:** Phase 1 complete; Phase 2 under way — persistence is wired, windows
+snap, and shell history survives a reload. No game yet.
 
 ---
 
@@ -191,6 +190,12 @@ Deviations from the doc's §3 sketch, all additive:
 | manifest holds `permissions` | split: kernel sees `AppIdentity { id, permissions }`, registry adds `name/icon/component` | keeps React types out of `kernel/` |
 
 ### `kernel/persistence.ts`
+
+**Wired as of Phase 2** ([D-019](decisions.md)). `startAutosave` subscribes to
+both stores, debounces 400ms, and flushes on `pagehide` — a debounce without
+that loses exactly the work a closing tab most needs saved. `OsShell` loads
+before starting it, and only spawns the default terminal when no session was
+restored.
 
 `SCHEMA_VERSION = 1`, a `migrations` map keyed by the version being migrated
 *from*, and `migrate(raw)` that returns `null` — never throws — for junk, a
@@ -435,9 +440,20 @@ observer is rAF-debounced because a resize gesture fires it continuously, and it
 skips `fit()` at 0×0 — which is exactly what a minimized window is under
 [D-013](decisions.md).
 
+**History is a file**, `/home/.history` ([D-020](decisions.md)) — read on spawn,
+appended on commit through `fs.write`, batched at 250ms and flushed on
+`pagehide`. It rides the write overlay rather than adding a store, and
+`cat /home/.history` works. `ls` hides dotfiles unless given `-a`.
+
+The terminal is therefore the first app holding `fs.write`.
+
+`render.ts` builds the repaint sequence and is pure — walking up over a wrapped
+line, erasing to end of *display*, and placing the cursor absolutely. The
+previous version cleared only the current row, which duplicated the prompt
+whenever an edited line wrapped.
+
 Not implemented, deliberately: piping and redirection (design doc §2 calls them
-a scope-creep magnet), persisted history, and tab completion. History exists but
-only for the session.
+a scope-creep magnet), and tab completion.
 
 ## 8. Apps
 
@@ -488,29 +504,21 @@ than merely claimed.
 
 ## 9. Known gaps
 
-- **Editing a wrapped command line corrupts the display.** `Terminal.tsx`'s
-  `render()` repaints with `\r\x1b[2K`, which returns to the start of the
-  *current* row and clears only that row. A line longer than the terminal width
-  wraps, so the continuation rows survive the repaint and the prompt line is
-  duplicated on screen. Reproduce: narrow the window, type a command past the
-  right edge, press Ctrl+A and type. The buffer itself is correct — this is
-  purely a repaint bug. Fix is to track how many rows the line occupies and
-  clear upward before repainting.
-- **Ctrl+C always cancels the line**, even with a selection, so it can never
-  copy. Needs `attachCustomKeyEventHandler` to defer to the browser when
-  `term.hasSelection()`.
-- **`open` focuses the first running instance** of an app rather than the most
-  recently used one. Only observable once something is spawned twice.
 - **The viewer and the routes render markdown differently.** Routes compile MDX;
   the viewer uses `react-markdown` ([D-016](decisions.md)). A writeup that embeds
   a React component renders it on the route and shows raw JSX in the viewer. No
   writeup does yet. Escape hatch: runtime MDX evaluation in the viewer.
+- **App-internal state is not persisted.** The session restores which windows
+  were open and where, but a restored terminal comes back empty at `/` and a
+  restored viewer re-reads its file. Persisting it needs a `serialize` hook on
+  the app contract ([D-019](decisions.md)).
+- **Snap zones are fixed halves.** No quarters, no custom grid, and no
+  multi-monitor notion of "the other screen".
 - **All content ships in the `/os` payload.** `kernel.fs.read` is synchronous,
   so the whole tree — every entry's full text — must be in memory client-side
   for `cat` to work at all ([D-011](decisions.md)). Fine at tens of entries,
   wrong at hundreds. The fix is `FileNode.src` plus an async read path, which
   makes it a kernel change rather than a content one.
-- **Persistence not wired** (§ above).
 - **Permissions are per-app, not per-pid** — [D-004](decisions.md).
 - **No accessibility work.** Design doc §5 asks for ARIA roles, per-window focus
   traps, and keyboard equivalents. Windows are divs; only the buttons are

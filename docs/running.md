@@ -26,6 +26,10 @@ Type `help`. Ten commands:
 | `ps` | the process table |
 | `kill <pid>` | terminate a process, including the terminal itself |
 | `echo`, `clear`, `help` | as expected |
+| `reset` | discard the saved session and reload |
+
+`ls -a` shows dotfiles, including `/home/.history` — where your command history
+actually lives. `cat /home/.history` works, because it is a real file.
 
 Worth trying: `ls /apps`, then `open /apps/sysinfo` — spawning a window from the
 shell. And `cd /papers && ls` shows `paper-draft/`, which the web 404s: drafts
@@ -41,8 +45,29 @@ Each opens its own viewer instance titled with the filename, so several files
 can be open at once.
 
 Line editing: arrows, Home/End, Ctrl+A/E/U/L, Ctrl+C to abandon a line, Ctrl+D
-on an empty line to exit. Up/down walk this session's history — persisted
-history and tab completion are still Phase 2.
+on an empty line to exit. Up/down walk history, which **survives a reload**.
+Ctrl+C copies when there's a selection. Tab completion is still not built.
+
+## Windows
+
+| Action | Result |
+|---|---|
+| Drag to the left or right edge | Snap to that half |
+| Drag to the top edge | Maximize |
+| **Alt+Shift+←/→** | Snap the focused window |
+| **Alt+Shift+↑** | Maximize |
+| **Alt+Shift+↓** | Restore the pre-snap size |
+
+Dragging a snapped window away restores its old size where you drop it.
+
+## What survives a reload
+
+Open windows and their positions, and anything written to the filesystem —
+which includes shell history. **App-internal state does not**: a restored
+terminal comes back empty at `/`.
+
+If a session ever gets into a state you don't want, `reset` clears it and boots
+fresh.
 
 No piping or redirection, deliberately (design doc §2).
 
@@ -53,7 +78,7 @@ No piping or redirection, deliberately (design doc §2).
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 130 unit tests — kernel, content loader, shell, line editor, handlers |
+| `pnpm test` | 182 unit tests — kernel, content loader, shell, line editor, render, snap |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
@@ -61,6 +86,7 @@ No piping or redirection, deliberately (design doc §2).
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 | `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
 | `pnpm verify:viewer` | opens files in the viewer — **needs `pnpm dev` running** |
+| `pnpm verify:phase2` | persistence, snapping, repaint fix — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:
 

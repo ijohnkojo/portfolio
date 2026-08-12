@@ -31,6 +31,11 @@ export interface Process {
   size: Size
   zIndex: number
   state: WindowState
+  /**
+   * Geometry from before the window was snapped, so it can be restored.
+   * Absent when the window is not snapped.
+   */
+  preSnap?: { position: Position; size: Size }
 }
 
 export interface SpawnOptions {
@@ -56,6 +61,14 @@ export interface ProcessTableState {
   move: (pid: number, position: Position) => void
   resize: (pid: number, size: Size, position?: Position) => void
   setWindowState: (pid: number, state: WindowState) => void
+  /** Apply snapped geometry, remembering what to restore to. */
+  snap: (pid: number, geometry: { position: Position; size: Size }) => void
+  /**
+   * Put a snapped window back to its pre-snap size. Pass `position` to keep it
+   * where it is now — which is what dragging a snapped window away should do.
+   * No-op if it isn't snapped.
+   */
+  unsnap: (pid: number, position?: Position) => void
   reset: () => void
 }
 
@@ -177,6 +190,42 @@ export const processStore = createStore<ProcessTableState>()((set, get) => ({
       }
 
       return { processes, focusedPid }
+    })
+  },
+
+  snap: (pid, geometry) => {
+    set((s) => {
+      const proc = s.processes[pid]
+      if (!proc) return s
+
+      return {
+        processes: {
+          ...s.processes,
+          [pid]: {
+            ...proc,
+            ...geometry,
+            state: 'normal',
+            // Snapping while already snapped keeps the *original* geometry, so
+            // left → right → restore returns to where the window started.
+            preSnap: proc.preSnap ?? { position: proc.position, size: proc.size },
+          },
+        },
+      }
+    })
+  },
+
+  unsnap: (pid, position) => {
+    set((s) => {
+      const proc = s.processes[pid]
+      if (!proc?.preSnap) return s
+
+      const { preSnap, ...rest } = proc
+      return {
+        processes: {
+          ...s.processes,
+          [pid]: { ...rest, size: preSnap.size, position: position ?? preSnap.position },
+        },
+      }
     })
   },
 

@@ -13,10 +13,22 @@
  */
 import { useEffect } from 'react'
 
-import { appNode, processStore, vfsStore, type DirNode } from '@/kernel'
-import { listApps } from '@/registry'
+import {
+  appNode,
+  createLocalStorageAdapter,
+  hydrate,
+  processStore,
+  startAutosave,
+  systemAPI,
+  vfsStore,
+  type DirNode,
+} from '@/kernel'
+import { getManifest, listApps } from '@/registry'
+import { geometryFor, zoneForKey } from '@/wm/snap'
 import { Taskbar } from '@/wm/Taskbar'
 import { WindowManager } from '@/wm/WindowManager'
+
+const adapter = createLocalStorageAdapter()
 
 let mounted = false
 
@@ -35,20 +47,68 @@ function ensureMounted(tree: DirNode) {
   }
 }
 
-let spawnedInitialWindow = false
+let booted = false
 
 export function OsShell({ tree }: { tree: DirNode }) {
   ensureMounted(tree)
 
   useEffect(() => {
-    if (spawnedInitialWindow) return
-    spawnedInitialWindow = true
-    // Boot into a shell. About stays launchable, and its text is `cat`-able at
-    // /home/about.md — the OS should open onto the thing that makes it an OS.
-    processStore.getState().spawn('terminal', {
-      title: 'Terminal',
-      size: { width: 720, height: 440 },
-    })
+    if (booted) return
+    booted = true
+
+    let stopAutosave: (() => void) | undefined
+
+    void (async () => {
+      const saved = await adapter.load()
+
+      // A saved session replaces the default window. Spawning as well would add
+      // one terminal per reload.
+      if (saved) {
+        hydrate(saved, { isKnownApp: (appId) => Boolean(getManifest(appId)) })
+      }
+
+      if (Object.keys(processStore.getState().processes).length === 0) {
+        processStore.getState().spawn('terminal', {
+          title: 'Terminal',
+          size: { width: 720, height: 440 },
+        })
+      }
+
+      // Started after hydrate so restoring doesn't immediately rewrite what it
+      // just read.
+      stopAutosave = startAutosave(adapter)
+    })()
+
+    return () => stopAutosave?.()
+  }, [])
+
+  // Window snapping from the keyboard. Alt+Shift+Arrow, because Super is taken
+  // by Windows and GNOME, Cmd+Arrow navigates in browsers, and Ctrl+Alt+Arrow
+  // switches workspaces on GNOME. The terminal's custom key handler lets this
+  // chord bubble rather than swallowing it.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!event.altKey || !event.shiftKey) return
+
+      const zone = zoneForKey(event.key)
+      if (zone === undefined) return
+
+      const { focusedPid } = processStore.getState()
+      if (focusedPid === null) return
+
+      event.preventDefault()
+      const desktop = document.getElementById('wm-desktop')
+      const bounds = {
+        width: desktop?.clientWidth ?? 0,
+        height: desktop?.clientHeight ?? 0,
+      }
+
+      if (zone === null) systemAPI.window.unsnap(focusedPid)
+      else systemAPI.window.snap(focusedPid, geometryFor(zone, bounds))
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   return (
@@ -56,7 +116,10 @@ export function OsShell({ tree }: { tree: DirNode }) {
     // the theme-aware site must resolve their dark styles here regardless of
     // the visitor's system preference. See the @custom-variant in globals.css.
     <div className="dark flex h-dvh flex-col overflow-hidden bg-neutral-950">
-      <div className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-neutral-800),var(--color-neutral-950))]">
+      <div
+        id="wm-desktop"
+        className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-neutral-800),var(--color-neutral-950))]"
+      >
         <WindowManager />
       </div>
       <Taskbar />

@@ -66,6 +66,10 @@ export interface KernelAPI {
     resize: (pid: number, dims: Size, pos?: Position) => void
     move: (pid: number, pos: Position) => void
     setState: (pid: number, state: WindowState) => void
+    /** Snapped geometry, remembering what to restore to. */
+    snap: (pid: number, geometry: { position: Position; size: Size }) => void
+    /** Restore pre-snap size; `pos` keeps the window where it is now. */
+    unsnap: (pid: number, pos?: Position) => void
   }
   events: {
     emit: <T>(name: string, payload: T) => void
@@ -139,6 +143,14 @@ export function createKernelAPI(app: AppIdentity): KernelAPI {
       setState: (pid, state) => {
         assertPermission(app, 'window.manage')
         processStore.getState().setWindowState(pid, state)
+      },
+      snap: (pid, geometry) => {
+        assertPermission(app, 'window.manage')
+        processStore.getState().snap(pid, geometry)
+      },
+      unsnap: (pid, pos) => {
+        assertPermission(app, 'window.manage')
+        processStore.getState().unsnap(pid, pos)
       },
     },
 

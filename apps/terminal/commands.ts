@@ -30,6 +30,8 @@ export interface CommandResult {
   cwd?: string
   /** `clear` asks the host to wipe the screen. */
   clear?: boolean
+  /** `reset` asks the host to drop persisted state and reload. */
+  reset?: boolean
 }
 
 export interface Command {
@@ -61,15 +63,22 @@ function decorate(node: VFSNode): string {
 
 const ls: Command = {
   name: 'ls',
-  usage: 'ls [path]',
+  usage: 'ls [-a] [path]',
   summary: 'list directory contents',
   run: (ctx, args) => {
-    const target = resolvePath(ctx.cwd, args[0] ?? '.')
+    const showAll = args.includes('-a')
+    const operand = args.find((a) => !a.startsWith('-'))
+    const target = resolvePath(ctx.cwd, operand ?? '.')
     const node = statOrFail(ctx, 'ls', target)
 
     if (node.type !== 'dir') return { output: [decorate(node)] }
 
-    const children = ctx.kernel.fs.list(target)
+    // Dotfiles stay hidden without -a, as they would anywhere else. `.history`
+    // lives in /home and would otherwise be in the way constantly.
+    const children = ctx.kernel.fs
+      .list(target)
+      .filter((child) => showAll || !child.name.startsWith('.'))
+
     if (children.length === 0) return { output: [] }
 
     return {
@@ -136,7 +145,11 @@ const open: Command = {
     const node = statOrFail(ctx, 'open', target)
 
     if (node.type === 'app') {
-      const running = ctx.kernel.proc.list().find((p) => p.appId === node.appId)
+      // Topmost instance, not the lowest pid — the one last looked at.
+      const running = ctx.kernel.proc
+        .list()
+        .filter((p) => p.appId === node.appId)
+        .sort((a, b) => b.zIndex - a.zIndex)[0]
       if (running) {
         ctx.kernel.proc.focus(running.pid)
         return { output: [`${node.appId}: already running as pid ${running.pid}`] }
@@ -223,6 +236,16 @@ const clear: Command = {
   run: () => ({ clear: true }),
 }
 
+const reset: Command = {
+  name: 'reset',
+  usage: 'reset',
+  summary: 'discard the saved session and reload',
+  run: () => ({
+    output: ['clearing saved session…'],
+    reset: true,
+  }),
+}
+
 const help: Command = {
   name: 'help',
   usage: 'help',
@@ -242,5 +265,5 @@ const help: Command = {
 }
 
 export const commands: Record<string, Command> = Object.fromEntries(
-  [ls, cd, pwd, cat, open, ps, kill, echo, clear, help].map((c) => [c.name, c])
+  [ls, cd, pwd, cat, open, ps, kill, echo, clear, reset, help].map((c) => [c.name, c])
 )

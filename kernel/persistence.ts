@@ -88,15 +88,91 @@ export function snapshot(): PersistedState {
   }
 }
 
+export interface HydrateOptions {
+  /**
+   * Whether an appId still exists. Processes for apps that have been removed or
+   * renamed are dropped rather than restored as windows that can never mount.
+   * The kernel cannot answer this itself — it does not know what an app is.
+   */
+  isKnownApp?: (appId: string) => boolean
+}
+
 /** Replays an overlay onto the already-mounted base tree, then restores windows. */
-export function hydrate(state: PersistedState): void {
+export function hydrate(state: PersistedState, options: HydrateOptions = {}): void {
   vfsStore.getState().applyOverlay(state.overlay)
+
+  const { isKnownApp } = options
+  const processes: Record<number, Process> = {}
+  for (const [pid, proc] of Object.entries(state.session.processes)) {
+    if (isKnownApp && !isKnownApp(proc.appId)) continue
+    processes[Number(pid)] = proc
+  }
+
+  // If the focused window was one of the dropped ones, fall back to the topmost
+  // survivor rather than restoring a session focused on nothing.
+  let focusedPid = state.session.focusedPid
+  if (focusedPid === null || !processes[focusedPid]) {
+    const visible = Object.values(processes).filter((p) => p.state !== 'minimized')
+    focusedPid = visible.length
+      ? visible.reduce((top, p) => (p.zIndex > top.zIndex ? p : top)).pid
+      : null
+  }
+
   processStore.setState({
-    processes: state.session.processes,
-    focusedPid: state.session.focusedPid,
+    processes,
+    focusedPid,
     nextPid: state.session.nextPid,
     nextZIndex: state.session.nextZIndex,
   })
+}
+
+/**
+ * Persist on every change, debounced.
+ *
+ * Debouncing is not cosmetic: a drag commits geometry on mouse-up, closing
+ * several windows fires several updates, and each save is a `JSON.stringify`
+ * over the whole session. Returns an unsubscribe that flushes first, so a
+ * pending write is never lost on unmount.
+ */
+export function startAutosave(adapter: StorageAdapter, delayMs = 400): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const flush = () => {
+    timer = undefined
+    void adapter.save(snapshot())
+  }
+
+  const schedule = () => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(flush, delayMs)
+  }
+
+  const flushNow = () => {
+    if (!timer) return
+    clearTimeout(timer)
+    flush()
+  }
+
+  const unsubscribeVfs = vfsStore.subscribe(schedule)
+  const unsubscribeProc = processStore.subscribe(schedule)
+
+  // Without this, up to `delayMs` of work is lost whenever the tab is closed or
+  // reloaded — which is exactly when a session most needs to have been saved.
+  // `pagehide` fires in cases `beforeunload` does not, notably on mobile.
+  const onHide = () => flushNow()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', onHide)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushNow()
+    })
+  }
+
+  return () => {
+    unsubscribeVfs()
+    unsubscribeProc()
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', onHide)
+    flushNow()
+  }
 }
 
 /* -------------------------------------------------------------------------- */

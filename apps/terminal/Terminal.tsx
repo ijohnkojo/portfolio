@@ -18,9 +18,11 @@ import { Terminal } from '@xterm/xterm'
 
 import '@xterm/xterm/css/xterm.css'
 
-import { SCHEMA_VERSION } from '@/kernel'
+import { SCHEMA_VERSION, createLocalStorageAdapter } from '@/kernel'
 import { findHandlerFor, type AppProps } from '@/registry'
+import { HISTORY_PATH, parseHistory, serializeHistory } from './history'
 import { createLineState, handleInput, type LineState } from './lineEditor'
+import { cellAt, renderSequence } from './render'
 import { runCommand } from './shell'
 
 const THEME = {
@@ -56,6 +58,12 @@ function promptFor(cwd: string): string {
   return `${CYAN}${cwd}${RESET} $ `
 }
 
+/** `reset` discards the saved session. Reload is the simplest clean boot. */
+async function onReset() {
+  await createLocalStorageAdapter().clear()
+  window.location.reload()
+}
+
 export default function TerminalApp({ pid, kernel }: AppProps) {
   const hostRef = useRef<HTMLDivElement>(null)
 
@@ -78,18 +86,58 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
     term.loadAddon(fitAddon)
     term.open(host)
 
-    let line: LineState = createLineState()
+    // History is a file in the VFS, so it persists through the write overlay
+    // like any other write (D-020) and `cat /home/.history` works.
+    let line: LineState = createLineState(parseHistory(kernel.fs.read(HISTORY_PATH)))
     let cwd = '/'
+
+    // Batched: writing on every committed line would churn the overlay and the
+    // debounced session save sitting behind it.
+    let historyTimer: ReturnType<typeof setTimeout> | undefined
+    const flushHistory = () => {
+      historyTimer = undefined
+      try {
+        kernel.fs.write(HISTORY_PATH, serializeHistory(line.history))
+      } catch {
+        // A read-only or missing /home is not worth killing the shell over.
+      }
+    }
+    const scheduleHistoryFlush = () => {
+      if (historyTimer) clearTimeout(historyTimer)
+      historyTimer = setTimeout(flushHistory, 250)
+    }
+    // Rows between the line's first row and the cursor, as of the last paint.
+    // The repaint needs it to walk back up over a wrapped line.
+    let rowOffset = 0
 
     /** Repaint the prompt line in place, then park the cursor. */
     const render = () => {
-      term.write(`\r\x1b[2K${promptFor(cwd)}${line.buffer}`)
-      const back = line.buffer.length - line.cursor
-      if (back > 0) term.write(`\x1b[${back}D`)
+      const { sequence, rowOffset: next } = renderSequence({
+        promptText: promptFor(cwd),
+        promptWidth: cwd.length + 3, // `<cwd> $ ` minus the ANSI, which is zero-width
+        buffer: line.buffer,
+        cursor: line.cursor,
+        cols: term.cols,
+        previousRowOffset: rowOffset,
+      })
+      rowOffset = next
+      term.write(sequence)
+    }
+
+    /**
+     * Move past the whole line and start a fresh row. The cursor may be sitting
+     * on an earlier row of a wrapped line, so step down to its last row first —
+     * otherwise output would overwrite the tail of what the user typed.
+     */
+    const endLine = (trailer = '') => {
+      const endRow = cellAt(cwd.length + 3 + line.buffer.length, term.cols).row
+      if (endRow > rowOffset) term.write(`\x1b[${endRow - rowOffset}B`)
+      rowOffset = 0
+      term.write(`\r${trailer}\r\n`)
     }
 
     const submit = (input: string) => {
-      term.write('\r\n')
+      endLine()
 
       const result = runCommand(input, { kernel, cwd, pid, resolveHandler: findHandlerFor })
       cwd = result.cwd
@@ -99,8 +147,32 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
       } else {
         for (const output of result.output) term.writeln(output)
       }
+
+      if (result.reset) {
+        onReset()
+        return
+      }
+
+      scheduleHistoryFlush()
       render()
     }
+
+    // Two keys must escape xterm rather than reach the line editor.
+    term.attachCustomKeyEventHandler((event) => {
+      if (event.type !== 'keydown') return true
+
+      // Ctrl/Cmd+C with a selection means copy, not cancel.
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c' && term.hasSelection()) {
+        return false
+      }
+
+      // Alt+Shift+Arrow is the window-snapping chord; let it bubble to the WM.
+      if (event.altKey && event.shiftKey && event.key.startsWith('Arrow')) {
+        return false
+      }
+
+      return true
+    })
 
     const disposeData = term.onData((data) => {
       const [next, effects] = handleInput(line, data)
@@ -115,7 +187,7 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
             submit(effect.line)
             break
           case 'cancel':
-            term.write('^C\r\n')
+            endLine('^C')
             render()
             break
           case 'clear':
@@ -149,6 +221,16 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
     })
     observer.observe(host)
 
+    // The session autosave can only persist a history write that already
+    // happened, so this has to flush before it does.
+    const onPageHide = () => {
+      if (historyTimer) {
+        clearTimeout(historyTimer)
+        flushHistory()
+      }
+    }
+    window.addEventListener('pagehide', onPageHide)
+
     term.writeln(`${DIM}personal-os — kernel schema v${SCHEMA_VERSION}${RESET}`)
     term.writeln(`${DIM}type 'help' for commands${RESET}`)
     term.writeln('')
@@ -158,7 +240,12 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      window.removeEventListener('pagehide', onPageHide)
       disposeData.dispose()
+      if (historyTimer) {
+        clearTimeout(historyTimer)
+        flushHistory()
+      }
       term.dispose()
     }
   }, [pid, kernel])

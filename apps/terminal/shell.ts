@@ -15,6 +15,7 @@ export interface ShellResult {
   output: string[]
   cwd: string
   clear: boolean
+  reset: boolean
 }
 
 /**
@@ -59,7 +60,7 @@ export function runCommand(line: string, ctx: ShellContext): ShellResult {
   const tokens = tokenize(line)
 
   if (tokens.length === 0) {
-    return { output: [], cwd: ctx.cwd, clear: false }
+    return { output: [], cwd: ctx.cwd, clear: false, reset: false }
   }
 
   const [name, ...args] = tokens
@@ -70,6 +71,7 @@ export function runCommand(line: string, ctx: ShellContext): ShellResult {
       output: [`${name}: command not found — try 'help'`],
       cwd: ctx.cwd,
       clear: false,
+      reset: false,
     }
   }
 
@@ -80,16 +82,22 @@ export function runCommand(line: string, ctx: ShellContext): ShellResult {
     // CommandError is an expected failure with a message already in UNIX shape.
     // Anything else is a bug, and saying so beats printing a bare stack.
     if (error instanceof CommandError) {
-      return { output: [error.message], cwd: ctx.cwd, clear: false }
+      return { output: [error.message], cwd: ctx.cwd, clear: false, reset: false }
     }
     const detail = error instanceof Error ? error.message : String(error)
-    return { output: [`${name}: internal error: ${detail}`], cwd: ctx.cwd, clear: false }
+    return {
+      output: [`${name}: internal error: ${detail}`],
+      cwd: ctx.cwd,
+      clear: false,
+      reset: false,
+    }
   }
 
   return {
     output: result.output ?? [],
     cwd: result.cwd ?? ctx.cwd,
     clear: result.clear ?? false,
+    reset: result.reset ?? false,
   }
 }
 

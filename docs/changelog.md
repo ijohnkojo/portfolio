@@ -285,3 +285,61 @@ number of registered launchers — so it now checks the property that actually
 matters (the VFS mirrors the registry) instead of a number that has to be
 maintained. Added `data-launcher` to the taskbar buttons to make that
 selectable.
+
+---
+
+## 2026-08-12 — Phase 2 + the gap-list defects
+
+Plan: [plans/2026-08-12-phase-2-and-defects.md](plans/2026-08-12-phase-2-and-defects.md)
+
+### Defects fixed
+
+- **The wrapped-line repaint bug.** `apps/terminal/render.ts` is now a pure
+  module that walks up over a wrapped line, erases to end of *display*, and
+  places the cursor absolutely. The old version cleared only the current row, so
+  editing a line that wrapped duplicated the prompt on screen. Pure and tested
+  because the cursor arithmetic — particularly deferred wrap at an exact row
+  boundary — is not something to eyeball twice.
+- **Ctrl+C now copies** when there is a selection, via
+  `attachCustomKeyEventHandler`.
+- **`open` focuses the topmost instance**, not the lowest pid.
+
+### Phase 2
+
+- **Persistence wired** ([D-019](decisions.md)) — `startAutosave` on a 400ms
+  debounce, hydrate before it starts, unknown-app processes dropped, and a
+  `reset` command as an escape hatch that doesn't require devtools.
+- **Shell history is a file** ([D-020](decisions.md)) at `/home/.history`, so it
+  rides the write overlay instead of adding a store, and `cat` reaches it. `ls`
+  learned `-a`. The terminal is now the first app holding `fs.write`.
+- **Window snapping** ([D-021](decisions.md)) — edge-drag and Alt+Shift+Arrow,
+  with `preSnap` on `Process` so restore works and dragging away recovers the
+  old size. The preview is imperative DOM, so it costs no React commits.
+
+### Verified
+
+**182 unit tests**; `verify:phase2` **17/17**; regressions all green — WM 20/20,
+content 13/13, terminal 25/25, viewer 11/11.
+
+### Found by the tests, not by reasoning
+
+A debounced save loses in-flight work when the tab closes — which is exactly
+when a session most needs to have been saved. History was debounced 1s and the
+session another 400ms, so up to 1.4s could vanish on reload. Both now flush on
+`pagehide` (and on `visibilitychange` to hidden), and the history debounce
+dropped to 250ms.
+
+The same check also had a wrong assertion: it looked for commands that were not
+the most recent history entry, so a single up-arrow could never have shown them.
+Both the bug and the bad assertion were real, and fixing only one would have
+left a false pass.
+
+### Notes
+
+Windows now carry `data-app`, `data-pid`, and `data-focused`. Verification
+scripts kept breaking on overlapping windows intercepting clicks — correct WM
+behaviour, awkward tooling. Addressing a window by identity rather than by
+z-order is more honest than adding another workaround.
+
+D-008 deferred snapping at two stub apps; D-021 built it at four. The scope rule
+in design doc §5 worked exactly as intended.

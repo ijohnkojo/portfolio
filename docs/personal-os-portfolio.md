@@ -103,8 +103,10 @@ VFS ✅, process table ✅, WM ✅, shell with ~8 commands ✅ (ten), 2–3 real
 
 Also done and not originally listed here: the syscall boundary with permission checks, the app registry with per-app code splitting, per-window error boundaries, and the persistence *shape* (see Phase 2). The SSG content routes from §5 are also done, and were arguably always part of this phase.
 
-**Phase 2**
-Persistence (localStorage, versioned schema), more apps, window snapping/tiling, command history/autocomplete.
+**Phase 2** — *in progress*
+Persistence ✅ (localStorage behind a StorageAdapter, versioned schema, [D-019](decisions.md)), more apps 🟡 (four), window snapping ✅ (edge-drag and Alt+Shift+Arrow, [D-021](decisions.md)), command history ✅ (persisted as `/home/.history` in the VFS, [D-020](decisions.md)), autocomplete ⬜, tiling ⬜.
+
+Snapping was deferred by [D-008](decisions.md) under §5's "no new WM feature until N apps need it" rule. Four apps and a terminal-beside-a-viewer layout is what finally needed it.
 
 **Phase 3 (only if actually wanted)**
 Accounts/auth for cross-device persistence, a plugin system for redeploy-free app additions, a real backend VFS instead of a static JSON tree.
@@ -118,7 +120,7 @@ Don't build Phase 3 primitives now. A permissions system with no second user is 
 - **SEO/crawlability** — papers/projects need real server-rendered routes (Next.js SSG) independent of the client-rendered OS shell. The OS is a client for browsing content that has real URLs, not the only way in. Most common failure mode in this genre. **▸ Built** ([D-010](decisions.md)) — `/projects/[slug]` and `/papers/[slug]` are prerendered by `generateStaticParams`, with `generateMetadata` from frontmatter. Content is read off disk once and feeds *both* the route and the VFS, so the two can't drift. Verified with JavaScript disabled: the prose is in the server markup, not injected on hydrate.
 - **Mobile** — a draggable-overlapping-windows metaphor is desktop-first by nature. Build a genuinely different mobile mode (full-screen single-app), not a responsive squeeze.
 - **Accessibility** — div-based windows break screen readers/keyboard nav by default. Needs ARIA roles, focus traps per window, keyboard equivalents for open/close/switch.
-- **Scope creep** — "OS as product" is unbounded. Set a rule: no new WM feature until N apps exist that actually need it.
+- **Scope creep** — "OS as product" is unbounded. Set a rule: no new WM feature until N apps exist that actually need it. **▸ Held, then spent** — snapping was refused at two stub apps ([D-008](decisions.md)) and built at four ([D-021](decisions.md)). The rule worked: it deferred the feature until there was a real layout to serve.
 - **Schema-version state from day one** — VFS and process-table shape will change as you extend this over years. A `schemaVersion` field plus a small migration function prevents breaking every returning user's session. **▸ Built** — `kernel/persistence.ts`. `migrate()` returns `null` rather than throwing for junk, a missing migration step, or a blob from a newer build; null means "start fresh," so a returning visitor never sees a crash.
 - **Persistence backend** — decide early whether `fs.write` targets a static JSON tree or a real database, even if you don't build the database yet. This affects how swappable the write path is later. **▸ Decided** ([D-003](decisions.md)) — neither, quite: the base tree ships with the build from `/content` and stays read-only, and only *writes* persist, as an overlay of `path -> content` replayed on hydrate. Both sit behind a `StorageAdapter` interface. Persisting the whole tree would have meant every content edit staled every returning visitor's session; this way the two evolve independently, and swapping in a real backend is one more adapter rather than a rewrite of the write path.
 - **Performance debt compounds** — keep apps lazy-loaded through the registry; don't let "just one more app" get bundled into the main chunk because it was faster to wire up. **▸ Built** — every manifest uses `next/dynamic`; verified from build output that neither app chunk appears in the `/os` initial payload.
@@ -304,7 +306,7 @@ double-click be the same operation.
 /apps
 ○   /about/About.tsx
 ○   /sysinfo/SysInfo.tsx
-○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts}
+○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts, render.ts, history.ts}
 ○   /viewer/Viewer.tsx
 ·   /games/<game-name>/Game.tsx
 
@@ -328,6 +330,7 @@ double-click be the same operation.
 ○   verify-content.mjs       → asserts routes render with JS disabled
 ○   verify-terminal.mjs      → drives the shell with real keystrokes
 ○   verify-viewer.mjs        → opens files; runs in light mode on purpose
+○   verify-phase2.mjs        → persistence, snapping, and the repaint fix
 ○   check-diagrams.mjs       → parses every mermaid block in the docs
 ○   sync-content-assets.mjs  → mirrors entry assets into /public
 

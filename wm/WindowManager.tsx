@@ -8,6 +8,7 @@
  * refocused. Each Window subscribes to its own entry from there.
  */
 import { usePids } from '@/hooks/kernel'
+import { SNAP_PREVIEW_ID } from './snapPreview'
 import { Window } from './Window'
 
 export function WindowManager() {
@@ -18,6 +19,18 @@ export function WindowManager() {
       {pids.map((pid) => (
         <Window key={pid} pid={pid} />
       ))}
+
+      {/*
+        The snap preview. Positioned by direct DOM writes during a drag and
+        never through React state — rendering it from state would put a commit
+        inside the mousemove loop, which is exactly what D-002 forbids.
+      */}
+      <div
+        id={SNAP_PREVIEW_ID}
+        aria-hidden
+        className="pointer-events-none absolute hidden rounded-lg border-2 border-neutral-400/70 bg-neutral-400/15"
+        style={{ zIndex: 999999 }}
+      />
     </div>
   )
 }

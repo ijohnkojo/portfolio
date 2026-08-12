@@ -13,6 +13,7 @@ export default defineConfig({
       'lib/**/*.test.ts',
       'apps/**/*.test.ts',
       'registry/**/*.test.ts',
+      'wm/**/*.test.ts',
     ],
   },
   resolve: {

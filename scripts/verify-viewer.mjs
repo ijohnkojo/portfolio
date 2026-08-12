@@ -51,8 +51,14 @@ await page.goto(URL, { waitUntil: 'networkidle' })
 await page.locator('.xterm-screen').first().waitFor({ state: 'visible', timeout: 15000 })
 
 async function focusTerminal() {
-  await page.locator('.window-titlebar').first().click()
-  await page.waitForTimeout(120)
+  // Windows overlap, so clicking the titlebar can hit whatever is on top.
+  // Raise via the taskbar first, but only if it isn't already focused — that
+  // button toggles, and would minimize a focused terminal.
+  const frame = page.locator('[data-app="terminal"]').first()
+  if ((await frame.getAttribute('data-focused')) !== 'true') {
+    await page.getByRole('button', { name: /^Terminal/ }).last().click()
+    await page.waitForTimeout(150)
+  }
   await page.locator('.xterm-screen').first().click()
   await page.waitForTimeout(80)
 }
