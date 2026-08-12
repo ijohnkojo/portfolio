@@ -53,6 +53,9 @@ a session that survives a reload.
 Not yet: a game. Content is real MDX with real frontmatter; the prose is being
 written separately.
 
+Next up, if you want it: [plans/2026-08-12-piping-and-redirection.md](plans/2026-08-12-piping-and-redirection.md)
+— drafted and ready to execute, not started.
+
 Remaining work is triaged in [review.md](review.md) — all absences now rather
 than defects. The nearest items are the placeholder slugs (which become
 permanent URLs the moment anything links in), no mobile mode, and no
