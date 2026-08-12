@@ -128,6 +128,40 @@ check(
   lsApps.includes('terminal*') && lsApps.includes('sysinfo*')
 )
 
+/* ------------------------------------------------------------ discovery */
+
+const grepOut = await run('grep -i mechanism /home')
+check(
+  'grep searches file contents and prefixes path:line',
+  /\/home\/about\.md:\d+:/.test(grepOut),
+  'match located'
+)
+
+const findOut = await run('find paper-one')
+check('find locates nodes by name', findOut.includes('/papers/paper-one/'))
+
+const statOut = await run('stat /papers/paper-one/index.mdx')
+check(
+  'stat surfaces the frontmatter carried in meta',
+  statOut.includes('Paper One') && statOut.includes('placeholder'),
+  'title and tags shown'
+)
+
+const tagsOut = await run('tags')
+check('tags lists tags with counts', /placeholder\s+\d/.test(tagsOut))
+
+const treeOut = await run('tree /papers')
+check('tree renders nested structure', treeOut.includes('├─') && treeOut.includes('paper-one/'))
+
+const manOut = await run('man grep')
+check('man prints a manual page', manOut.includes('SYNOPSIS') && manOut.includes('EXAMPLES'))
+
+const wcOut = await run('wc /home/about.md')
+check('wc counts a file', /\d+\s+\d+\s+\d+\s+about\.md/.test(wcOut))
+
+const historyOut = await run('history')
+check('history numbers previous commands', /\s*1\s+/.test(historyOut))
+
 /* ------------------------------------------------------- open / ps / kill */
 
 const windowsBefore = await page.locator('.window-titlebar').count()
@@ -159,7 +193,15 @@ await page.keyboard.type('cat index')
 await page.waitForTimeout(120)
 
 const beforeMinimize = await screen()
-check('scrollback has accumulated before minimizing', beforeMinimize.includes('help'))
+check('scrollback has accumulated before minimizing', beforeMinimize.split('\n').length > 5)
+
+// Compare against what is actually on screen rather than a fixed string: the
+// viewport only holds so many rows, and earlier output scrolls out of it.
+const marker = beforeMinimize
+  .split('\n')
+  .map((l) => l.trim())
+  .filter((l) => l.length > 12 && !l.includes('cat index'))
+  .at(-1)
 
 await page.getByRole('button', { name: 'minimize' }).first().click()
 await page.waitForTimeout(250)
@@ -172,8 +214,8 @@ await page.waitForTimeout(400)
 const afterRestore = await screen()
 check(
   'scrollback survives minimize/restore',
-  afterRestore.includes('mechanism, not policy'),
-  'earlier cat output still present'
+  Boolean(marker) && afterRestore.includes(marker),
+  `pre-minimize line still present: "${marker?.slice(0, 40)}…"`
 )
 check(
   'the half-typed command line survives',

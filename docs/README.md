@@ -41,7 +41,7 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 **Design doc Phases 1 and 2 are complete.** Kernel, syscall boundary, registry,
 window manager with snapping and tiling, crawlable SSG content routes, a shell
-with twelve commands, tab completion, persisted history, a file/PDF viewer, and
+with twenty-four commands, tab completion, persisted history, a file/PDF viewer, and
 a session that survives a reload.
 
 Not yet: a game. Content is real MDX with real frontmatter; the prose is being

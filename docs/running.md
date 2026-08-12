@@ -14,20 +14,49 @@ buttons for each registered app, then one button per running window.
 
 ## The shell
 
-Type `help`. Ten commands:
+Type `help` for the list, `man <command>` for detail. Twenty-four commands.
+
+**Reading the filesystem**
 
 | Command | Does |
 |---|---|
-| `ls [path]` | list; `dir/` and `app*` markers carry the type |
-| `cd [path]` | relative, absolute, and `..`; bare `cd` goes to `/` |
-| `pwd` | print the working directory |
-| `cat <path…>` | print file contents |
-| `open <path>` | launch an app node, or focus it if already running |
-| `ps` | the process table |
-| `kill <pid>` | terminate a process, including the terminal itself |
-| `echo`, `clear`, `help` | as expected |
-| `tile [grid\|columns\|rows\|cascade]` | arrange every window; `cascade` undoes it |
+| `ls [-a] [path]` | list; `dir/` and `app*` markers carry the type |
+| `cd [path]` · `pwd` | move around; bare `cd` goes to `/` |
+| `cat <path…>` | print a file exactly as stored, frontmatter and all |
+| `stat <path…>` | type, mime, size — **and the frontmatter**: title, date, tags |
+| `tree [-a] [-L n] [path]` | the whole shape at once |
+| `head` · `tail` · `wc` | first/last lines, and counts |
+
+**Finding things** — the reason this stopped being a toy
+
+| Command | Does |
+|---|---|
+| `grep [-i] <pattern> [path]` | search file contents; prints `path:line: text` |
+| `find [pattern] [path]` | match names anywhere beneath a directory |
+| `tags [tag]` | every tag with a count, or the entries carrying one |
+
+**Processes and windows**
+
+| Command | Does |
+|---|---|
+| `open <path>` | launch an app, or hand a file to whatever handles its type |
+| `ps` · `kill <pid>` · `exit` | the process table |
+| `tile [grid\|columns\|rows\|cascade]` | arrange every window |
+
+**Session**
+
+| Command | Does |
+|---|---|
+| `history` | numbered, and it survives a reload |
+| `date` · `echo` · `clear` | as expected |
+| `man <command>` · `help` | documentation, generated from the commands themselves |
 | `reset` | discard the saved session and reload |
+
+Worth trying: `grep -i kernel /`, `tags`, `stat /papers/paper-one/index.mdx`,
+`tree /`.
+
+`ls -a` shows dotfiles, including `/home/.history` — where your command history
+actually lives, which is why `grep` and `cat` reach it.
 
 **Tab completes** — command names in the first word, paths after that. One match
 completes outright (directories gain a `/`), several extend to their shared
@@ -86,7 +115,7 @@ No piping or redirection, deliberately (design doc §2).
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 270 unit tests — kernel, content, shell, editor, render, completion, tiling |
+| `pnpm test` | 317 unit tests — kernel, content, shell, editor, render, completion, tiling |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |

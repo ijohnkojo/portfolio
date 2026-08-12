@@ -70,7 +70,7 @@ always costs the property that made the module worth having:
 | Module | Wants to | Would need | Would cost |
 |---|---|---|---|
 | `lineEditor.ts` | complete a path on Tab | the VFS | every keystroke test would have to seed a filesystem |
-| `commands.ts` | tile the windows | the DOM and the WM | commands stop running in node; an app could move any window |
+| `commands/` | tile the windows | the DOM and the WM | commands stop running in node; an app could move any window |
 | `Window.tsx` | preview a snap mid-drag | React state | a commit inside the mousemove loop ([D-002](decisions.md)) |
 
 **Pass a message instead of acquiring the capability.** The module says what it
@@ -92,7 +92,7 @@ the obvious owner — completion has to return the completed string. Pick the
 part of the system it should not hold a reference to — the shell should not be
 able to reach the window manager at all.
 
-The payoff is concrete and measurable: **270 unit tests run in bare node in
+The payoff is concrete and measurable: **317 unit tests run in bare node in
 well under a second** — no jsdom, no browser, no component harness. That holds
 only because the line editor has no filesystem and the command table has no DOM,
 and it stops holding the first time either is handed a capability "just for this
@@ -481,7 +481,7 @@ have to prove the wiring, not the logic.
 | `Terminal.tsx` | xterm, the DOM, and nothing else worth testing |
 | `lineEditor.ts` | buffer, cursor, history. Pure `(state, input) => [state, effects]` |
 | `shell.ts` | tokenising and dispatch; formats `CommandError` into a line |
-| `commands.ts` | the syscall boundary and a cwd |
+| `commands/` | the syscall boundary and a cwd |
 | `completion.ts` | a token, a cwd, and an injected `listDir` |
 | `render.ts` | a buffer, a cursor, and a column count |
 
@@ -504,6 +504,18 @@ appended on commit through `fs.write`, batched at 250ms and flushed on
 `cat /home/.history` works. `ls` hides dotfiles unless given `-a`.
 
 The terminal is therefore the first app holding `fs.write`.
+
+The command table is a directory ([D-024](decisions.md)) grouped by what each
+command touches — `fs.ts`, `proc.ts`, `system.ts` — with `types.ts` for the
+shared shape and `walk.ts` for the recursive tree walk that `grep`, `find`,
+`tags`, and `tree` share. Twenty-four commands.
+
+Each carries its own `description` and `examples`, which `man` prints. A test
+asserts every command has them, so one cannot ship undocumented.
+
+The search commands exist because content nodes carry their frontmatter in
+`meta` and nothing read it: `stat` shows it, `tags` indexes it, `grep` and
+`find` make the tree searchable rather than merely walkable.
 
 **Tab completion** ([D-022](decisions.md)) is a fourth pure module,
 `completion.ts`, with directory listing injected as a function. The line editor
@@ -569,6 +581,9 @@ than merely claimed.
 
 ## 9. Known gaps
 
+- **The filesystem cannot delete.** No `unlink`, and the overlay is writes-only,
+  so a deletion cannot survive a reload — hence no `rm` or `mv`. Needs a
+  tombstone set and a schema bump ([D-025](decisions.md)).
 - **The viewer and the routes render markdown differently.** Routes compile MDX;
   the viewer uses `react-markdown` ([D-016](decisions.md)). A writeup that embeds
   a React component renders it on the route and shows raw JSX in the viewer. No

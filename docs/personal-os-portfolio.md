@@ -38,7 +38,7 @@ Kernel state should be serializable to JSON on its own, independent of the rende
 
 ### Shell / terminal
 - **xterm.js** handles emulation (cursor, scrollback, ANSI) — don't hand-roll this. **▸ Built** — note the package is now `@xterm/xterm` (6.0); the unscoped `xterm` on npm is the old one.
-- A small command dispatcher on top: tokenize input → look up in a command table (`ls`, `cd`, `cat`, `open`, `help`, ~8 commands to start) → call function → read/write kernel state. **▸ Built** — twelve commands. The dispatcher and the line editor are pure TypeScript with **no xterm dependency at all**: xterm is a *device* attached to the shell, not the shell itself, which is the same mechanism/policy split as the kernel and means every command is tested in bare node.
+- A small command dispatcher on top: tokenize input → look up in a command table (`ls`, `cd`, `cat`, `open`, `help`, ~8 commands to start) → call function → read/write kernel state. **▸ Built** — twenty-four commands, each carrying its own `man` page ([D-024](decisions.md)). The dispatcher and the line editor are pure TypeScript with **no xterm dependency at all**: xterm is a *device* attached to the shell, not the shell itself, which is the same mechanism/policy split as the kernel and means every command is tested in bare node.
 - Piping/redirection: skip for V1, real scope creep magnet. **▸ Held** — still skipped.
 
 ### Window manager
@@ -306,8 +306,9 @@ double-click be the same operation.
 /apps
 ○   /about/About.tsx
 ○   /sysinfo/SysInfo.tsx
-○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts,
-                render.ts, history.ts, completion.ts}
+○   /terminal/{Terminal.tsx, shell.ts, lineEditor.ts, render.ts,
+                history.ts, completion.ts}
+○   /terminal/commands/{types,walk,fs,proc,system,index}.ts
 ○   /viewer/Viewer.tsx
 ·   /games/<game-name>/Game.tsx
 

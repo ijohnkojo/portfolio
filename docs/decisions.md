@@ -522,3 +522,52 @@ import is so there is one list of layout names rather than two that drift.
 The sibling of [D-022](#d-022--2026-08-12--active): same problem, different
 mechanism. The rule and the choice between them are written up in
 [architecture.md § when a layer needs something it is not allowed to have](architecture.md).
+
+---
+
+## D-024 · 2026-08-12 · active
+### Command documentation lives on the command; the table is a directory
+
+`commands.ts` became `commands/` — `types.ts`, `walk.ts`, `fs.ts`, `proc.ts`,
+`system.ts`, `index.ts` — and `Command` gained a required `description` plus
+optional `examples`, which `man` prints.
+
+**Why the split.** Twelve commands became twenty-four and the file would have
+been ~700 lines. Grouping by what a command touches (filesystem, processes,
+system) means the imports of each group state its dependencies: `fs.ts` needs
+path helpers and the walk, `proc.ts` needs the process API, `system.ts` is the
+only one that knows tiling exists. `shell.ts` and the tests import `./commands`
+either way, so nothing outside the directory moved.
+
+**Why documentation on the command.** `help` has always been generated from the
+table rather than hand-maintained, for the obvious reason. `man` extends that to
+the long form: usage, description, and examples sit next to the `run` that
+implements them, so they cannot drift apart in a separate manual.
+
+It is also enforceable, and enforced — a test asserts **every command in the
+table has a description of real length and produces a manual page**. A new
+command cannot ship undocumented without failing the suite.
+
+**Cost.** `description` is required, so adding a command means writing prose. That
+is the point, but it is friction.
+
+---
+
+## D-025 · 2026-08-12 · active
+### `rm` and `mv` are deferred until the VFS can express a deletion
+
+**The problem, not the decision.** The VFS has no delete — no `unlink`, no
+`rmdir`. Worse, the persistence overlay is `path → content`, i.e. writes only, so
+a deletion **cannot be represented**: on reload the base tree is rebuilt from
+`/content` and the file returns.
+
+Making delete stick needs a tombstone set in `PersistedState` alongside the
+overlay, applied after the replay, plus a `SCHEMA_VERSION` bump and a migration
+— which the seam already supports ([D-019](#d-019--2026-08-12--active)).
+
+**Why not now.** It is a kernel change, a schema change, and a decision about
+whether deleting build-time content should even be possible, riding along with
+twelve read-only commands. Kept separate deliberately.
+
+Everything shipped so far only ever *adds* to the filesystem, which is why the
+overlay has been sufficient this long.

@@ -411,3 +411,63 @@ hit it re-derives or re-litigates it.
 Now in [architecture.md § 1](architecture.md) with the effect/event comparison,
 referenced from both decisions, and added to the invariants in `AGENTS.md` so it
 loads into future sessions rather than waiting to be discovered.
+
+---
+
+## 2026-08-12 — Twelve more commands
+
+Plan: [plans/2026-08-12-shell-commands.md](plans/2026-08-12-shell-commands.md)
+
+The shell went from twelve commands to twenty-four. The motivating observation:
+every content node already carried `{ title, summary, date, tags, draft, href }`
+in `meta`, built from real frontmatter — and **nothing read any of it**. `ls`
+showed filenames, `cat` dumped raw MDX. The metadata was in the filesystem,
+unused.
+
+### Discovery
+
+`grep [-i] <pattern> [path]` · `find [pattern] [path]` · `stat <path…>` ·
+`tags [tag]` · `tree [-a] [-L n] [path]`
+
+`stat` is the one that pays off the observation: it prints the frontmatter, so a
+writeup's title, date, and tags are readable without opening it. `tags` indexes
+the same field across the whole tree. `grep` and `find` make the filesystem
+searchable rather than merely walkable.
+
+### Classics
+
+`head` · `tail` · `wc` · `date` · `history` · `man` · `exit`
+
+### Structure
+
+`commands.ts` became `commands/` ([D-024](decisions.md)), grouped by what each
+command touches, with a shared recursive `walk`. `Command` gained a **required**
+`description` plus `examples`, which `man` prints — and a test asserts every
+command has them, so one cannot ship undocumented.
+
+### Deliberately not built
+
+`rm` and `mv`, now [D-025](decisions.md). The VFS has no delete at all, and the
+overlay is writes-only, so a deletion cannot even be represented — on reload the
+base tree is rebuilt and the file returns. It needs a tombstone set and a schema
+bump, which is its own decision rather than a rider on twelve read-only
+commands. Everything shipped so far only ever *adds* to the filesystem, which is
+why the overlay has been enough this long.
+
+### Verified
+
+**317 unit tests**; `verify:terminal` **33/33** with the new commands driven in
+a real browser; regressions green — WM 20/20, content 13/13, viewer 11/11,
+phase2 25/25.
+
+### Notes
+
+Two failures on first run, both mine rather than the code's. A grep scoping test
+assumed `/home` contained no match for "kernel" — but the fixture's `.history`
+literally contained `grep kernel`. And the minimize/restore check in
+`verify-terminal` looked for a fixed string that the eight new commands had
+pushed out of the visible viewport; it now compares against what was actually on
+screen before minimizing, which is what it should have done all along.
+
+`tree` also shipped drawing `├─` for last children and continuing the spine down
+finished branches. Visible in a screenshot, fixed, and now tested.
