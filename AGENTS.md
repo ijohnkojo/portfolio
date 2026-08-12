@@ -48,6 +48,14 @@ Two things are load-bearing and easy to break silently:
    `onDrag`/`onResize`. And every process-table mutator must leave untouched
    process objects referentially identical. See `docs/gotchas.md` and D-002 /
    D-006.
+3. **When a module needs a capability it is not allowed to have, pass a message
+   — do not widen the module.** `lineEditor.ts` has no filesystem;
+   `commands.ts` has no DOM and cannot reach the window manager. Tab returns a
+   `complete` *effect* for the caller to resolve; `tile` emits a `wm:tile`
+   *event* for the WM to act on. Effect when you need the answer back, event
+   when you do not and the handler is distant. This is what keeps 270 tests
+   running in bare node — see
+   [architecture.md § when a layer needs something it is not allowed to have](docs/architecture.md).
 
 `pnpm verify` (with `pnpm dev` running) asserts both behaviourally. `pnpm test`
 covers the kernel.

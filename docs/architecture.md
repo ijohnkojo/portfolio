@@ -58,6 +58,46 @@ nothing from `apps/`, `wm/`, `registry/`, or `hooks/`.** Every arrow above
 points *into* it and none point out. It does not know what an app is, only that
 something asked to spawn a process or read a path.
 
+### When a layer needs something it is not allowed to have
+
+This comes up repeatedly, and the answer has been the same every time, so it is
+worth stating once rather than re-deciding.
+
+A module knows *what* should happen but lacks what it needs to *make* it
+happen. The instinct is to hand it the capability. That always works, and it
+always costs the property that made the module worth having:
+
+| Module | Wants to | Would need | Would cost |
+|---|---|---|---|
+| `lineEditor.ts` | complete a path on Tab | the VFS | every keystroke test would have to seed a filesystem |
+| `commands.ts` | tile the windows | the DOM and the WM | commands stop running in node; an app could move any window |
+| `Window.tsx` | preview a snap mid-drag | React state | a commit inside the mousemove loop ([D-002](decisions.md)) |
+
+**Pass a message instead of acquiring the capability.** The module says what it
+wants; something that already has the right context does it.
+
+Two mechanisms, and they are not interchangeable:
+
+| | **Effect** — a return value | **Event** — the bus |
+|---|---|---|
+| Means | "Caller, do this and give me the answer" | "Whoever cares, here is what I want" |
+| Responder | the immediate caller, always | anyone subscribed, possibly nobody |
+| Answer returns? | yes, directly | no |
+| Coupling | requester knows someone will handle it | requester knows nothing about the handler |
+| Example | Tab → `{ type: 'complete' }` ([D-022](decisions.md)) | `tile` → `wm:tile` ([D-023](decisions.md)) |
+
+Pick the **effect** when the requester needs the result back and the caller is
+the obvious owner — completion has to return the completed string. Pick the
+**event** when the requester needs nothing back and the handler is a distant
+part of the system it should not hold a reference to — the shell should not be
+able to reach the window manager at all.
+
+The payoff is concrete and measurable: **270 unit tests run in bare node in
+well under a second** — no jsdom, no browser, no component harness. That holds
+only because the line editor has no filesystem and the command table has no DOM,
+and it stops holding the first time either is handed a capability "just for this
+one feature."
+
 ---
 
 ## 2. Kernel

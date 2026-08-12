@@ -485,6 +485,10 @@ lists.
 a space completes badly even though `tokenize` handles quotes correctly. In
 known gaps.
 
+This is one of two instances of the same pattern — see
+[architecture.md § when a layer needs something it is not allowed to have](architecture.md),
+which states the rule and when to prefer an effect over an event.
+
 ---
 
 ## D-023 · 2026-08-12 · active
@@ -514,3 +518,7 @@ vocabulary and a predicate, both pure. The *action* still goes over the bus; the
 import is so there is one list of layout names rather than two that drift.
 
 **Events now on the bus:** `fs:changed` `{ path, appId }`, `wm:tile` `{ mode }`.
+
+The sibling of [D-022](#d-022--2026-08-12--active): same problem, different
+mechanism. The rule and the choice between them are written up in
+[architecture.md § when a layer needs something it is not allowed to have](architecture.md).

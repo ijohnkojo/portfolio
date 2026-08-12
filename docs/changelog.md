@@ -394,3 +394,20 @@ right in both cases.
 
 **Design doc Phases 1 and 2 are now complete.** What remains on the list is a
 game, and the gaps in [architecture.md](architecture.md) — all absences.
+
+---
+
+## 2026-08-12 — Write up the message-passing pattern
+
+No code change. D-022 and D-023 each documented their own case, and the
+changelog noted the two rhymed, but the *pattern* was nowhere: nothing said
+"when a module needs a capability it should not have, pass a message," and
+nothing explained how to choose between an effect and an event.
+
+Which is the same failure the earlier gap audit found — something explained
+clearly in conversation and never written into the repo, so the next person to
+hit it re-derives or re-litigates it.
+
+Now in [architecture.md § 1](architecture.md) with the effect/event comparison,
+referenced from both decisions, and added to the invariants in `AGENTS.md` so it
+loads into future sessions rather than waiting to be discovered.
