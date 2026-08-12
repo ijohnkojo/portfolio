@@ -18,6 +18,9 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
           <Link href="/papers" className="hover:text-current">
             papers
           </Link>
+          <Link href="/presentations" className="hover:text-current">
+            talks
+          </Link>
           <Link href="/os" className="hover:text-current">
             /os
           </Link>

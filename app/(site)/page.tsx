@@ -6,6 +6,7 @@ import { listEntries } from '@/lib/content'
 export default function Home() {
   const projects = listEntries('projects')
   const papers = listEntries('papers')
+  const presentations = listEntries('presentations')
 
   return (
     <div className="space-y-14">
@@ -40,6 +41,13 @@ export default function Home() {
           Papers
         </h2>
         <EntryList entries={papers} />
+      </section>
+
+      <section>
+        <h2 className="mb-2 font-mono text-xs tracking-widest text-neutral-500 uppercase">
+          Talks &amp; posters
+        </h2>
+        <EntryList entries={presentations} />
       </section>
     </div>
   )

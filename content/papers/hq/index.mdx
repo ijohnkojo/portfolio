@@ -1,0 +1,54 @@
+---
+title: hq (hep-queue)
+summary: Hardening a pull-based task queue for HEP analysis as an IRIS-HEP fellow — server-side TLS, an executor abstraction, and a restructured client/worker split.
+date: 2026-07-22
+tags: [physics, distributed-systems, iris-hep]
+draft: true
+---
+
+{/*
+  DRAFT — summary above is mine, from your notes plus the local repo. Edit freely.
+
+  ATTRIBUTION, PLEASE CHECK BEFORE PUBLISHING.
+  Filtering ~/irishep/hq by your git identity, these commits are yours:
+    - server-side TLS + HTTPS option; certs discovered via env vars
+    - client/ and worker/ split into separate directories
+    - per-client unique IDs
+    - HQExecutor (context-managed queue + local workers + wait)
+    - results to a shared FS via HQ_RESULT_DIR
+    - circular-import fix in util.ts
+
+  These appear in the log but NOT under your authorship filter — confirm before claiming:
+    - `track peakRSS usage per task`
+    - `run task payload in a dedicated subprocess` (per-task environment isolation)
+    - Redis Streams / consumer groups / fault recovery — not visible as yours at all
+    - heartbeat telemetry — not visible as yours at all
+  Possible reasons: unpushed work, a second git identity (a `both-sides` account
+  shows up in a merge), or genuinely upstream. Worth being exact — this is the one
+  kind of error that costs you.
+
+  Architecture context from the local README (upstream design, not your work):
+    - Pull-based: workers fetch from an HTTP server; the server tracks no worker pool
+      and pushes nothing. Cheaper networking than dask-distributed, and workers can
+      join/leave freely — suits HTCondor slots.
+    - Tradeoff: pickup latency bounded by ~1s poll, no locality-aware scheduling.
+    - Stack: bun (TypeScript server), uv (Python client/worker), Redis (dragonfly drop-in).
+    - Eight ADRs in docs/adr/ — worth linking if they're yours.
+
+  Fellowship context: IRIS-HEP Summer 2026, mentored by Peter Fackeldey (Princeton)
+  and Oksana Shadura (UNL); aimed at Coffea-casa deployment ahead of HL-LHC.
+  Related: the CoDaS-HEP lightning talk, /presentations/codas-hep-2026-hardening-hq
+*/}
+
+## Overview
+
+## What I contributed
+
+## Technical details
+
+## Status
+
+## Links
+
+- [Fork](https://github.com/ijohnkojo/hq)
+- [Upstream (pfackeldey/hq)](https://github.com/pfackeldey/hq)

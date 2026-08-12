@@ -72,72 +72,73 @@ async function run(line) {
 
 /* ------------------------------------------------ open a markdown writeup */
 
-await run('open /papers/paper-one/index.mdx')
+await run('open /home/readme.md')
 
-const viewer = page.locator('.window-titlebar', { hasText: 'index.mdx' })
+const viewer = page.locator('.window-titlebar', { hasText: 'readme.md' })
 check('open spawns a viewer titled with the filename', (await viewer.count()) === 1)
 
 // The point of the viewer: markdown as markup, not as text.
-const heading = page.locator('h2', { hasText: 'Abstract' })
-check('markdown renders as markup, not raw text', (await heading.count()) >= 1)
-check(
-  'frontmatter is stripped from the rendered view',
-  !(await page.locator('text=summary: Placeholder paper').count())
-)
+check('markdown renders as markup, not raw text', (await page.locator('h2').count()) >= 1)
+check('GFM tables render in the viewer', (await page.locator('table').count()) >= 1)
 
 const rawToggle = page.getByRole('button', { name: 'raw' }).first()
 await rawToggle.click()
 await page.waitForTimeout(250)
 check(
-  'raw shows the file as cat prints it, frontmatter included',
-  (await page.locator('text=title: Paper One').count()) >= 1
+  'raw shows the file as cat prints it, markup unrendered',
+  (await page.locator('pre', { hasText: '# Getting around' }).count()) >= 1
 )
 await page.getByRole('button', { name: 'rendered' }).first().click()
 await page.waitForTimeout(200)
 
 /* --------------------------------------------- a second file, second copy */
 
-await run('open /projects/project-one/index.mdx')
+await run('open /home/about.md')
 await page.waitForTimeout(400)
 
 const viewerTitles = await page.locator('.window-titlebar').allInnerTexts()
-const openViewers = viewerTitles.filter((t) => t.includes('index.mdx'))
-check('a second file opens a second viewer', openViewers.length === 2, `${openViewers.length} viewers`)
+const openViewers = viewerTitles.filter((t) => t.includes('.md'))
+check('a second file opens a second viewer', openViewers.length >= 2, `${openViewers.length} viewers`)
 
 // Each instance reads its own args — nothing shared through module scope.
-// paper-one's body has an "Abstract" heading; project-one's has "A heading".
 const frames = page.locator('.react-draggable')
 const frameTexts = []
 for (let i = 0; i < (await frames.count()); i++) {
   frameTexts.push(await frames.nth(i).innerText())
 }
-const viewerBodies = frameTexts.filter((t) => t.includes('index.mdx'))
+const viewerBodies = frameTexts.filter((t) => t.includes('.md'))
 check(
   'the two viewers show different documents',
-  viewerBodies.some((t) => t.includes('Abstract')) &&
-    viewerBodies.some((t) => t.includes('A heading')),
+  viewerBodies.some((t) => t.includes('Getting around')) &&
+    viewerBodies.some((t) => !t.includes('Getting around')),
   `${viewerBodies.length} viewer bodies inspected`
 )
 
 /* --------------------------------------------------- asset-backed by src */
 
-await run('open /papers/paper-one/figure.txt')
-await page.waitForTimeout(700)
-check(
-  'an asset-backed file is fetched from src and rendered',
-  (await page.locator('text=Placeholder asset').count()) >= 1
-)
+// Asset-backed rendering activates once a writeup carries a non-text file.
+const assetPath = process.env.ASSET_VFS_PATH
+if (assetPath) {
+  await run(`open ${assetPath}`)
+  await page.waitForTimeout(700)
+  check('an asset-backed file is fetched from src', (await page.locator('embed, img').count()) >= 1)
+} else {
+  console.log('SKIP  asset-backed rendering — no entry carries an asset yet.')
+}
 
 /* ------------------------------------------------------------------ PDF */
 
-await run('open /papers/paper-one/paper.pdf')
-await page.waitForTimeout(900)
-const embed = page.locator('embed[type="application/pdf"]')
-check('a PDF renders through <embed>', (await embed.count()) === 1)
-check(
-  'the embed points at the mirrored asset',
-  (await embed.first().getAttribute('src')) === '/content/papers/paper-one/paper.pdf'
-)
+// Same: activates when a PDF lands in the content tree.
+const pdfPath = process.env.PDF_VFS_PATH
+if (pdfPath) {
+  await run(`open ${pdfPath}`)
+  await page.waitForTimeout(900)
+  const embed = page.locator('embed[type="application/pdf"]')
+  check('a PDF renders through <embed>', (await embed.count()) === 1)
+  check('the embed points at the mirrored asset', Boolean(await embed.first().getAttribute('src')))
+} else {
+  console.log('SKIP  PDF rendering — no PDF in the content tree yet.')
+}
 
 /* --------------------------------------------------- readability in light */
 
@@ -145,7 +146,7 @@ check(
 // computed string directly would be guessing at the colour space.
 const rgb = await page
   .locator('p')
-  .filter({ hasText: 'Placeholder body' })
+  .filter({ hasText: 'This filesystem is real' })
   .first()
   .evaluate((el) => {
     const ctx = document.createElement('canvas').getContext('2d')

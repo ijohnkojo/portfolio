@@ -8,6 +8,7 @@ import {
   allEntries,
   buildVFSTree,
   getEntry,
+  listAllPublished,
   listEntries,
 } from './content'
 import { resolve } from '@/kernel'
@@ -21,17 +22,29 @@ describe('entries', () => {
     }
   })
 
+  // Deliberately content-agnostic: these assert the pipeline's properties, not
+  // the existence of any particular writeup. Naming a slug here means the suite
+  // breaks every time a writeup is renamed, which has already happened once.
   it('parses frontmatter and strips it from the rendered body', () => {
-    const entry = getEntry('projects', 'project-one')
+    for (const entry of allEntries()) {
+      expect(entry.title, entry.vfsPath).toBeTruthy()
+      expect(entry.summary, entry.vfsPath).toBeTruthy()
+      // body feeds MDXRemote, so the frontmatter block must be gone…
+      expect(entry.body.trimStart().startsWith('---'), entry.vfsPath).toBe(false)
+      // …but raw is the file on disk, which is what `cat` should print.
+      expect(entry.raw.startsWith('---'), entry.vfsPath).toBe(true)
+      expect(entry.raw).toContain(`title: ${entry.title}`)
+    }
+  })
 
-    expect(entry).not.toBeNull()
-    expect(entry!.title).toBe('Project One')
-    expect(entry!.summary).toMatch(/pipeline/i)
-    expect(entry!.tags).toContain('placeholder')
-    // body feeds MDXRemote, so frontmatter must be gone…
-    expect(entry!.body).not.toContain('title:')
-    // …but raw is the file on disk, which is what `cat` should print.
-    expect(entry!.raw).toContain('title: Project One')
+  it('reads a known entry through getEntry when it is published', () => {
+    const published = listAllPublished()[0]
+    if (!published) return // everything is draft; covered by the draft tests
+
+    expect(getEntry(published.collection, published.slug)).toMatchObject({
+      slug: published.slug,
+      title: published.title,
+    })
   })
 
   it('normalises a YAML date to an ISO day string', () => {
@@ -41,8 +54,12 @@ describe('entries', () => {
   })
 
   it('sorts newest first', () => {
-    const dates = listEntries('projects').map((e) => e.date)
-    expect([...dates].sort((a, b) => b.localeCompare(a))).toEqual(dates)
+    for (const collection of COLLECTIONS) {
+      const dates = listEntries(collection).map((e) => e.date)
+      expect([...dates].sort((a, b) => b.localeCompare(a))).toEqual(dates)
+    }
+    const all = allEntries().map((e) => e.date)
+    expect([...all].sort((a, b) => b.localeCompare(a))).toEqual(all)
   })
 
   it('maps disk to route to VFS path one-to-one', () => {
@@ -55,15 +72,25 @@ describe('entries', () => {
 
 describe('drafts', () => {
   it('are excluded from listings and unroutable', () => {
-    expect(listEntries('papers').some((e) => e.slug === 'paper-draft')).toBe(false)
-    expect(getEntry('papers', 'paper-draft')).toBeNull()
+    for (const collection of COLLECTIONS) {
+      expect(listEntries(collection).every((e) => !e.draft)).toBe(true)
+    }
+    for (const draft of allEntries().filter((e) => e.draft)) {
+      expect(getEntry(draft.collection, draft.slug)).toBeNull()
+    }
   })
 
   // Hidden from the web, not from the OS — work in progress stays openable.
   it('are still present in the VFS', () => {
-    const node = resolve(buildVFSTree(), '/papers/paper-draft/index.mdx')
-    expect(node).not.toBeNull()
-    expect(node!.type).toBe('file')
+    const drafts = allEntries().filter((e) => e.draft)
+    expect(drafts.length, 'no draft entries to test against').toBeGreaterThan(0)
+
+    for (const draft of drafts) {
+      const node = resolve(buildVFSTree(), draft.vfsPath)
+      expect(node, draft.vfsPath).not.toBeNull()
+      expect(node!.type).toBe('file')
+      expect(getEntry(draft.collection, draft.slug), draft.vfsPath).toBeNull()
+    }
   })
 
   it('are still read by allEntries', () => {
@@ -84,28 +111,48 @@ describe('VFS tree', () => {
   })
 
   it('carries entry metadata on the node, for a viewer or the shell to use', () => {
-    const node = resolve(tree, '/projects/project-one/index.mdx')
-    expect(node!.meta).toMatchObject({
-      title: 'Project One',
-      href: '/projects/project-one',
-      draft: false,
-    })
+    for (const entry of allEntries()) {
+      expect(resolve(tree, entry.vfsPath)!.meta, entry.vfsPath).toMatchObject({
+        title: entry.title,
+        href: entry.href,
+        draft: entry.draft,
+      })
+    }
   })
 
   it('represents non-MDX assets by src, never inlining their contents', () => {
-    const node = resolve(tree, '/papers/paper-one/figure.txt')
-    expect(node).not.toBeNull()
-    expect(node!.type).toBe('file')
-    if (node!.type === 'file') {
-      expect(node!.src).toBe('/content/papers/paper-one/figure.txt')
-      expect(node!.content).toBeUndefined()
+    const withAssets = allEntries().filter((e) => e.assets.length > 0)
+    // Not a silent pass: say so when there is nothing to exercise.
+    if (withAssets.length === 0) {
+      console.warn('  (no entry carries an asset — the src path is untested)')
+      return
+    }
+
+    for (const entry of withAssets) {
+      for (const asset of entry.assets) {
+        const node = resolve(tree, `/${entry.collection}/${entry.slug}/${asset.name}`)
+        expect(node, asset.name).not.toBeNull()
+        if (node!.type === 'file') {
+          expect(node!.src).toBe(asset.src)
+          expect(node!.content).toBeUndefined()
+        }
+      }
+    }
+  })
+
+  it('inlines text under /home but gives binaries a src', () => {
+    const readme = resolve(tree, '/home/readme.md')
+    expect(readme!.type).toBe('file')
+    if (readme!.type === 'file') {
+      expect(readme!.content).toContain('Getting around')
+      expect(readme!.src).toBeUndefined()
     }
   })
 
   it('mounts loose home files inline, since the About app cats them', () => {
     const node = resolve(tree, '/home/about.md')
     expect(node!.type).toBe('file')
-    if (node!.type === 'file') expect(node!.content).toContain('mechanism, not policy')
+    if (node!.type === 'file') expect(node!.content).toBeTruthy()
   })
 
   it('does not build /apps — the client registry owns that', () => {

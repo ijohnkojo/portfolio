@@ -539,3 +539,58 @@ meta tags, no server markup, and would vanish with site data. The VFS already
 draws the line — base tree is published and read-only, overlay is scratch
 ([D-003](decisions.md)) — so an in-OS editor remains a reasonable thing to build
 for notes, just not for anything that needs a URL.
+
+---
+
+## 2026-08-12 — Real content structure; placeholders removed
+
+### Built
+
+- **Six real entries**, all `draft: true` until the prose is written: `hq` and
+  `hscp-mass-reconstruction` under papers; `treeviz`, `academic-explainer`, and
+  `nanoglide` under projects; `codas-hep-2026-hardening-hq` under a new
+  `presentations` collection. Frontmatter is complete, summaries drafted from
+  the author's notes, bodies are section skeletons with working notes in MDX
+  comments.
+- **`presentations` collection** ([D-026](decisions.md)) — routes, listing, nav,
+  landing-page section, and optional `venue`/`location` frontmatter.
+- **`content/home/readme.md`** — a guide to the filesystem for anyone exploring
+  with the shell. Real content, and a stable test fixture that no slug rename
+  can break.
+- All placeholder entries deleted.
+
+### Fixed
+
+- **The viewer rendered MDX comments as body text.** The first real content
+  carried `{/* … */}` note blocks; MDX strips them, `react-markdown` did not.
+  Working notes would have been visible in the OS. Partly closes
+  [D-016](decisions.md) — the surfaces still differ on embedded components, no
+  longer on comments.
+- **`buildHomeDir` read every file as UTF-8**, so a PDF dropped in `/home` would
+  have been inlined as mojibake. Text is inlined, everything else gets a `src`,
+  matching how entry assets already worked.
+
+### The recurring problem, fixed properly this time
+
+Deleting the placeholders broke four unit tests and most of three E2E suites,
+because they named specific writeups — `project-one`, `paper-one/figure.txt`.
+That is the third time this class of brittleness has cost a debugging round.
+
+The suites now assert on **properties rather than particular content**: every
+entry has frontmatter and a stripped body, drafts are absent from listings and
+present in the VFS, `ls` shows *some* directories. `verify-content` discovers a
+published entry from the listing pages instead of naming one, and skips the
+route-render checks with a printed message when everything is draft. The
+viewer suite uses `/home/readme.md`, which no rename can move.
+
+### Notes for the author
+
+- **hq attribution needs checking.** Filtering the local repo by git identity,
+  TLS, the executor, the client/worker split, per-client IDs, and shared-FS
+  results are yours. Redis Streams/consumer groups, heartbeat telemetry, and
+  subprocess-per-task are **not** visible as yours — flagged in that entry's
+  notes. Attribution is the one portfolio error that actually costs something.
+- `content/home/about.md` still describes the OS rather than the author. It is
+  what the About app shows.
+- Nothing is published, so five `verify-content` checks are skipped until the
+  first entry flips to `draft: false`.

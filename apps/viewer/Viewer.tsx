@@ -36,6 +36,16 @@ function stripFrontmatter(text: string): string {
   return text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
 }
 
+/**
+ * MDX comments — `{ /* … *\/ }` — are stripped by the MDX compiler the routes use,
+ * but `react-markdown` has never heard of them and would render an author's
+ * working notes as visible body text. Closes half of D-016: the two surfaces
+ * still differ on embedded components, but no longer on comments.
+ */
+function stripMdxComments(text: string): string {
+  return text.replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '')
+}
+
 export default function Viewer({ args, kernel }: AppProps) {
   const path = args[0] ?? ''
   const node = path ? kernel.fs.stat(path) : null
@@ -166,7 +176,7 @@ function Body({
   return (
     <div className="max-w-[68ch] p-5">
       <Markdown remarkPlugins={[remarkGfm]} components={mdxComponents}>
-        {stripFrontmatter(text)}
+        {stripMdxComments(stripFrontmatter(text))}
       </Markdown>
     </div>
   )

@@ -356,6 +356,12 @@ content, reappearing at the render layer. Both consume the same component map
 from `components/mdx.tsx`, which confines the divergence to JSX embeds
 specifically. Recorded in known gaps.
 
+**Partly closed 2026-08-12.** The first real content carried `{/* … */}` note
+blocks — MDX strips them, `react-markdown` had never heard of them and rendered
+an author's working notes as visible body text. The viewer now strips them too.
+The surfaces still differ on embedded *components*; they no longer differ on
+comments.
+
 **Revisit when** a writeup actually needs an embedded component. The escape
 hatch is runtime MDX evaluation inside the viewer.
 
@@ -600,3 +606,40 @@ with `read-only: part of the published content`, which is true and useful.
 That leaves a kernel `unlink` primitive as the only real work — tens of lines
 rather than a migration. Re-scoped, not yet built. See
 [review.md](review.md).
+
+---
+
+## D-026 · 2026-08-12 · active
+### Posters go with talks, not with papers
+
+Three collections: `projects`, `papers`, `presentations`. Posters live in
+`presentations` alongside talks, rather than in `papers`.
+
+**Why.** The split is by artifact, and the deciding factor is metadata shape:
+
+| | Wants |
+|---|---|
+| paper | authors, journal or preprint, DOI/arXiv, abstract |
+| poster | event, location, date, PDF |
+| talk | event, location, date, slides |
+
+A poster shares almost nothing structurally with a paper and almost everything
+with a talk — what makes it findable is *where and when it was presented*.
+Filing posters under `papers` would produce a collection where half the entries
+have a DOI and half have a venue.
+
+**No `conferences` collection.** Attendance is not an artifact; there is no page
+to write, and `/conferences/<event>` saying "I attended" is worse than no page.
+Presenting produces an entry, attending is a CV line.
+
+`presentations` rather than `talks` because it stays accurate the first time a
+poster goes in, and it matches the heading readers in this field already scan
+for — *Publications / Presentations*.
+
+**Cost.** A talk about a paper means two entries that cross-link rather than one
+page covering both. That is the correct shape — the talk and the paper are
+genuinely different artifacts — but it is more upkeep.
+
+Optional `venue` and `location` frontmatter were added for this collection. They
+cost nothing, since only `title`/`summary`/`date` are required and `stat`
+surfaces every metadata field automatically.

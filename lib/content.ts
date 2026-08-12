@@ -19,7 +19,7 @@ import { dir, file, type DirNode, type FileNode, type VFSNode } from '@/kernel'
 const CONTENT_DIR = path.join(process.cwd(), 'content')
 const ENTRY_FILE = 'index.mdx'
 
-export const COLLECTIONS = ['projects', 'papers'] as const
+export const COLLECTIONS = ['projects', 'papers', 'presentations'] as const
 export type Collection = (typeof COLLECTIONS)[number]
 
 export interface Entry {
@@ -164,7 +164,14 @@ function assetNode(name: string, src: string): FileNode {
   return { type: 'file', name, mime: mimeFor(name), src }
 }
 
-/** Loose files under content/home — read inline, they're small and `cat`-able. */
+/** Text mimes are small enough to inline and `cat`-able; everything else is not. */
+const INLINE_MIMES = new Set(['text/markdown', 'text/plain', 'application/json'])
+
+/**
+ * Loose files under content/home. Text is inlined so `cat` works; anything else
+ * gets a `src` like an entry asset would — reading a PDF as UTF-8 would inline
+ * mojibake into the page payload.
+ */
 function buildHomeDir(): DirNode {
   const homeDir = path.join(CONTENT_DIR, 'home')
   const children: Record<string, VFSNode> = {}
@@ -172,8 +179,11 @@ function buildHomeDir(): DirNode {
 
   for (const e of fs.readdirSync(homeDir, { withFileTypes: true })) {
     if (!e.isFile()) continue
-    const full = path.join(homeDir, e.name)
-    children[e.name] = file(e.name, fs.readFileSync(full, 'utf8'), mimeFor(e.name))
+
+    const mime = mimeFor(e.name)
+    children[e.name] = INLINE_MIMES.has(mime)
+      ? file(e.name, fs.readFileSync(path.join(homeDir, e.name), 'utf8'), mime)
+      : assetNode(e.name, `/content/home/${e.name}`)
   }
   return dir('home', children)
 }

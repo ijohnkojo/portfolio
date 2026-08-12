@@ -59,6 +59,11 @@ draft: false
 | `date` | yes | `YYYY-MM-DD`. Sorts the listings, newest first |
 | `tags` | no | drives the `tags` command; lowercase |
 | `draft` | no | `true` hides it from the web but keeps it in the OS |
+| `venue` | no | for `presentations` — the event |
+| `location` | no | for `presentations` — where it was |
+
+Any other field you add is carried through to the VFS and shown by `stat`, so
+collection-specific metadata costs nothing.
 
 `title`, `summary`, and `date` are enforced: a missing one **fails the build**
 with the file path, rather than shipping a blank `<title>`.
@@ -132,8 +137,14 @@ The asymmetry is deliberate and asserted by `pnpm verify:content`.
 
 ## Adding a collection
 
-Collections are the top-level groupings — `projects`, `papers`. Adding one takes
-three steps:
+Collections are the top-level groupings — `projects`, `papers`, `presentations`.
+
+The split is by *artifact*, not by venue ([D-026](decisions.md)): `papers` is
+written research, `presentations` is anything delivered at an event, posters
+included, because a poster's metadata looks like a talk's and nothing like a
+paper's. Attending a conference without presenting does not earn an entry.
+
+Adding a collection takes four steps:
 
 1. `content/<name>/` with at least one entry
 2. add `'<name>'` to `COLLECTIONS` in [lib/content.ts](../lib/content.ts)
@@ -153,11 +164,16 @@ the exact failure this pipeline exists to prevent.
 **Embedded React components render differently in the two surfaces.** The web
 route compiles MDX properly; the OS viewer uses `react-markdown`
 ([D-016](decisions.md)) and would show raw JSX as text. Nothing uses this yet.
-If you want a live demo inside a writeup, say so and the viewer needs handling
+If you want a live demo inside a writeup, say so — the viewer needs handling
 first.
 
-**`content/home/about.md`** is not an entry — it is loose content, read by the
-About app and by `cat /home/about.md`. It is a good place for a short bio.
+MDX comments — `{/* … */}` — are safe: both surfaces strip them, so they are a
+good place for working notes while a writeup is in progress.
+
+**`content/home/`** is not a collection — it is loose content. `about.md` is
+what the About app shows and a good place for a short bio; `readme.md` is a
+guide to the filesystem for anyone exploring with the shell. Text files there
+are inlined so `cat` works; anything else gets a `src` like an entry asset.
 
 ---
 
