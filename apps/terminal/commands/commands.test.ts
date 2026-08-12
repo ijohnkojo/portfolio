@@ -297,6 +297,122 @@ describe('wc', () => {
   })
 })
 
+/**
+ * The rule, once and for every command that has an opinion: **a path wins.**
+ * Standard input is what a command falls back to when it was given nothing to
+ * open, which is how a real shell behaves and is why none of this needs a flag
+ * ([D-029](../../../docs/decisions.md)).
+ */
+describe('standard input', () => {
+  const stdin = ['gamma', 'alpha', 'beta', 'alpha']
+
+  describe('cat', () => {
+    it('echoes stdin when given no path', () => {
+      expect(run('cat', { stdin }).output).toEqual(stdin)
+    })
+
+    it('prefers the path it was given', () => {
+      expect(run('cat /home/about.md', { stdin }).output).toEqual([
+        'mechanism, not policy',
+        'second line here',
+      ])
+    })
+
+    it('still reports a missing operand with neither', () => {
+      expect(run('cat').output[0]).toBe('cat: missing operand')
+    })
+  })
+
+  describe('grep', () => {
+    it('filters stdin with no path:line: prefix — there is no file to name', () => {
+      expect(run('grep alpha', { stdin }).output).toEqual(['alpha', 'alpha'])
+    })
+
+    it('honours -i over stdin', () => {
+      expect(run('grep -i ALPHA', { stdin }).output).toEqual(['alpha', 'alpha'])
+    })
+
+    it('searches the path it was given instead', () => {
+      const out = run('grep kernel /home', { stdin }).output
+      expect(out.every((line) => line.startsWith('/home/'))).toBe(true)
+    })
+
+    it('still needs a pattern', () => {
+      expect(run('grep', { stdin }).output[0]).toBe('grep: missing pattern')
+    })
+  })
+
+  describe('wc', () => {
+    it('counts stdin and names nothing', () => {
+      expect(run('wc', { stdin }).output).toEqual([' 4  4 22'])
+    })
+
+    it('counts the file when given one', () => {
+      expect(run('wc /home/about.md', { stdin }).output[0]).toContain('about.md')
+    })
+
+    it('still reports a missing operand with neither', () => {
+      expect(run('wc').output[0]).toBe('wc: missing operand')
+    })
+  })
+
+  describe('head / tail', () => {
+    it('slice stdin', () => {
+      expect(run('head -n 2', { stdin }).output).toEqual(['gamma', 'alpha'])
+      expect(run('tail -n 2', { stdin }).output).toEqual(['beta', 'alpha'])
+    })
+
+    it('prefer the path', () => {
+      expect(run('head -n 1 /home/about.md', { stdin }).output).toEqual([
+        'mechanism, not policy',
+      ])
+    })
+
+    it('still report a missing operand with neither', () => {
+      expect(run('head').output[0]).toBe('head: missing operand')
+    })
+  })
+
+  describe('sort', () => {
+    it('sorts stdin, and reverses with -r', () => {
+      expect(run('sort', { stdin }).output).toEqual(['alpha', 'alpha', 'beta', 'gamma'])
+      expect(run('sort -r', { stdin }).output).toEqual(['gamma', 'beta', 'alpha', 'alpha'])
+    })
+
+    it('sorts a file when given one', () => {
+      ctx.kernel.fs.write('/home/list.txt', 'b\na')
+      expect(run('sort /home/list.txt', { stdin }).output).toEqual(['a', 'b'])
+    })
+
+    it('still reports a missing operand with neither', () => {
+      expect(run('sort').output[0]).toBe('sort: missing operand')
+    })
+  })
+
+  describe('uniq', () => {
+    // Adjacent only, as the real one is — which is why sort comes first.
+    it('collapses a run of identical lines, not every duplicate', () => {
+      expect(run('uniq', { stdin }).output).toEqual(['gamma', 'alpha', 'beta', 'alpha'])
+      // Sorting first is what turns that into deduplication.
+      expect(run('sort | uniq', { stdin }).output).toEqual(['alpha', 'beta', 'gamma'])
+    })
+
+    it('counts the run with -c', () => {
+      expect(run('uniq -c', { stdin: ['a', 'a', 'b'] }).output).toEqual(['2 a', '1 b'])
+    })
+
+    it('still reports a missing operand with neither', () => {
+      expect(run('uniq').output[0]).toBe('uniq: missing operand')
+    })
+  })
+
+  // The rest never look, and that is not an error — as in bash.
+  it('is ignored by commands that have no use for it', () => {
+    expect(run('pwd', { stdin, cwd: '/papers' }).output).toEqual(['/papers'])
+    expect(run('echo hi', { stdin }).output).toEqual(['hi'])
+  })
+})
+
 describe('history', () => {
   it('numbers the entries from the history file', () => {
     expect(run('history').output).toEqual(['1  ls', '2  cd /papers', '3  grep kernel'])

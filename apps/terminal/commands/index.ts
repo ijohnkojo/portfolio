@@ -30,6 +30,8 @@ const table: Command[] = [
   fs.head,
   fs.tail,
   fs.wc,
+  fs.sort,
+  fs.uniq,
   // writing
   write.mkdir,
   write.touch,

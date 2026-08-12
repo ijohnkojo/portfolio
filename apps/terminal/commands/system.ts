@@ -105,7 +105,7 @@ export function createDocCommands(table: () => Record<string, Command>) {
           'Commands:',
           ...entries.map((c) => `  ${c.usage.padEnd(width)}  ${c.summary}`),
           '',
-          "'man <command>' for detail. No piping or redirection — see the design doc.",
+          "'man <command>' for detail. Pipe with |, redirect with > or >>.",
         ],
       }
     },

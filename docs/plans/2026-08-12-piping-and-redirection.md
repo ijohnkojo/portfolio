@@ -1,11 +1,38 @@
 # Piping and Redirection
 
-> **Status:** drafted 2026-08-12 · not started
+> **Status:** drafted 2026-08-12 · **shipped 2026-08-12** as
+> [D-029](../decisions.md), with the deviations below.
 >
 > Written at the end of a session with the architecture fresh, so a later
 > session can execute it without rediscovering anything. Read
 > [../../AGENTS.md](../../AGENTS.md) and [../README.md](../README.md) first;
 > everything below assumes them.
+>
+> **The plan held.** Its central claim — that commands already return `string[]`
+> rather than printing, so the architecture was the right shape — was correct,
+> and the executor is a loop. Five deviations:
+>
+> 1. **`tokenize` and `findUnquotedOperator` moved into `pipeline.ts`** rather
+>    than being reused from `shell.ts`. Both are parsing, and pipeline.ts is the
+>    parser; leaving them where they were would have made the dependency point
+>    both ways. `shell.ts` re-exports both, so nothing else moved.
+>    `findUnquotedOperator` is now `findUnsupportedOperator` — after this change
+>    `|` is an unquoted operator it deliberately does *not* report, so the old
+>    name had stopped being true.
+> 2. **`sort` and `uniq` taken**, on the plan's own "decide at build time"
+>    instruction. Piping without them is thin.
+> 3. **One more syntax error than the plan listed**: `> out.txt` with no command
+>    is `expected a command before '>'`. The plan's set had no message for a line
+>    that begins with a redirect, and `unexpected '|'` would have been a lie.
+> 4. **`toLines` — a trailing newline terminates the last line.** Not in the
+>    plan and not optional: every redirect writes a `\n`-terminated file, so
+>    without it `cat f` disagreed with the pipeline that wrote `f`. Found by the
+>    `>>` check in `verify-terminal`, not by reasoning.
+> 5. **Tab completes a command after a `|`.** A pipe is a command position;
+>    completing it as a path offered directories where no directory can go.
+>
+> Scope held: no `<`, `2>`, `&&`, `||`, `$( )`, globs, variables, job control, or
+> exit codes.
 
 ## Context
 

@@ -9,8 +9,8 @@ right and the design doc needs a patch.
 
 **Status:** design doc Phases 1 and 2 complete. Kernel, syscall boundary,
 registry, window manager with snapping and tiling, crawlable SSG content,
-shell with completion and persisted history, file viewer, wired persistence.
-No game yet.
+shell with pipelines, completion and persisted history, file viewer, wired
+persistence. No game yet.
 
 ---
 
@@ -92,7 +92,7 @@ the obvious owner — completion has to return the completed string. Pick the
 part of the system it should not hold a reference to — the shell should not be
 able to reach the window manager at all.
 
-The payoff is concrete and measurable: **317 unit tests run in bare node in
+The payoff is concrete and measurable: **418 unit tests run in bare node in
 well under a second** — no jsdom, no browser, no component harness. That holds
 only because the line editor has no filesystem and the command table has no DOM,
 and it stops holding the first time either is handed a capability "just for this
@@ -470,26 +470,29 @@ is the same idea as the kernel: **the shell does not know xterm exists.**
 flowchart LR
     KEYS(["keystrokes"]) --> TERM["Terminal.tsx<br/>xterm host"]
     TERM --> LE["lineEditor.ts<br/>pure state machine"]
-    LE -- "submit" --> SH["shell.ts<br/>tokenize + dispatch"]
+    LE -- "submit" --> SH["shell.ts<br/>execute the pipeline"]
+    SH --> PIPE["pipeline.ts<br/>tokenize + split on | > >>"]
     LE -- "complete" --> COMP["completion.ts<br/>pure · listDir injected"]
+    COMP -. "is this a command position?" .-> PIPE
     COMP -- "new line" --> TERM
-    SH --> CMD["commands.ts<br/>the command table"]
+    SH --> CMD["commands/<br/>the command table"]
     CMD --> API{{"kernelAPI"}}
     CMD -. "wm:tile" .-> BUS(["event bus"])
     BUS -. "the WM decides" .-> WM["OsShell · applyTiling"]
     SH -- "output lines" --> TERM
 ```
 
-`lineEditor.ts` and `shell.ts` are plain TypeScript — no xterm, no React, no
-DOM. xterm is one possible *device* attached to the shell. That is what lets all
-of it be tested in a bare node environment; the terminal's browser checks only
-have to prove the wiring, not the logic.
+`lineEditor.ts`, `pipeline.ts` and `shell.ts` are plain TypeScript — no xterm,
+no React, no DOM. xterm is one possible *device* attached to the shell. That is
+what lets all of it be tested in a bare node environment; the terminal's browser
+checks only have to prove the wiring, not the logic.
 
 | File | Knows about |
 |---|---|
 | `Terminal.tsx` | xterm, the DOM, and nothing else worth testing |
 | `lineEditor.ts` | buffer, cursor, history. Pure `(state, input) => [state, effects]` |
-| `shell.ts` | tokenising and dispatch; formats `CommandError` into a line |
+| `pipeline.ts` | a line of text, and what `\|`, `>` and `>>` mean in one |
+| `shell.ts` | running the stages; formats `CommandError` into a line |
 | `commands/` | the syscall boundary and a cwd |
 | `completion.ts` | a token, a cwd, and an injected `listDir` |
 | `render.ts` | a buffer, a cursor, and a column count |
@@ -515,9 +518,9 @@ appended on commit through `fs.write`, batched at 250ms and flushed on
 The terminal is therefore the first app holding `fs.write`.
 
 The command table is a directory ([D-024](decisions.md)) grouped by what each
-command touches — `fs.ts`, `proc.ts`, `system.ts` — with `types.ts` for the
-shared shape and `walk.ts` for the recursive tree walk that `grep`, `find`,
-`tags`, and `tree` share. Twenty-four commands.
+command touches — `fs.ts`, `proc.ts`, `system.ts`, `write.ts` — with `types.ts`
+for the shared shape and `walk.ts` for the recursive tree walk that `grep`,
+`find`, `tags`, and `tree` share. Thirty-one commands.
 
 Each carries its own `description` and `examples`, which `man` prints. A test
 asserts every command has them, so one cannot ship undocumented.
@@ -526,20 +529,55 @@ The search commands exist because content nodes carry their frontmatter in
 `meta` and nothing read it: `stat` shows it, `tags` indexes it, `grep` and
 `find` make the tree searchable rather than merely walkable.
 
-**Tab completion** ([D-022](decisions.md)) is a fourth pure module,
+**Tab completion** ([D-022](decisions.md)) is another pure module,
 `completion.ts`, with directory listing injected as a function. The line editor
 maps Tab to a `complete` effect rather than doing the work — it has no
 filesystem and should not grow one. Extending to the longest common prefix and
 listing only when that adds nothing reproduces bash's two-tap behaviour with no
-extra state.
+extra state. It completes a command name at the start of a line and after each
+unquoted `|`, and a path everywhere else.
+
+**Pipelines and redirection** ([D-029](decisions.md)) split across the two:
+
+```mermaid
+flowchart TD
+    LINE["grep -i physics / | wc &gt; /home/count.txt"] --> PARSE["parsePipeline"]
+    PARSE --> S1["stage: grep -i physics /"]
+    PARSE --> S2["stage: wc"]
+    PARSE --> RED["redirect: /home/count.txt, append false"]
+    S1 -- "output as stdin" --> S2
+    S2 -- "output" --> RED
+    RED --> WRITE{{"fs.write"}}
+```
+
+`pipeline.ts` is the parser and is where the bugs in a feature like this live,
+so it is a module with its own tests rather than a branch inside `runCommand`.
+It owns `tokenize`, the split on `|` / `>` / `>>`, and
+`findUnsupportedOperator` — the rejection list for `<`, `2>`, `&&` and `||`,
+which are still not implemented and say so by name. `shell.ts` is what happens
+after: run each stage with the previous stage's output as its `stdin`, then
+either return the last stage's lines or write them to a file.
+
+Three rules carry the behaviour, all in [D-029](decisions.md): **a command reads
+stdin only when it was given no path**, so no flag is needed; **only the final
+stage's `cwd`, `clear` and `reset` count**, since the earlier ones are producing
+text; and **a trailing newline terminates the last line rather than beginning an
+empty one** (`toLines`), so what a redirect wrote reads back as what the
+pipeline produced.
+
+This works at all because commands *return* `string[]` rather than printing —
+a property they have for testability, which turned out to be exactly the shape a
+pipeline needs.
 
 `render.ts` builds the repaint sequence and is pure — walking up over a wrapped
 line, erasing to end of *display*, and placing the cursor absolutely. The
 previous version cleared only the current row, which duplicated the prompt
 whenever an edited line wrapped.
 
-Not implemented, deliberately: piping and redirection (design doc §2 calls them
-a scope-creep magnet), and tab completion.
+Not implemented, deliberately: `<`, `2>`, `&&`, `||`, `$( )`, globs, variables,
+job control, and exit codes. Design doc §2 calls shell syntax a scope-creep
+magnet and is right about where the magnet is — each of these would be its own
+decision ([D-029](decisions.md)).
 
 ## 8. Apps
 
@@ -548,7 +586,7 @@ imported component, and a `kernelAPI` scoped to its declared permissions.
 
 | App | Permissions | Notes |
 |---|---|---|
-| `terminal` | `fs.read` `proc.*` | boots by default; see § 7 |
+| `terminal` | `fs.read` `fs.write` `proc.*` | boots by default; see § 7. `fs.write` is history and `>` |
 | `viewer` | `fs.read` | opens files; `handles` declares its mime types |
 | `about` | `fs.read` | reads `/home/about.md`; can crash on demand |
 | `sysinfo` | `fs.read` `events.listen` | live kernel state |

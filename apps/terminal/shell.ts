@@ -1,15 +1,27 @@
 /**
- * Tokenise, dispatch, format errors. Pure — no xterm, no React.
+ * Dispatch and execute. Pure — no xterm, no React.
  *
  * xterm is one possible *device* attached to this; the shell has no idea it
  * exists. That is what lets every command be tested in bare node.
+ *
+ * Parsing lives next door in `pipeline.ts`. This file is what happens after:
+ * run each stage with the previous stage's output as its input, and either
+ * print the last one or write it to a file.
  */
+import { resolvePath } from '@/kernel'
 import {
   CommandError,
   commands,
   type CommandResult,
   type ShellContext,
 } from './commands'
+import {
+  findUnsupportedOperator,
+  parsePipeline,
+  tokenize,
+  type Pipeline,
+  type Redirect,
+} from './pipeline'
 
 export interface ShellResult {
   output: string[]
@@ -18,133 +30,118 @@ export interface ShellResult {
   reset: boolean
 }
 
-/**
- * Split a line into words, honouring single and double quotes so a path with a
- * space works. No expansion, no globbing, no piping — design doc §2 calls
- * those a scope-creep magnet, and it is right.
- */
-export function tokenize(line: string): string[] {
-  const tokens: string[] = []
-  let current = ''
-  let quote: '"' | "'" | null = null
-  let started = false
-
-  for (const char of line) {
-    if (quote) {
-      if (char === quote) quote = null
-      else current += char
-      continue
-    }
-    if (char === '"' || char === "'") {
-      quote = char
-      started = true
-      continue
-    }
-    if (/\s/.test(char)) {
-      if (started) {
-        tokens.push(current)
-        current = ''
-        started = false
-      }
-      continue
-    }
-    current += char
-    started = true
-  }
-
-  if (started) tokens.push(current)
-  return tokens
+/** The message from anything thrown, without assuming it is an Error. */
+function detailOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /**
- * Operators this shell does not implement. Longest first, so `||` is found
- * before `|` and `>>` before `>`.
- */
-const UNSUPPORTED_OPERATORS = ['&&', '||', '>>', '2>', '|', '>', '<'] as const
-
-/**
- * Find an unquoted shell operator, or null.
+ * Send a pipeline's output to a file, returning an error line or null.
  *
- * Quoted operators are ordinary text — `echo "a | b"` is a legitimate thing to
- * type and must keep working. Without this check the operator is swallowed as
- * an argument, so `ls | wc` reports `ls: |: No such file or directory`, which
- * sends you looking for a file rather than telling you what is actually wrong.
+ * The kernel's errno-shaped messages are translated the way `rm` translates
+ * EROFS: a reader can act on "Is a directory" and cannot act on "EISDIR". The
+ * parent is checked first because the store reports a missing parent and a
+ * parent that is a file with the same error, and those want different words.
+ *
+ * Redirecting onto published content is deliberately allowed — the write lands
+ * in the overlay as an edit, and `rm` reverts it ([D-027](../../docs/decisions.md)).
  */
-export function findUnquotedOperator(line: string): string | null {
-  let quote: '"' | "'" | null = null
+function writeRedirect(
+  ctx: ShellContext,
+  redirect: Redirect,
+  output: string[]
+): string | null {
+  const path = resolvePath(ctx.cwd, redirect.path)
+  const parent = ctx.kernel.fs.stat(resolvePath(path, '..'))
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
+  if (!parent) return `cannot write ${path}: No such file or directory`
+  if (parent.type !== 'dir') return `cannot write ${path}: Not a directory`
 
-    if (quote) {
-      if (char === quote) quote = null
-      continue
-    }
-    if (char === '"' || char === "'") {
-      quote = char
-      continue
-    }
-    for (const operator of UNSUPPORTED_OPERATORS) {
-      if (line.startsWith(operator, i)) return operator
-    }
+  // A shell writes lines, so every line gets its terminator — but no output at
+  // all means an empty file, not a lone newline.
+  const text = output.length === 0 ? '' : `${output.join('\n')}\n`
+
+  try {
+    const existing = redirect.append ? (ctx.kernel.fs.read(path) ?? '') : ''
+    ctx.kernel.fs.write(path, existing + text)
+  } catch (error) {
+    const detail = detailOf(error)
+    if (detail.startsWith('EISDIR')) return `cannot write ${path}: Is a directory`
+    return `cannot write ${path}: ${detail}`
   }
   return null
 }
 
 export function runCommand(line: string, ctx: ShellContext): ShellResult {
-  const operator = findUnquotedOperator(line)
-  if (operator) {
+  /** Everything a failure leaves untouched. */
+  const unchanged = { cwd: ctx.cwd, clear: false, reset: false }
+
+  const unsupported = findUnsupportedOperator(line)
+  if (unsupported) {
     return {
-      output: [`${operator}: not supported — this shell has no piping or redirection`],
-      cwd: ctx.cwd,
-      clear: false,
-      reset: false,
+      output: [`${unsupported}: not supported — this shell has only | > and >>`],
+      ...unchanged,
     }
   }
 
-  const tokens = tokenize(line)
-
-  if (tokens.length === 0) {
-    return { output: [], cwd: ctx.cwd, clear: false, reset: false }
-  }
-
-  const [name, ...args] = tokens
-  const command = commands[name]
-
-  if (!command) {
-    return {
-      output: [`${name}: command not found — try 'help'`],
-      cwd: ctx.cwd,
-      clear: false,
-      reset: false,
-    }
-  }
-
-  let result: CommandResult
+  let pipeline: Pipeline
   try {
-    result = command.run(ctx, args)
+    pipeline = parsePipeline(line)
   } catch (error) {
-    // CommandError is an expected failure with a message already in UNIX shape.
-    // Anything else is a bug, and saying so beats printing a bare stack.
-    if (error instanceof CommandError) {
-      return { output: [error.message], cwd: ctx.cwd, clear: false, reset: false }
-    }
-    const detail = error instanceof Error ? error.message : String(error)
-    return {
-      output: [`${name}: internal error: ${detail}`],
-      cwd: ctx.cwd,
-      clear: false,
-      reset: false,
-    }
+    return { output: [detailOf(error)], ...unchanged }
   }
 
-  return {
-    output: result.output ?? [],
-    cwd: result.cwd ?? ctx.cwd,
-    clear: result.clear ?? false,
-    reset: result.reset ?? false,
+  if (pipeline.stages.length === 0) return { output: [], ...unchanged }
+
+  let output: string[] = []
+  let last: CommandResult = {}
+
+  for (const [index, stage] of pipeline.stages.entries()) {
+    const [name, ...args] = stage.tokens
+    const command = commands[name]
+
+    if (!command) {
+      return { output: [`${name}: command not found — try 'help'`], ...unchanged }
+    }
+
+    let result: CommandResult
+    try {
+      // Every stage runs against the cwd the line started in. `cd /x | wc` is
+      // nonsense, so only the final stage's cwd is kept, below.
+      result = command.run(
+        { ...ctx, stdin: index === 0 ? ctx.stdin : output },
+        args
+      )
+    } catch (error) {
+      // CommandError is an expected failure with a message already in UNIX
+      // shape. Anything else is a bug, and saying so beats printing a bare
+      // stack. Either way the pipeline stops: a stage that failed has no output
+      // worth feeding to the next one.
+      if (error instanceof CommandError) {
+        return { output: [error.message], ...unchanged }
+      }
+      return { output: [`${name}: internal error: ${detailOf(error)}`], ...unchanged }
+    }
+
+    output = result.output ?? []
+    last = result
   }
+
+  // `clear`, `reset`, and a changed cwd are honoured from the final stage only,
+  // for the same reason its cwd is: the earlier stages are producing text.
+  const finished = {
+    cwd: last.cwd ?? ctx.cwd,
+    clear: last.clear ?? false,
+    reset: last.reset ?? false,
+  }
+
+  if (pipeline.redirect) {
+    const error = writeRedirect(ctx, pipeline.redirect, output)
+    return error ? { output: [error], ...unchanged } : { output: [], ...finished }
+  }
+
+  return { output, ...finished }
 }
 
-export { commands }
+export { commands, findUnsupportedOperator, tokenize }
 export type { ShellContext }

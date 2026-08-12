@@ -5,7 +5,7 @@
  * directory — no xterm, no React, no DOM — which is what lets the whole shell
  * be tested in a bare node environment.
  */
-import type { KernelAPI, VFSNode } from '@/kernel'
+import { resolvePath, type KernelAPI, type VFSNode } from '@/kernel'
 
 export interface ShellContext {
   kernel: KernelAPI
@@ -18,6 +18,13 @@ export interface ShellContext {
    * `next/dynamic` into a module that is meant to run in bare node.
    */
   resolveHandler?: (mime: string) => string | null
+  /**
+   * The previous stage's output, when this command is part of a pipeline
+   * ([D-029](../../../docs/decisions.md)). A command reads it only when it was
+   * given no path, and one that has no use for it simply never looks — as in
+   * bash, where `pwd` in a pipeline is not an error.
+   */
+  stdin?: string[]
 }
 
 export interface CommandResult {
@@ -105,4 +112,36 @@ export function takeFlag(args: string[], flag: string): { present: boolean; rest
 /** Operands are everything that isn't a flag. */
 export function operands(args: string[]): string[] {
   return args.filter((arg) => !arg.startsWith('-'))
+}
+
+/**
+ * File contents as lines. **A trailing newline terminates the last line; it
+ * does not begin an empty one** — which is what every UNIX tool means by a
+ * line, and what `\n`-terminated output from a redirect makes load-bearing:
+ * without this, `ls > f` then `cat f` shows a blank line that is not in the
+ * listing, and `wc f` counts one more line than `ls | wc` does.
+ */
+export function toLines(content: string): string[] {
+  const lines = content.split('\n')
+  if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop()
+  return lines
+}
+
+/**
+ * The lines to work on: the contents of the operands, or standard input when
+ * there are none.
+ *
+ * **A path always wins.** That is how a real shell behaves, and it means
+ * reading a pipe needs no flag — the absence of an argument is the signal.
+ * With neither, the command is missing an operand as it always was.
+ */
+export function readInput(ctx: ShellContext, command: string, args: string[]): string[] {
+  const paths = operands(args)
+
+  if (paths.length === 0) {
+    if (ctx.stdin) return ctx.stdin
+    fail(command, 'missing operand')
+  }
+
+  return paths.flatMap((arg) => toLines(readOrFail(ctx, command, resolvePath(ctx.cwd, arg))))
 }

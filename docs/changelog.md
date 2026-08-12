@@ -662,3 +662,78 @@ reason has expired though — it was written when nothing produced output worth
 chaining, and there are now twenty-nine commands and a writable filesystem. If
 it is ever built, the shape is already right: commands return `string[]` rather
 than printing, which is exactly what a pipeline needs.
+
+---
+
+## 2026-08-12 — Pipes and redirection
+
+Plan: [plans/2026-08-12-piping-and-redirection.md](plans/2026-08-12-piping-and-redirection.md)
+
+Design doc §2 deferred these as a scope-creep magnet. Built, and recorded as a
+deferral whose *reason* expired rather than a rule overruled ([D-029](decisions.md)):
+it was written when there were eight read-only commands and no writable
+filesystem, so `>` had nowhere to write and `|` had nothing worth chaining. §2 is
+still right about where the magnet is, which is why the scope is three operators.
+
+### Built
+
+- **`pipeline.ts`**, a fourth pure module — `tokenize`, the split on `|`, `>`
+  and `>>`, and `findUnsupportedOperator` for the ones still not implemented.
+  The parser is where the bugs in this feature live, so it is a module with its
+  own tests rather than a branch inside `runCommand`. Five syntax errors, each
+  naming what is missing.
+- **`stdin` on `ShellContext`**, read by `cat`, `grep`, `wc`, `head` and `tail`
+  — **only when the command was given no path**. No flag: the absence of an
+  operand is the signal, as in bash.
+- **`sort` and `uniq`**, which the plan left optional. Taken: `sort | uniq` is
+  the shape people expect, and piping without them is thin. Thirty-one commands.
+- **Redirection**, `>` truncating and `>>` appending, resolved against the cwd.
+  Onto published content it becomes an overlay edit that `rm` reverts, so
+  [D-027](decisions.md) already covered it.
+- **Tab completes a command after a `|`**, not a path. Not in the plan; a pipe
+  is a command position and completing it against the cwd offered directories
+  where no directory can go. It reuses `lastUnquotedPipe` rather than teaching
+  the completer a second time what a quote is ([D-022](decisions.md), extended).
+
+### What the plan did not anticipate
+
+**A trailing newline was starting an empty line.** Found by the E2E check for
+`>>`: `ls /papers > out.txt` then `tail -n 1 out.txt` printed a blank, because
+`split('\n')` on `\n`-terminated content yields a final empty string. Cosmetic
+until redirection existed — every redirect writes a terminated file, so `cat f`
+disagreed with the pipeline that produced it and `wc f` counted one line more
+than `ls | wc`. `toLines` in `commands/types.ts` is now the one place that
+decides it: **a trailing newline terminates the last line rather than beginning
+an empty one.**
+
+Two doc bugs surfaced while reconciling: `architecture.md` claimed tab
+completion was not implemented in the same section that describes how it works,
+and `running.md` suggested typing `cd /papers && ls` — an operator this shell
+rejects. Both fixed.
+
+### Verified
+
+**418 unit tests** (+56), including the parser's five syntax errors by message,
+each stdin-consuming command with input, with a path, and with neither, and a
+round trip asserting a file reads back as what was piped into it. All five
+browser suites green: terminal **36/36** with three new checks, phase2 29/29,
+WM 20/20, viewer 8/8, content 7/7. Build clean.
+
+### Deliberately left out
+
+`<`, `2>`, `&&`, `||`, `$( )`, globs, variables, job control, and **exit codes**.
+A stage that fails halts the pipeline and its message becomes the whole output;
+`$?` would need a status on `CommandResult` and a variable syntax to read it
+with, which is the magnet §2 names. Each would be its own decision.
+
+### Triggers checked
+
+No `Revisit when` in [decisions.md](decisions.md) fired. The two that could
+plausibly have: [D-011](decisions.md) (the `/os` payload) is untouched — this
+adds no content — and [D-009](decisions.md) (Playwright not a dependency) still
+has no CI behind it, though the terminal suite is now the one carrying the most
+weight. [D-022](decisions.md) was *extended* rather than triggered: it has no
+trigger, and its cost line (completion ignores quotes) is unchanged.
+
+D-029 adds one: **revisit when something needs to know whether a command
+succeeded** — the first thing exit codes would buy.

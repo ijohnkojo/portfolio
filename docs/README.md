@@ -47,14 +47,14 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 **Design doc Phases 1 and 2 are complete.** Kernel, syscall boundary, registry,
 window manager with snapping and tiling, crawlable SSG content routes, a shell
-with twenty-four commands, tab completion, persisted history, a file/PDF viewer, and
-a session that survives a reload.
+with thirty-one commands, pipes and redirection, tab completion, persisted
+history, a file/PDF viewer, and a session that survives a reload.
 
 Not yet: a game. Content is real MDX with real frontmatter; the prose is being
 written separately.
 
-Next up, if you want it: [plans/2026-08-12-piping-and-redirection.md](plans/2026-08-12-piping-and-redirection.md)
-— drafted and ready to execute, not started.
+Most recently shipped: [plans/2026-08-12-piping-and-redirection.md](plans/2026-08-12-piping-and-redirection.md)
+— `|`, `>` and `>>` ([D-029](decisions.md)). Nothing is queued behind it.
 
 Remaining work is triaged in [review.md](review.md) — all absences now rather
 than defects. The nearest items are the placeholder slugs (which become

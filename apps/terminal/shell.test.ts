@@ -10,7 +10,7 @@ import {
   processStore,
   vfsStore,
 } from '@/kernel'
-import { findUnquotedOperator, runCommand, tokenize } from './shell'
+import { runCommand } from './shell'
 import type { ShellContext } from './commands'
 
 const TERMINAL_PID = 1
@@ -62,25 +62,6 @@ beforeEach(() => {
 
 const run = (line: string, override?: Partial<ShellContext>) =>
   runCommand(line, { ...ctx, ...override })
-
-describe('tokenize', () => {
-  it('splits on whitespace and collapses runs', () => {
-    expect(tokenize('  ls   /projects  ')).toEqual(['ls', '/projects'])
-  })
-
-  it('keeps quoted spans together', () => {
-    expect(tokenize('cat "a file.md"')).toEqual(['cat', 'a file.md'])
-    expect(tokenize("cat 'a file.md'")).toEqual(['cat', 'a file.md'])
-  })
-
-  it('treats an empty quoted string as a real argument', () => {
-    expect(tokenize('echo ""')).toEqual(['echo', ''])
-  })
-
-  it('returns nothing for a blank line', () => {
-    expect(tokenize('   ')).toEqual([])
-  })
-})
 
 describe('dispatch', () => {
   it('does nothing for a blank line', () => {
@@ -386,34 +367,134 @@ describe('tile', () => {
 })
 
 describe('unsupported operators', () => {
-  it('says what is wrong instead of hunting for a file named |', () => {
-    const out = run('ls | wc').output[0]
-    expect(out).toBe('|: not supported — this shell has no piping or redirection')
-  })
-
+  // The three that are implemented are covered under `pipelines`; these are the
+  // ones deliberately left out (D-029), which have to say so rather than send
+  // you looking for a file named `&&`.
   it('names the operator it found', () => {
-    expect(run('echo hi > out.txt').output[0]).toMatch(/^>: not supported/)
-    expect(run('echo hi >> out.txt').output[0]).toMatch(/^>>: not supported/)
-    expect(run('cat < in.txt').output[0]).toMatch(/^<: not supported/)
+    expect(run('cat < in.txt').output[0]).toBe(
+      '<: not supported — this shell has only | > and >>'
+    )
     expect(run('ls && pwd').output[0]).toMatch(/^&&: not supported/)
     expect(run('ls || pwd').output[0]).toMatch(/^\|\|: not supported/)
-  })
-
-  it('prefers the longer operator, so >> is not reported as >', () => {
-    expect(findUnquotedOperator('a >> b')).toBe('>>')
-    expect(findUnquotedOperator('a || b')).toBe('||')
-    expect(findUnquotedOperator('a 2> b')).toBe('2>')
+    expect(run('ls 2> err.txt').output[0]).toMatch(/^2>: not supported/)
   })
 
   // Quoted operators are ordinary text and must keep working.
   it('ignores operators inside quotes', () => {
-    expect(findUnquotedOperator('echo "a | b"')).toBeNull()
-    expect(findUnquotedOperator("echo 'x > y'")).toBeNull()
     expect(run('echo "a | b"').output).toEqual(['a | b'])
+    expect(run('echo "a && b"').output).toEqual(['a && b'])
+  })
+})
+
+describe('pipelines', () => {
+  it('feeds one stage into the next', () => {
+    expect(run('cat /home/about.md | wc').output).toEqual([' 2  4 17'])
   })
 
-  it('leaves ordinary lines alone', () => {
-    expect(findUnquotedOperator('ls -a /home')).toBeNull()
-    expect(findUnquotedOperator('')).toBeNull()
+  it('chains three stages', () => {
+    ctx.kernel.fs.write('/home/list.txt', 'b\na\nb\nc')
+    expect(run('cat /home/list.txt | sort | uniq').output).toEqual(['a', 'b', 'c'])
+  })
+
+  it('reports a syntax error rather than running anything', () => {
+    expect(run('ls |').output).toEqual(["syntax error: expected a command after '|'"])
+    expect(run('ls > a b').output).toEqual(["syntax error: '>' takes one file"])
+  })
+
+  it('halts on a failing stage and reports only that', () => {
+    const result = run('cat /nope.md | wc')
+    expect(result.output).toEqual(['cat: /nope.md: No such file or directory'])
+  })
+
+  it('halts on an unknown command in any stage', () => {
+    expect(run('ls | frobnicate').output[0]).toMatch(/frobnicate: command not found/)
+  })
+
+  // Each stage runs against the cwd the line started in, so a `cd` that is not
+  // last is a command whose output nobody reads.
+  it('takes the cwd from the final stage only', () => {
+    expect(run('cd /papers | wc', { cwd: '/home' }).cwd).toBe('/home')
+    expect(run('echo hi | cd /papers', { cwd: '/home' }).cwd).toBe('/papers')
+  })
+
+  it('honours clear from the final stage only', () => {
+    expect(run('clear | wc').clear).toBe(false)
+    expect(run('echo hi | clear').clear).toBe(true)
+  })
+
+  it('leaves a command that has no use for stdin alone, as bash does', () => {
+    expect(run('echo hi | pwd', { cwd: '/papers' }).output).toEqual(['/papers'])
+  })
+})
+
+describe('redirection', () => {
+  it('writes the output to a file and prints nothing', () => {
+    const result = run('ls /apps > /home/out.txt')
+
+    expect(result.output).toEqual([])
+    expect(ctx.kernel.fs.read('/home/out.txt')).toBe('about*\nsysinfo*\n')
+  })
+
+  it('truncates on > and appends on >>', () => {
+    run('echo one > /home/out.txt')
+    run('echo two > /home/out.txt')
+    expect(ctx.kernel.fs.read('/home/out.txt')).toBe('two\n')
+
+    run('echo three >> /home/out.txt')
+    expect(ctx.kernel.fs.read('/home/out.txt')).toBe('two\nthree\n')
+  })
+
+  it('creates the file when appending to one that does not exist', () => {
+    run('echo one >> /home/new.txt')
+    expect(ctx.kernel.fs.read('/home/new.txt')).toBe('one\n')
+  })
+
+  it('resolves the target against the cwd', () => {
+    run('pwd > out.txt', { cwd: '/home' })
+    expect(ctx.kernel.fs.read('/home/out.txt')).toBe('/home\n')
+  })
+
+  it('writes an empty file rather than a lone newline for no output', () => {
+    run('ls /projects/project-two > /home/empty.txt')
+    expect(ctx.kernel.fs.read('/home/empty.txt')).toBe('')
+  })
+
+  it('takes the whole pipeline', () => {
+    run('cat /home/about.md | wc > /home/count.txt')
+    expect(ctx.kernel.fs.read('/home/count.txt')).toBe(' 2  4 17\n')
+  })
+
+  // The kernel's errno shape is not something a reader can act on.
+  it('explains a target it cannot write, in UNIX shape', () => {
+    expect(run('ls > /nope/out.txt').output[0]).toBe(
+      'cannot write /nope/out.txt: No such file or directory'
+    )
+    expect(run('ls > /home').output[0]).toBe('cannot write /home: Is a directory')
+    expect(run('ls > /home/about.md/x').output[0]).toBe(
+      'cannot write /home/about.md/x: Not a directory'
+    )
+  })
+
+  it('does not write when a stage of the pipeline failed', () => {
+    run('cat /nope.md > /home/out.txt')
+    expect(ctx.kernel.fs.stat('/home/out.txt')).toBeNull()
+  })
+
+  /**
+   * Every redirect ends the file with a newline, so this stopped being
+   * cosmetic the moment `>` existed: a trailing newline has to terminate the
+   * last line rather than begin an empty one, or reading a file back disagrees
+   * with the pipeline that wrote it.
+   */
+  it('round-trips through a file without gaining a blank line', () => {
+    run('ls /apps > /home/out.txt')
+
+    expect(run('cat /home/out.txt').output).toEqual(run('ls /apps').output)
+
+    // Same lines, same words. The file is one character longer, because the
+    // newline terminating its last line is a character in it — which is what
+    // `wc` counts anywhere else too.
+    expect(run('ls /apps | wc').output[0]).toBe(' 2  2 15')
+    expect(run('wc /home/out.txt').output[0]).toBe(' 2  2 16  out.txt')
   })
 })

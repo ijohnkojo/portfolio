@@ -14,7 +14,7 @@ buttons for each registered app, then one button per running window.
 
 ## The shell
 
-Type `help` for the list, `man <command>` for detail. Twenty-four commands.
+Type `help` for the list, `man <command>` for detail. Thirty-one commands.
 
 **Reading the filesystem**
 
@@ -22,10 +22,11 @@ Type `help` for the list, `man <command>` for detail. Twenty-four commands.
 |---|---|
 | `ls [-a] [path]` | list; `dir/` and `app*` markers carry the type |
 | `cd [path]` · `pwd` | move around; bare `cd` goes to `/` |
-| `cat <path…>` | print a file exactly as stored, frontmatter and all |
+| `cat [path…]` | print a file exactly as stored, frontmatter and all |
 | `stat <path…>` | type, mime, size — **and the frontmatter**: title, date, tags |
 | `tree [-a] [-L n] [path]` | the whole shape at once |
 | `head` · `tail` · `wc` | first/last lines, and counts |
+| `sort [-r]` · `uniq [-c]` | order lines, and collapse adjacent repeats |
 
 **Finding things** — the reason this stopped being a toy
 
@@ -69,18 +70,16 @@ Worth trying: `grep -i kernel /`, `tags`, `stat /papers/paper-one/index.mdx`,
 `tree /`.
 
 `ls -a` shows dotfiles, including `/home/.history` — where your command history
-actually lives, which is why `grep` and `cat` reach it.
+actually lives. `cat /home/.history` works, because it is a real file, which is
+why `grep` reaches it too.
 
-**Tab completes** — command names in the first word, paths after that. One match
-completes outright (directories gain a `/`), several extend to their shared
-prefix, and pressing Tab again lists them.
-
-`ls -a` shows dotfiles, including `/home/.history` — where your command history
-actually lives. `cat /home/.history` works, because it is a real file.
+**Tab completes** — command names in the first word and after each `|`, paths
+everywhere else. One match completes outright (directories gain a `/`), several
+extend to their shared prefix, and pressing Tab again lists them.
 
 Worth trying: `ls /apps`, then `open /apps/sysinfo` — spawning a window from the
-shell. And `cd /papers && ls` shows `paper-draft/`, which the web 404s: drafts
-are hidden from crawlers, not from the OS.
+shell. And `ls /papers` shows `paper-draft/`, which the web 404s: drafts are
+hidden from crawlers, not from the OS.
 
 `open` also works on files, handing each to whichever app declared its mime type:
 
@@ -93,7 +92,28 @@ can be open at once.
 
 Line editing: arrows, Home/End, Ctrl+A/E/U/L, Ctrl+C to abandon a line, Ctrl+D
 on an empty line to exit. Up/down walk history, which **survives a reload**.
-Ctrl+C copies when there's a selection. Tab completion is still not built.
+Ctrl+C copies when there's a selection.
+
+## Pipes and redirection
+
+`|`, `>` and `>>` work ([D-029](decisions.md)):
+
+```
+grep -i physics / | wc            count the matches instead of listing them
+ls /papers > /home/out.txt        write the listing to a file
+echo one more >> /home/out.txt    append to it
+cat /home/.history | sort | uniq -c    which commands you type most
+```
+
+`cat`, `grep`, `wc`, `head`, `tail`, `sort` and `uniq` read the pipe when given
+no path — a path always wins, so `echo x | wc /home/about.md` counts the file.
+Anything else in a pipeline simply ignores what it was handed, as in bash.
+
+Redirecting onto published content is allowed: the write becomes an edit in the
+overlay, and `rm` reverts it.
+
+Nothing else does. `<`, `2>`, `&&`, `||` unquoted say so by name rather than
+looking for a file. Quoted operators are ordinary text: `echo "a | b"` works.
 
 ## Windows
 
@@ -119,10 +139,6 @@ terminal comes back empty at `/`.
 If a session ever gets into a state you don't want, `reset` clears it and boots
 fresh.
 
-No piping or redirection, deliberately (design doc §2). Typing `|`, `>`, `>>`,
-`<`, `&&` or `||` unquoted says so rather than looking for a file by that name.
-Quoted ones are ordinary text: `echo "a | b"` works.
-
 ## Commands
 
 | Command | Does |
@@ -130,7 +146,7 @@ Quoted ones are ordinary text: `echo "a | b"` works.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 357 unit tests — kernel, content, shell, editor, render, completion, tiling |
+| `pnpm test` | 418 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |

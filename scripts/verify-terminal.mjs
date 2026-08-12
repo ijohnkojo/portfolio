@@ -162,6 +162,46 @@ check('wc counts a file', /\d+\s+\d+\s+\d+\s+about\.md/.test(wcOut))
 const historyOut = await run('history')
 check('history numbers previous commands', /\s*1\s+/.test(historyOut))
 
+/* ------------------------------------------ pipes and redirection (D-029) */
+
+/**
+ * The last line a command printed. Assertions here have to come from the new
+ * output rather than from `screen()` as a whole — earlier checks leave their
+ * own results in the viewport, and a `grep` further up would satisfy a test
+ * meant for the pipeline below.
+ */
+function lastOutputLine(text) {
+  const lines = text
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+  // The bottom row is the prompt the shell drew after finishing.
+  return lines.at(-1).endsWith('$') ? lines.at(-2) : lines.at(-1)
+}
+
+// The point of a pipe: wc has to have consumed grep's output rather than a
+// file, so the result is three numbers and not a list of matches.
+const piped = lastOutputLine(await run('grep -i filesystem /home | wc'))
+check(
+  'a pipeline feeds one command into the next',
+  /^\s*\d+\s+\d+\s+\d+$/.test(piped),
+  `wc counted grep's matches rather than listing them: "${piped.trim()}"`
+)
+
+await run('ls /papers > /home/out.txt')
+const redirected = lastOutputLine(await run('cat /home/out.txt'))
+check(
+  'redirection writes the output to a real file',
+  redirected.endsWith('/'),
+  `the listing came back out of the file, ending "${redirected}"`
+)
+
+await run('echo appended >> /home/out.txt')
+check(
+  '>> appends rather than truncating',
+  lastOutputLine(await run('tail -n 1 /home/out.txt')) === 'appended'
+)
+
 /* ------------------------------------------------------- open / ps / kill */
 
 const windowsBefore = await page.locator('.window-titlebar').count()

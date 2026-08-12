@@ -14,6 +14,7 @@
  * ambiguous prefix changes nothing, so the second lists. Same outcome, no state.
  */
 import { resolvePath } from '@/kernel'
+import { lastUnquotedPipe } from './pipeline'
 
 export interface CompletionEntry {
   name: string
@@ -92,9 +93,13 @@ export function complete(ctx: CompletionContext): CompletionResult {
   const unchanged = { buffer, cursor, suggestions: [] as string[] }
 
   const { start, token } = tokenBounds(buffer, cursor)
-  const isFirstToken = buffer.slice(0, start).trim() === ''
 
-  const candidates = isFirstToken
+  // A command name is expected at the start of the line and again after each
+  // pipe; everywhere else the word is a path.
+  const before = buffer.slice(0, start)
+  const isCommandPosition = before.slice(lastUnquotedPipe(before) + 1).trim() === ''
+
+  const candidates = isCommandPosition
     ? completeCommands(token, ctx.commands)
     : completePath(token, ctx)
 

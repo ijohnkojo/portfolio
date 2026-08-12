@@ -9,10 +9,12 @@ import {
   decorate,
   fail,
   operands,
+  readInput,
   readOrFail,
   statOrFail,
   takeFlag,
   takeNumberFlag,
+  toLines,
   type Command,
   type ShellContext,
 } from './types'
@@ -74,20 +76,12 @@ export const pwd: Command = {
 
 export const cat: Command = {
   name: 'cat',
-  usage: 'cat <path...>',
+  usage: 'cat [path...]',
   summary: 'print file contents',
   description:
-    'Prints files exactly as they are stored, frontmatter included — cat shows what is in the file. Use stat to read the metadata on its own.',
+    'Prints files exactly as they are stored, frontmatter included — cat shows what is in the file. Use stat to read the metadata on its own. Given no path it prints its standard input instead, which is what makes it useful at the end of a pipeline.',
   examples: ['cat /home/about.md', 'cat /papers/paper-one/index.mdx'],
-  run: (ctx, args) => {
-    if (args.length === 0) fail('cat', 'missing operand')
-
-    const output: string[] = []
-    for (const arg of args) {
-      output.push(...readOrFail(ctx, 'cat', resolvePath(ctx.cwd, arg)).split('\n'))
-    }
-    return { output }
-  },
+  run: (ctx, args) => ({ output: readInput(ctx, 'cat', args) }),
 }
 
 export const stat: Command = {
@@ -189,15 +183,12 @@ export const grep: Command = {
   usage: 'grep [-i] <pattern> [path]',
   summary: 'search file contents',
   description:
-    'Searches the text of every file beneath a directory and prints each matching line as path:line: text. -i ignores case. Files stored as external assets are skipped, since their bytes are not in the filesystem.',
-  examples: ['grep kernel /home', 'grep -i placeholder /papers', 'grep syscall'],
+    'Searches the text of every file beneath a directory and prints each matching line as path:line: text. -i ignores case. Files stored as external assets are skipped, since their bytes are not in the filesystem. Given no path it filters its standard input instead, printing the matching lines with no prefix — there is no file to name.',
+  examples: ['grep kernel /home', 'grep -i placeholder /papers', 'ps | grep viewer'],
   run: (ctx, args) => {
     const { present: ignoreCase, rest } = takeFlag(args, '-i')
     const [pattern, where] = operands(rest)
     if (!pattern) fail('grep', 'missing pattern')
-
-    const root = resolvePath(ctx.cwd, where ?? '.')
-    statOrFail(ctx, 'grep', root)
 
     // A pattern that isn't valid regex is treated as literal text rather than
     // crashing the shell — `grep [` should search for a bracket.
@@ -208,6 +199,13 @@ export const grep: Command = {
       const literal = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       matcher = new RegExp(literal, ignoreCase ? 'i' : '')
     }
+
+    if (where === undefined && ctx.stdin) {
+      return { output: ctx.stdin.filter((line) => matcher.test(line)) }
+    }
+
+    const root = resolvePath(ctx.cwd, where ?? '.')
+    statOrFail(ctx, 'grep', root)
 
     const output: string[] = []
     let truncated = false
@@ -224,7 +222,7 @@ export const grep: Command = {
       const content = ctx.kernel.fs.read(path)
       if (content === null) continue
 
-      const lines = content.split('\n')
+      const lines = toLines(content)
       for (let i = 0; i < lines.length; i++) {
         if (!matcher.test(lines[i])) continue
         if (output.length >= MAX_MATCHES) {
@@ -281,12 +279,16 @@ export const tags: Command = {
 function lineSlice(command: Command['name'], ctx: ShellContext, args: string[], fromEnd: boolean) {
   const { value: count, rest } = takeNumberFlag(args, '-n', 10)
   const paths = operands(rest)
-  if (paths.length === 0) fail(command, 'missing operand')
+
+  if (paths.length === 0) {
+    const lines = readInput(ctx, command, rest)
+    return { output: fromEnd ? lines.slice(-count) : lines.slice(0, count) }
+  }
 
   const output: string[] = []
   for (const arg of paths) {
     const path = resolvePath(ctx.cwd, arg)
-    const lines = readOrFail(ctx, command, path).split('\n')
+    const lines = toLines(readOrFail(ctx, command, path))
 
     // Headers only when there is more than one file, as in the real thing.
     if (paths.length > 1) {
@@ -300,45 +302,44 @@ function lineSlice(command: Command['name'], ctx: ShellContext, args: string[], 
 
 export const head: Command = {
   name: 'head',
-  usage: 'head [-n count] <path...>',
+  usage: 'head [-n count] [path...]',
   summary: 'print the first lines of a file',
-  description: 'Prints the first lines of each file, ten by default.',
-  examples: ['head /home/about.md', 'head -n 3 /papers/paper-one/index.mdx'],
+  description:
+    'Prints the first lines of each file, ten by default. Given no path it slices its standard input instead, which is how to look at the front of a long pipeline.',
+  examples: ['head /home/about.md', 'grep -i kernel / | head -n 3'],
   run: (ctx, args) => lineSlice('head', ctx, args, false),
 }
 
 export const tail: Command = {
   name: 'tail',
-  usage: 'tail [-n count] <path...>',
+  usage: 'tail [-n count] [path...]',
   summary: 'print the last lines of a file',
-  description: 'Prints the last lines of each file, ten by default.',
+  description:
+    'Prints the last lines of each file, ten by default. Given no path it slices its standard input instead.',
   examples: ['tail /home/.history', 'tail -n 3 /home/about.md'],
   run: (ctx, args) => lineSlice('tail', ctx, args, true),
 }
 
 export const wc: Command = {
   name: 'wc',
-  usage: 'wc <path...>',
+  usage: 'wc [path...]',
   summary: 'count lines, words, and characters',
   description:
-    'Counts lines, words, and characters in each file. Several files also get a total row.',
-  examples: ['wc /home/about.md', 'wc /papers/paper-one/index.mdx /home/about.md'],
+    'Counts lines, words, and characters in each file. Several files also get a total row. Given no path it counts its standard input instead, and names nothing — there is no file to name.',
+  examples: ['wc /home/about.md', 'grep -i physics / | wc'],
   run: (ctx, args) => {
     const paths = operands(args)
-    if (paths.length === 0) fail('wc', 'missing operand')
+    if (paths.length === 0 && !ctx.stdin) fail('wc', 'missing operand')
 
     let totals = { lines: 0, words: 0, chars: 0 }
     const rows: Array<[number, number, number, string]> = []
 
-    for (const arg of paths) {
-      const path = resolvePath(ctx.cwd, arg)
-      const content = readOrFail(ctx, 'wc', path)
-
-      const lines = content.split('\n').length
+    const count = (content: string, name: string) => {
+      const lines = toLines(content).length
       const words = content.split(/\s+/).filter(Boolean).length
       const chars = content.length
 
-      rows.push([lines, words, chars, basename(path)])
+      rows.push([lines, words, chars, name])
       totals = {
         lines: totals.lines + lines,
         words: totals.words + words,
@@ -346,14 +347,62 @@ export const wc: Command = {
       }
     }
 
+    if (paths.length === 0) {
+      count(ctx.stdin!.join('\n'), '')
+    } else {
+      for (const arg of paths) {
+        const path = resolvePath(ctx.cwd, arg)
+        count(readOrFail(ctx, 'wc', path), basename(path))
+      }
+    }
+
     if (rows.length > 1) rows.push([totals.lines, totals.words, totals.chars, 'total'])
 
     const width = Math.max(...rows.flatMap((r) => r.slice(0, 3).map((n) => String(n).length)))
     return {
-      output: rows.map(
-        ([lines, words, chars, name]) =>
-          `${String(lines).padStart(width)} ${String(words).padStart(width)} ${String(chars).padStart(width)}  ${name}`
+      output: rows.map(([lines, words, chars, name]) =>
+        `${String(lines).padStart(width)} ${String(words).padStart(width)} ${String(chars).padStart(width)}  ${name}`.trimEnd()
       ),
+    }
+  },
+}
+
+export const sort: Command = {
+  name: 'sort',
+  usage: 'sort [-r] [path...]',
+  summary: 'sort lines',
+  description:
+    'Sorts lines alphabetically, reading its standard input when given no path. -r reverses the order. It exists for pipelines: sorting a file in place is not something this shell can do.',
+  examples: ['sort /home/notes.md', 'ls /papers | sort -r'],
+  run: (ctx, args) => {
+    const { present: reverse, rest } = takeFlag(args, '-r')
+    const lines = [...readInput(ctx, 'sort', rest)].sort((a, b) => a.localeCompare(b))
+    return { output: reverse ? lines.reverse() : lines }
+  },
+}
+
+export const uniq: Command = {
+  name: 'uniq',
+  usage: 'uniq [-c] [path...]',
+  summary: 'collapse repeated adjacent lines',
+  description:
+    'Collapses a run of identical adjacent lines into one, reading its standard input when given no path. -c prefixes each with how many times it occurred. Adjacent is the real behaviour, and the reason sort comes first: sort | uniq is what removes duplicates.',
+  examples: ['uniq /home/notes.md', 'sort /home/notes.md | uniq -c'],
+  run: (ctx, args) => {
+    const { present: withCounts, rest } = takeFlag(args, '-c')
+
+    const runs: Array<[line: string, count: number]> = []
+    for (const line of readInput(ctx, 'uniq', rest)) {
+      const previous = runs[runs.length - 1]
+      if (previous && previous[0] === line) previous[1]++
+      else runs.push([line, 1])
+    }
+
+    if (!withCounts) return { output: runs.map(([line]) => line) }
+
+    const width = Math.max(1, ...runs.map(([, count]) => String(count).length))
+    return {
+      output: runs.map(([line, count]) => `${String(count).padStart(width)} ${line}`),
     }
   },
 }

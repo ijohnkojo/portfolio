@@ -114,6 +114,23 @@ describe('path completion', () => {
   })
 })
 
+describe('after a pipe', () => {
+  // The word after `|` is a command name, so completing it against the cwd
+  // would offer directories where no directory can go.
+  it('completes a command, not a path', () => {
+    expect(run('ls / | op').buffer).toBe('ls / | open ')
+    expect(run('ls / | ').suggestions).toEqual([...COMMANDS].sort())
+  })
+
+  it('still completes a path in the argument after it', () => {
+    expect(run('ls / | cat /home/ab').buffer).toBe('ls / | cat /home/about.md ')
+  })
+
+  it('is not fooled by a quoted pipe', () => {
+    expect(run('echo "a | b" /pro').buffer).toBe('echo "a | b" /projects/')
+  })
+})
+
 describe('cursor handling', () => {
   it('splices mid-line instead of truncating the rest', () => {
     const buffer = 'cat /home/ab | something'

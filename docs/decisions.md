@@ -504,6 +504,12 @@ lists.
 a space completes badly even though `tokenize` handles quotes correctly. In
 known gaps.
 
+**Extended 2026-08-12 by [D-029](#d-029--2026-08-12--active).** A command name
+is now expected after each unquoted `|` as well as at the start of the line, so
+Tab there offers commands rather than the contents of the cwd. It reuses
+`lastUnquotedPipe` from `pipeline.ts` rather than growing a second scanner that
+knows what a quote is — the completer still does not parse, it asks.
+
 This is one of two instances of the same pattern — see
 [architecture.md § when a layer needs something it is not allowed to have](architecture.md),
 which states the rule and when to prefer an effect over an event.
@@ -710,3 +716,63 @@ component with the right context performs it.
 
 Found by `verify-phase2`, not by reasoning — the check that reset boots to a
 single window started reporting three.
+
+---
+
+## D-029 · 2026-08-12 · active
+### Piping and redirection ship — exactly `|`, `>` and `>>`
+
+Design doc §2 deferred them: *"Piping/redirection: skip for V1, real scope creep
+magnet."* Implemented, and the deferral is recorded as expired rather than
+overruled.
+
+**Why the original reason no longer holds.** It was written when the shell had
+around eight read-only commands and no writable filesystem — `>` had nowhere to
+write and `|` had nothing worth chaining. There are now thirty-one commands,
+several genuinely composable, and `fs.write` exists. `grep -i physics / | wc` is
+a thing a person types. Same shape as [D-008](#d-008--2026-08-12--superseded-by-d-021-and-d-023):
+a deferral that was right when made, revisited when its premise changed rather
+than left standing because it was written down.
+
+**§2 is still right about where the magnet is,** which is why the scope is three
+operators and not "shell syntax". `<`, `2>`, `&&`, `||`, `$( )`, globs,
+variables, job control and exit codes are all still out, and
+`findUnsupportedOperator` reports them by name. Each would be its own decision.
+
+**It cost almost nothing, and that is a payoff rather than luck.** Commands
+already *return* `string[]` instead of printing, because they were written to be
+testable in bare node. A pipeline is exactly that shape, so `stdin` is one
+optional field on `ShellContext` and the executor is a loop. Most toy shells
+have to be rewritten to add pipes.
+
+**Three rules that are not obvious:**
+
+- **A command reads stdin only when it was given no path.** No flag: the absence
+  of an operand is the signal, as it is in bash. A command with no use for stdin
+  never looks, and that is not an error.
+- **Only the last stage's `cwd`, `clear` and `reset` count.** `cd /x | wc` is
+  nonsense; the earlier stages are producing text. Every stage runs against the
+  cwd the line started in.
+- **A trailing newline terminates the last line rather than beginning an empty
+  one.** Redirects write `\n`-terminated files, so without this `ls > f` then
+  `cat f` shows a blank line that is not in the listing, and `wc f` counts one
+  more line than `ls | wc`. `toLines` in `commands/types.ts` is the single place
+  that decides it.
+
+**No exit codes.** A stage that fails halts the pipeline and its message becomes
+the whole output. `$?` would need a status on `CommandResult` and a variable
+syntax to read it with — which is the magnet.
+
+**Redirecting onto published content is allowed.** The write lands in the
+overlay as an edit and `rm` reverts it, so [D-027](#d-027--2026-08-12--active)
+already covers it and no new rule was needed.
+
+**Cost.** Parsing is now a real parser — `pipeline.ts`, with its own tests —
+where it used to be `tokenize` plus a rejection list. Two more commands (`sort`,
+`uniq`) exist mainly to make pipelines worth having, which is a mild widening of
+"a shell for browsing a portfolio." And every command that takes a path is now
+two commands in one, so its `description` has to say what it does with stdin.
+
+**Revisit when** something needs to know whether a command succeeded — that is
+the first thing exit codes would buy, and the point at which the three rules
+above stop being sufficient.
