@@ -180,60 +180,92 @@ Everything in this doc — VFS as the spine, small composable shell commands, WM
 
 ### 8.1 System diagram
 
+Thick arrows are the syscall boundary — the only way anything above it reaches
+anything below it.
+
+```mermaid
+flowchart TB
+    subgraph POLICY["POLICY — swappable, bolted on top"]
+        WM["Window Manager<br/>renders the process table:<br/>draggable windows, taskbar, focus ring"]
+        REG["App Registry<br/>appId → manifest<br/>component · icon · permissions"]
+        TERM["Terminal"]
+        VIEW["PDF / File Viewer"]
+        GAME["Game"]
+    end
+
+    API{{"kernelAPI — the syscall boundary<br/>fs · proc · window · events<br/>every call checked against the app's manifest"}}
+
+    subgraph MECH["MECHANISM — the kernel knows nothing else"]
+        VFS[("VFS")]
+        PROC[("Process Table")]
+        BUS(["Event Bus"])
+    end
+
+    CONTENT["/content<br/>base tree, ships with the build"]
+    LS[("localStorage — Phase 2<br/>overlay of writes + session")]
+    SSG["Next.js SSG routes<br/>/projects/hq · /papers/hscp<br/>real URLs, crawlable"]
+
+    WM -. "resolves appId" .-> REG
+    REG -. "lazy-loads chunk on spawn" .-> TERM
+    REG -.-> VIEW
+    REG -.-> GAME
+
+    WM ==> API
+    TERM ==> API
+    VIEW ==> API
+    GAME ==> API
+
+    API --> VFS
+    API --> PROC
+    API --> BUS
+
+    PROC -. "re-render" .-> WM
+    BUS -. "fs:changed" .-> VIEW
+
+    CONTENT --> VFS
+    CONTENT --> SSG
+    VFS -. "persist / hydrate" .-> LS
+    PROC -. "persist / hydrate" .-> LS
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                         BROWSER (client)                      │
-│                                                                 │
-│   ┌─────────────────────────────────────────────────────┐     │
-│   │                    WINDOW MANAGER                    │     │
-│   │   renders process table → draggable/resizable        │     │
-│   │   windows, taskbar, focus ring                       │     │
-│   └───────────────────────┬───────────────────────────────┘   │
-│                            │ reads/dispatches via kernelAPI    │
-│   ┌────────────────────────▼───────────────────────────────┐  │
-│   │                     APP REGISTRY                       │  │
-│   │   appId -> manifest { component, icon, permissions }   │  │
-│   └───────┬───────────────┬───────────────┬────────────────┘  │
-│           │               │               │                   │
-│      ┌────▼────┐    ┌─────▼─────┐   ┌─────▼─────┐             │
-│      │ Terminal│    │ PDF/File  │   │  Game(s)  │  ...more    │
-│      │  (app)  │    │  Viewer   │   │   (app)   │  apps later │
-│      └────┬────┘    └─────┬─────┘   └─────┬─────┘             │
-│           │               │               │                   │
-│           └───────────────┼───────────────┘                   │
-│                            │ ONLY via kernelAPI (syscall       │
-│                            │ boundary — no direct state access)│
-│   ┌────────────────────────▼───────────────────────────────┐  │
-│   │                        KERNEL                          │  │
-│   │  ┌────────────┐  ┌───────────────┐  ┌───────────────┐  │  │
-│   │  │    VFS     │  │ Process Table │  │  Event Bus     │  │  │
-│   │  │ (Zustand)  │  │  (Zustand)    │  │  (pub/sub)     │  │  │
-│   │  └────────────┘  └───────────────┘  └───────────────┘  │  │
-│   └───────────────────────┬──────────────────────────────┘   │
-│                            │ persist/hydrate (versioned)      │
-│                    ┌───────▼────────┐                         │
-│                    │  localStorage  │  (Phase 2)               │
-│                    └────────────────┘                         │
-└───────────────────────────────────────────────────────────────┘
-                             ▲
-                             │ SSG-rendered, crawlable
-                    ┌────────┴─────────┐
-                    │   Next.js routes │
-                    │  /projects/hq    │
-                    │  /papers/hscp    │
-                    │  (real URLs, SEO)│
-                    └──────────────────┘
-```
+
+The kernel has no arrow pointing up into policy except the process table
+re-render and the event bus. It cannot name an app, a window chrome, or a
+command — that is what makes "the kernel only knows about objects you've
+registered" true rather than aspirational.
 
 ### 8.2 App launch sequence
 
-1. User runs `open hq` in terminal, or double-clicks an icon in the WM.
-2. Command/click resolves `appId` → looks up manifest in **App Registry**.
-3. Registry lazy-loads the app's component bundle (code-split).
-4. `proc.spawn(appId, args)` called on **kernelAPI** → kernel adds an entry to the **process table**.
-5. **Window Manager** reacts to the new process-table entry → mounts a window frame, renders the app component inside it, wrapped in an error boundary.
-6. App component receives a scoped `kernelAPI` handle (filtered by its declared `permissions`) for all further reads/writes — e.g., `fs.read('/projects/hq/README.md')`.
-7. On close: `proc.kill(pid)` → process table entry removed → WM unmounts the window.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant WM as Window Manager
+    participant REG as App Registry
+    participant API as kernelAPI
+    participant PROC as Process Table
+    participant App
+
+    User->>WM: open hq, or double-click an icon
+    WM->>REG: getManifest(appId)
+    REG-->>WM: manifest
+    Note over REG: component is a lazy import —<br/>its chunk is fetched on first spawn
+    WM->>API: proc.spawn(appId, args, title)
+    API->>PROC: add entry { pid, position, size, zIndex }
+    PROC-->>WM: new pid appears in the table
+    WM->>App: mount in a window frame, inside an error boundary
+    Note over WM,App: the app receives a kernelAPI scoped to its manifest
+    App->>API: fs.read("/projects/hq/README.md")
+    API-->>App: contents
+
+    User->>WM: close
+    WM->>API: proc.kill(pid)
+    API->>PROC: remove entry
+    PROC-->>WM: window unmounts
+```
+
+The WM never mounts a window directly — it spawns a process and then reacts to
+the table changing. That indirection is what lets the shell's `open` and a
+double-click be the same operation.
 
 ### 8.3 Folder structure (Next.js + TS)
 

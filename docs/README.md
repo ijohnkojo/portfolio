@@ -28,6 +28,13 @@ develops — if the code and a doc disagree, the doc is a bug.
   open question in `personal-os-portfolio.md`, edit that section and mark it
   **▸ Decided** with a link to the `D-NNN` entry — so the doc never drifts into
   describing a system that doesn't exist.
+- **Diagrams are mermaid**, in ```` ```mermaid ```` fences — never ASCII art.
+  They render on GitHub and in most editors, and they stay editable. Pick the
+  type that matches the thing: `flowchart` for structure, `sequenceDiagram` for
+  ordered interactions, `stateDiagram-v2` for lifecycles. File and directory
+  trees are the exception — those stay as plain code blocks, since mermaid makes
+  them worse. Run `pnpm check:diagrams` after editing one: a diagram that fails
+  to parse renders as an error box on GitHub instead of failing loudly.
 - **Update docs in the same commit as the change**, not afterwards.
 
 ## Current state

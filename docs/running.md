@@ -23,6 +23,7 @@ launcher buttons for each registered app, then one button per running window.
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
+| `pnpm check:diagrams` | parses every ```` ```mermaid ```` block in the repo's markdown |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:
 

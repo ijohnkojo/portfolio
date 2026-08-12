@@ -15,24 +15,45 @@ content routes, persistence shaped but not wired.
 
 ## 1. Layer map
 
-```
-app/os/page.tsx           server component, metadata only
-  └ app/os/OsShell.tsx    'use client' — seeds VFS, spawns first window
-      ├ wm/WindowManager  subscribes to the pid list only
-      │   └ wm/Window     one per pid; the only react-rnd consumer
-      │       └ wm/AppErrorBoundary
-      │           └ <app component from the registry>
-      └ wm/Taskbar        launcher + one TaskbarItem per pid
+```mermaid
+flowchart TB
+    PAGE["app/os/page.tsx<br/>server component, metadata only"]
+    SHELL["app/os/OsShell.tsx<br/>'use client' — seeds the VFS,<br/>spawns the first window"]
+    WM["wm/WindowManager.tsx<br/>subscribes to the pid list only"]
+    WIN["wm/Window.tsx<br/>one per pid<br/>the only react-rnd consumer"]
+    EB["wm/AppErrorBoundary.tsx"]
+    APP["app component<br/>from the registry"]
+    TB["wm/Taskbar.tsx<br/>launcher + one TaskbarItem per pid"]
 
-registry/index.tsx        appId -> manifest, one literal dynamic() per app
-hooks/kernel.ts           'use client' — React bindings, scoped selectors
-kernel/*                  plain TS, no React import
-content/index.ts          builds the base VFS tree
+    REG["registry/index.tsx<br/>appId → manifest<br/>one literal dynamic() per app"]
+    HOOKS["hooks/kernel.ts<br/>'use client' — React bindings,<br/>scoped selectors"]
+    CONTENT["content/index.ts<br/>builds the base VFS tree"]
+    KERNEL["kernel/*<br/>plain TS · no React import"]
+
+    PAGE --> SHELL
+    SHELL --> WM
+    SHELL --> TB
+    WM --> WIN
+    WIN --> EB
+    EB --> APP
+
+    WIN -. "resolves manifest" .-> REG
+    TB -. "lists apps" .-> REG
+    WIN -. "subscribes" .-> HOOKS
+    TB -. "subscribes" .-> HOOKS
+    SHELL -. "mounts" .-> CONTENT
+
+    HOOKS --> KERNEL
+    WIN --> KERNEL
+    TB --> KERNEL
+    APP --> KERNEL
+    CONTENT --> KERNEL
 ```
 
-The dependency rule: **`kernel/` imports nothing from `apps/`, `wm/`,
-`registry/`, or `hooks/`.** It does not know what an app is, only that something
-asked to spawn a process or read a path.
+The dependency rule, and the one worth enforcing in review: **`kernel/` imports
+nothing from `apps/`, `wm/`, `registry/`, or `hooks/`.** Every arrow above
+points *into* it and none point out. It does not know what an app is, only that
+something asked to spawn a process or read a path.
 
 ---
 
@@ -93,6 +114,30 @@ drag. Tested directly in `process.test.ts`.
 Focus behaviour: `focus()` on a minimized window restores it; killing or
 minimizing the focused window hands focus to the topmost survivor, not to
 nothing; focusing the window already on top is a no-op that doesn't touch state.
+
+```mermaid
+stateDiagram-v2
+    [*] --> normal: proc.spawn
+    normal --> minimized: window.setState<br/>titlebar – · own taskbar button
+    minimized --> normal: proc.focus<br/>taskbar button
+    normal --> maximized: window.setState<br/>titlebar □ · double-click
+    maximized --> normal: window.setState<br/>titlebar □ · double-click
+    maximized --> minimized: window.setState
+    normal --> [*]: proc.kill
+    minimized --> [*]: proc.kill
+    maximized --> [*]: proc.kill
+
+    note right of minimized
+        Window returns null — the frame
+        unmounts, the app unmounts with it.
+        App-internal state does not survive.
+    end note
+```
+
+That last note is a real limitation, not a design choice: minimizing currently
+throws away whatever the app was holding. It hasn't mattered with two stateless
+stub apps. It will matter the first time a game or a half-typed terminal command
+is minimized, and the fix is to keep the frame mounted and hide it with CSS.
 
 ### `kernel/events.ts`
 
@@ -179,6 +224,44 @@ Who re-renders when, which is the whole performance story:
 `WindowManager` subscribes to `usePids()` (shallow-compared array), so it holds
 still through every drag, resize, and focus change. See [D-006](decisions.md).
 
+### The drag lifecycle
+
+The single most important sequence in the codebase. Geometry has two owners
+depending on whether a gesture is in flight:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant RND as react-rnd<br/>(internal state)
+    participant Win as Window component
+    participant PROC as Process Table
+
+    User->>RND: mousedown on titlebar
+    Win->>PROC: proc.focus(pid)
+
+    loop every mousemove
+        User->>RND: move
+        RND->>RND: update internal x/y →<br/>transform: translate()
+        Note over Win,PROC: no React commit · no store write
+    end
+
+    User->>RND: mouseup
+    RND->>Win: onDragStop(x, y)
+    Win->>PROC: window.move(pid, {x, y})
+    PROC-->>Win: one re-render, geometry now persisted
+```
+
+The loop is the part to protect. `position`/`size` are passed to react-rnd as
+*controlled* props, but react-draggable renders from its own internal state
+while `dragging` is true and ignores the prop until the pointer lifts
+(`Draggable.js:862`) — so passing controlled props costs nothing as long as
+nothing writes them mid-gesture. Committing in `onDrag` instead of `onDragStop`
+would put a store write inside that loop and re-render on every mousemove.
+
+`Window.tsx` logs `[wm] pid N commit #M` on every commit in development, so this
+is observable rather than assumed; `pnpm verify` asserts it.
+
 ---
 
 ## 4. App contract
@@ -214,15 +297,33 @@ Current apps, both deliberately thin:
 
 ## 5. Boot sequence
 
-1. `/os` renders `OsShell` (client).
-2. At **module scope**, `vfsStore.mount(buildContentTree())` — so the VFS is
-   populated before first render and no window flashes an empty filesystem.
-3. An effect spawns the `about` window, guarded by a module flag so React's
-   development double-invoke doesn't open two.
-4. `WindowManager` sees the new pid, mounts a `Window`.
-5. `Window` resolves the manifest, builds a scoped `kernelAPI`, and renders the
-   lazily-loaded component inside an error boundary.
-6. The app calls `kernel.fs.read(…)`.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Page as /os page
+    participant Shell as OsShell
+    participant VFS as VFS store
+    participant PROC as Process Table
+    participant WM as WindowManager
+    participant Win as Window
+    participant App as About
+
+    Page->>Shell: render (client)
+    Note over Shell,VFS: at MODULE scope, before any render
+    Shell->>VFS: mount(buildContentTree())
+    Shell->>PROC: spawn('about') in an effect
+    Note over Shell: guarded by a module flag, so React's<br/>development double-invoke opens one window
+    PROC-->>WM: pid list changes
+    WM->>Win: mount
+    Win->>Win: resolve manifest, build scoped kernelAPI
+    Win->>App: render inside an error boundary
+    App->>VFS: kernel.fs.read('/home/about.md')
+    VFS-->>App: contents
+```
+
+Seeding at module scope rather than in an effect is deliberate: it means the VFS
+is populated before the first render, so no window ever paints against an empty
+filesystem.
 
 ---
 
@@ -232,6 +333,11 @@ Current apps, both deliberately thin:
   exist; `app/page.tsx` is a placeholder. Design doc §5 calls this the genre's
   most common failure — it is the top of the queue.
 - **Persistence not wired** (§ above).
+- **Minimizing a window unmounts its app.** `Window.tsx:56` returns `null` for
+  `state === 'minimized'`, so app-internal state is destroyed and rebuilt on
+  restore. Invisible with two stateless stub apps; it will be wrong the first
+  time a game or a half-typed terminal command gets minimized. Fix is to keep
+  the frame mounted and hide it with CSS.
 - **Permissions are per-app, not per-pid** — [D-004](decisions.md).
 - **No accessibility work.** Design doc §5 asks for ARIA roles, per-window focus
   traps, and keyboard equivalents. Windows are divs; only the buttons are

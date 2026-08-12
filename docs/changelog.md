@@ -65,3 +65,36 @@ Next 16 ships agent-facing docs in `node_modules/next/dist/docs/` and warns its
 APIs differ from model training data. Reading them changed the registry design:
 dynamic `import()` paths must be literal strings or code splitting silently
 fails ([D-005](decisions.md)).
+
+---
+
+## 2026-08-12 — Documentation pass
+
+Commits `ae94983`, and this one.
+
+### Built
+
+- `docs/` reorganised: [README.md](README.md) (map + conventions),
+  [architecture.md](architecture.md) (as-built), [decisions.md](decisions.md)
+  (D-001…D-009), [running.md](running.md), this changelog, and
+  [plans/](plans/) with the foundation-slice plan moved in from the scratch
+  directory and given a status header.
+- `docs/personal-os-portfolio.md` reconciled with the implementation — §3, §4,
+  §5, §6, §8.1, §8.2, §8.3, §8.4 patched in place and marked ▸ Built / ▸ Decided
+  rather than appended to.
+- All diagrams converted from ASCII to mermaid, per project convention. Added
+  three that only existed as prose before: the window state machine, the drag
+  lifecycle, and the boot sequence.
+- `scripts/check-diagrams.mjs` (`pnpm check:diagrams`) — parses every mermaid
+  block in the repo. A broken diagram renders as an error box on GitHub instead
+  of failing loudly, so this needed to be checkable.
+- Conventions recorded in `AGENTS.md`, which `CLAUDE.md` imports, so they load
+  into future sessions rather than depending on someone reading `docs/` first.
+
+### Found while documenting
+
+- **Minimizing a window unmounts its app.** `wm/Window.tsx:56` returns `null`
+  for `state === 'minimized'`, so app-internal state is destroyed and rebuilt on
+  restore. Harmless with two stateless stub apps, wrong the first time a game or
+  a half-typed terminal command is minimized. Logged in
+  [architecture.md § known gaps](architecture.md); not yet fixed.

@@ -31,6 +31,10 @@ Docs are updated **in the same commit** as the change, never afterwards.
   **▸ Built** / **▸ Decided**. Don't let it drift into describing a system that
   doesn't exist.
 - **`docs/architecture.md` is as-built** — it must match the code.
+- **Diagrams are mermaid**, in ```` ```mermaid ```` fences — never ASCII art.
+  `flowchart` for structure, `sequenceDiagram` for ordered interactions,
+  `stateDiagram-v2` for lifecycles. File/directory trees stay plain code blocks.
+  Run `pnpm check:diagrams` after editing one.
 - Add a `docs/changelog.md` entry per working session.
 
 ## Invariants
