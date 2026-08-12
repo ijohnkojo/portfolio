@@ -208,3 +208,31 @@ rule directly — minimized windows are **hidden but still mounted**.
 Scope held: no piping or redirection (design doc §2), no persisted history, no
 tab completion. `open` on a file is a deliberate dead end that names the missing
 handler — the file viewer is next and slots into exactly that seam.
+
+---
+
+## 2026-08-12 — Gap audit
+
+No code change. Audited what had actually been flagged versus what was recorded.
+
+Tracking was mostly holding: 7 known gaps, 14 decisions, 5 "revisit when"
+triggers, and both gaps that got fixed (SSG routes, minimize-unmounts) had been
+removed from the list when they were.
+
+Five things had been decided in-flight and never written down. Added to
+[architecture.md § known gaps](architecture.md):
+
+- **Editing a wrapped command line corrupts the display** — verified, not
+  speculative. `render()` clears only the current row, so a line longer than the
+  terminal width leaves its continuation rows behind and duplicates the prompt.
+  The buffer stays correct; it is purely a repaint bug. This one was reasoned
+  about while writing `Terminal.tsx` and then not recorded, which is precisely
+  the failure these docs exist to prevent.
+- Ctrl+C cannot copy a selection
+- `open` focuses the first running instance rather than the most recent
+- Placeholder slugs are not final, and changing one moves a published URL
+- Manifests are centralized rather than one per app
+
+The lesson worth keeping: a decision made silently while writing code is the one
+that does not get recorded. "I considered it and it's fine" needs to end up in a
+file, not just in the reasoning that produced the code.

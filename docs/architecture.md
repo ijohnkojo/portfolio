@@ -441,6 +441,19 @@ only for the session.
 
 ## 8. Known gaps
 
+- **Editing a wrapped command line corrupts the display.** `Terminal.tsx`'s
+  `render()` repaints with `\r\x1b[2K`, which returns to the start of the
+  *current* row and clears only that row. A line longer than the terminal width
+  wraps, so the continuation rows survive the repaint and the prompt line is
+  duplicated on screen. Reproduce: narrow the window, type a command past the
+  right edge, press Ctrl+A and type. The buffer itself is correct — this is
+  purely a repaint bug. Fix is to track how many rows the line occupies and
+  clear upward before repainting.
+- **Ctrl+C always cancels the line**, even with a selection, so it can never
+  copy. Needs `attachCustomKeyEventHandler` to defer to the browser when
+  `term.hasSelection()`.
+- **`open` focuses the first running instance** of an app rather than the most
+  recently used one. Only observable once something is spawned twice.
 - **`open` on a file is a dead end.** It names the missing handler
   (`no application registered for text/markdown`) rather than doing anything.
   The file viewer is the next app and will register as the handler.
@@ -458,3 +471,11 @@ only for the session.
   single-app mode, not a responsive squeeze. Not started.
 - **No URL sync.** Window/path state isn't reflected in the URL, so the back
   button does nothing. §5 warns this is hard to retrofit.
+- **Placeholder slugs are not final.** `project-one`, `paper-one` etc. are
+  stand-ins. Renaming one moves both a published URL and a VFS path — cheap
+  now, a redirect to maintain once anything links in. Worth settling before the
+  site is public.
+- **Manifests are centralized** in `registry/index.tsx` rather than one per app.
+  Fine at three; per-app `manifest.ts` files (each with their own literal
+  `dynamic()`) scale better and keep an app self-contained. Noted in design doc
+  §8.3 as well.
