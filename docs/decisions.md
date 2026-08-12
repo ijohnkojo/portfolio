@@ -459,3 +459,58 @@ the window started rather than on the left half.
 
 **Cost.** `Process` gains a field that only the WM understands, and the snap
 zones are fixed halves — no quarters, no custom grid.
+
+---
+
+## D-022 · 2026-08-12 · active
+### Tab emits an effect; completion is a pure module with `listDir` injected
+
+`lineEditor.ts` maps Tab to `{ type: 'complete' }` and gains `setLine` to apply
+the answer. `Terminal.tsx` builds a context and calls `complete()` in
+`apps/terminal/completion.ts`, which takes directory listing as a function.
+
+**Why.** Completion needs the filesystem; the line editor deliberately knows
+nothing about it. Handing it a kernel handle would end its life as a pure
+keystroke machine and make its tests need a VFS. Doing the work in
+`Terminal.tsx` would put real logic back in the device driver, which is exactly
+what the shell/terminal split exists to prevent. An effect keeps both halves
+what they are, and completion is tested in bare node against a stub.
+
+There is no double-tap tracking. Extending to the longest common prefix and
+listing only when that adds nothing produces bash's behaviour with no extra
+state: the first Tab on an ambiguous prefix changes nothing, so the second
+lists.
+
+**Cost.** Completion treats quotes as ordinary characters, so a path containing
+a space completes badly even though `tokenize` handles quotes correctly. In
+known gaps.
+
+---
+
+## D-023 · 2026-08-12 · active
+### Apps request window-manager actions over the event bus; the WM decides
+
+`tile` calls `kernel.events.emit('wm:tile', { mode })`. `OsShell` subscribes and
+calls `applyTiling`. The app cannot move a window and does not know how big the
+desktop is.
+
+**Why.** The layout needs desktop bounds from the DOM and the whole process
+table, while `commands.ts` is pure and has to keep running in bare node. Having
+`Terminal.tsx` import the window manager would invert the layering the design
+rests on. Another injected function like `resolveHandler` would work, but grows
+`ShellContext` for every WM capability any app might ever want.
+
+The bus was put there for exactly this — design doc §2: "pub/sub so WM, shell,
+and apps communicate without direct references." Until now it carried only
+`fs:changed`. It also makes the command testable by asserting an event fired,
+with no DOM in sight.
+
+**Cost.** Fire-and-forget: the shell prints `tiling: grid` whether or not
+anything is listening. A request/response shape on the bus would fix that and is
+not worth building for one caller.
+
+`commands.ts` imports `TILE_MODES`/`isTileMode` from `wm/tiling.ts` — shared
+vocabulary and a predicate, both pure. The *action* still goes over the bus; the
+import is so there is one list of layout names rather than two that drift.
+
+**Events now on the bus:** `fs:changed` `{ path, appId }`, `wm:tile` `{ mode }`.

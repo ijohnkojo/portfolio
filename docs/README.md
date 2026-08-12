@@ -39,13 +39,13 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 ## Current state
 
-**Phase 1 complete; Phase 2 under way.** Kernel, syscall boundary, registry,
-window manager, crawlable SSG content routes, a shell with eleven commands, a
-file/PDF viewer, wired persistence, window snapping, and shell history that
-survives a reload.
+**Design doc Phases 1 and 2 are complete.** Kernel, syscall boundary, registry,
+window manager with snapping and tiling, crawlable SSG content routes, a shell
+with twelve commands, tab completion, persisted history, a file/PDF viewer, and
+a session that survives a reload.
 
-Not yet: a game, tab completion, tiling. Content is real MDX with real
-frontmatter; the prose is being written separately.
+Not yet: a game. Content is real MDX with real frontmatter; the prose is being
+written separately.
 
 Remaining work is in [architecture.md § known gaps](architecture.md) — all
 absences now rather than defects, the nearest being that app-internal state

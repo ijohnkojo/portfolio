@@ -26,7 +26,12 @@ Type `help`. Ten commands:
 | `ps` | the process table |
 | `kill <pid>` | terminate a process, including the terminal itself |
 | `echo`, `clear`, `help` | as expected |
+| `tile [grid\|columns\|rows\|cascade]` | arrange every window; `cascade` undoes it |
 | `reset` | discard the saved session and reload |
+
+**Tab completes** — command names in the first word, paths after that. One match
+completes outright (directories gain a `/`), several extend to their shared
+prefix, and pressing Tab again lists them.
 
 `ls -a` shows dotfiles, including `/home/.history` — where your command history
 actually lives. `cat /home/.history` works, because it is a real file.
@@ -57,8 +62,11 @@ Ctrl+C copies when there's a selection. Tab completion is still not built.
 | **Alt+Shift+←/→** | Snap the focused window |
 | **Alt+Shift+↑** | Maximize |
 | **Alt+Shift+↓** | Restore the pre-snap size |
+| **Alt+Shift+T** | Cycle tiling: grid → columns → rows → cascade |
 
-Dragging a snapped window away restores its old size where you drop it.
+Dragging a snapped window away restores its old size where you drop it. Tiling
+goes through the same mechanism, so **Alt+Shift+↓ pulls a single window back out
+of a tiled layout** while the others stay put.
 
 ## What survives a reload
 
@@ -78,7 +86,7 @@ No piping or redirection, deliberately (design doc §2).
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 182 unit tests — kernel, content loader, shell, line editor, render, snap |
+| `pnpm test` | 270 unit tests — kernel, content, shell, editor, render, completion, tiling |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |

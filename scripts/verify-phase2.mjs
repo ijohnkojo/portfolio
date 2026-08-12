@@ -233,6 +233,110 @@ check(
   `w=${Math.round(restored.width)} (spawned at 720)`
 )
 
+/* ------------------------------------------------------- tab completion */
+
+await focusTerminal()
+await page.keyboard.press('Alt+Shift+ArrowDown') // unsnap so there's room to read
+await page.waitForTimeout(250)
+await focusTerminal()
+
+await page.keyboard.type('op')
+await page.keyboard.press('Tab')
+await page.waitForTimeout(200)
+check(
+  'Tab completes a unique command',
+  (await screen()).includes('open '),
+  'op → open'
+)
+await page.keyboard.press('Control+c')
+await page.waitForTimeout(120)
+
+await page.keyboard.type('ls /pro')
+await page.keyboard.press('Tab')
+await page.waitForTimeout(200)
+check(
+  'Tab completes a directory and appends a slash',
+  (await screen()).includes('/projects/'),
+  '/pro → /projects/'
+)
+await page.keyboard.press('Control+c')
+await page.waitForTimeout(120)
+
+// "c" matches cat, cd, clear — nothing to add, so the candidates get printed.
+await page.keyboard.type('c')
+await page.keyboard.press('Tab')
+await page.waitForTimeout(250)
+const listed = await screen()
+check(
+  'an ambiguous prefix lists the candidates',
+  listed.includes('cat') && listed.includes('clear'),
+  'candidates printed'
+)
+await page.keyboard.press('Control+c')
+await page.waitForTimeout(120)
+
+/* -------------------------------------------------------------- tiling */
+
+await run('open /apps/about')
+await page.waitForTimeout(500)
+await focusTerminal()
+
+const openWindows = await page.locator('.window-titlebar:visible').count()
+check('three windows open before tiling', openWindows === 3, `${openWindows} windows`)
+
+await run('tile grid')
+await page.waitForTimeout(600)
+
+const boxes = []
+for (const handle of await page.locator('.react-draggable').all()) {
+  const b = await handle.boundingBox()
+  if (b && b.width > 0) boxes.push(b)
+}
+
+const overlapping = boxes.some((a, i) =>
+  boxes.slice(i + 1).some(
+    (b) =>
+      a.x < b.x + b.width - 2 &&
+      b.x < a.x + a.width - 2 &&
+      a.y < b.y + b.height - 2 &&
+      b.y < a.y + a.height - 2
+  )
+)
+check('tiled windows do not overlap', !overlapping, `${boxes.length} tiles`)
+
+const desk = await page.locator('#wm-desktop').boundingBox()
+const allInside = boxes.every(
+  (b) => b.x >= desk.x - 2 && b.x + b.width <= desk.x + desk.width + 2
+)
+check('tiled windows stay inside the desktop', allInside)
+
+// Tiling goes through snap, so a single window can be restored on its own.
+await focusTerminal()
+const tiledWidth = (await page.locator('[data-app="terminal"]').first().boundingBox()).width
+await page.keyboard.press('Alt+Shift+ArrowDown')
+await page.waitForTimeout(350)
+const restoredWidth = (await page.locator('[data-app="terminal"]').first().boundingBox()).width
+check(
+  'Alt+Shift+Down restores one window from a tile',
+  Math.abs(restoredWidth - tiledWidth) > 20,
+  `${Math.round(tiledWidth)} → ${Math.round(restoredWidth)}`
+)
+
+await focusTerminal()
+await run('tile cascade')
+await page.waitForTimeout(500)
+const cascaded = []
+for (const handle of await page.locator('.react-draggable').all()) {
+  const b = await handle.boundingBox()
+  if (b && b.width > 0) cascaded.push(b)
+}
+check(
+  'tile cascade returns them to an overlapping layout',
+  cascaded.every((b) => b.width < desk.width) &&
+    new Set(cascaded.map((b) => Math.round(b.x))).size === cascaded.length,
+  'each offset from the last'
+)
+
 /* ------------------------------------------------------------- 2. reset */
 
 await focusTerminal()

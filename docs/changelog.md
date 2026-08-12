@@ -343,3 +343,54 @@ z-order is more honest than adding another workaround.
 
 D-008 deferred snapping at two stub apps; D-021 built it at four. The scope rule
 in design doc §5 worked exactly as intended.
+
+---
+
+## 2026-08-12 — Tiling + tab completion · Phase 2 complete
+
+Plan: [plans/2026-08-12-tiling-and-completion.md](plans/2026-08-12-tiling-and-completion.md)
+
+### Built
+
+- **Tab completion** ([D-022](decisions.md)) — command names in the first token,
+  paths after. `apps/terminal/completion.ts` is pure with `listDir` injected;
+  the line editor maps Tab to a `complete` effect rather than growing a
+  filesystem. Extending to the longest common prefix and listing only when that
+  adds nothing reproduces bash's two-tap behaviour with no extra state.
+- **Tiling** ([D-023](decisions.md)) — `tile [grid|columns|rows|cascade]` plus
+  Alt+Shift+T to cycle. Geometry is pure in `wm/tiling.ts`; whole-pixel division
+  means tiles meet flush and the final grid row stretches rather than leaving a
+  hole. Applied through `snap`, so **Alt+Shift+↓ pulls one window back out of a
+  tiled layout** while the others stay.
+- `wm/desktop.ts` — `desktopBounds`/`pointerOf` shared by snapping and tiling,
+  so there is one answer to how big the desktop is.
+
+### The design question both shared
+
+Who is allowed to know what.
+
+Completion needs the filesystem but the line editor must not have one; tiling
+needs the DOM and the process table but the shell must stay pure. Rather than
+widening either, **Tab emits an effect** and **`tile` emits an event**. The app
+announces intent; something with the right context resolves it.
+
+`wm:tile` is the first use of the event bus beyond `fs:changed`, and the one
+design doc §2 actually put it there for: "pub/sub so WM, shell, and apps
+communicate without direct references." The shell's `tile` command cannot move a
+window and does not know how big the desktop is.
+
+### Verified
+
+**270 unit tests**; `verify:phase2` **25/25**, including Tab through real xterm
+and three windows tiled without overlap; regressions green — WM 20/20, content
+13/13, terminal 25/25, viewer 11/11.
+
+### Notes
+
+Two completion tests failed on first run and both were wrong assertions rather
+than bugs: `/projects/` advances to `project-` because its two children share a
+prefix, and `/home/` completes straight past the hidden `.history`. The code was
+right in both cases.
+
+**Design doc Phases 1 and 2 are now complete.** What remains on the list is a
+game, and the gaps in [architecture.md](architecture.md) — all absences.

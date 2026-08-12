@@ -5,6 +5,7 @@ import {
   appNode,
   createKernelAPI,
   dir,
+  events,
   file,
   processStore,
   vfsStore,
@@ -336,5 +337,50 @@ describe('open picks the topmost instance', () => {
     expect(run('open /apps/sysinfo').output[0]).toBe(
       `sysinfo: already running as pid ${first}`
     )
+  })
+})
+
+describe('tile', () => {
+  // The command cannot move a window and does not know the desktop size. It
+  // announces intent; the WM decides (D-023).
+  it('emits wm:tile rather than touching any window', () => {
+    const seen: Array<{ mode: string }> = []
+    const off = events.on<{ mode: string }>('wm:tile', (payload) => seen.push(payload))
+
+    const before = { ...processStore.getState().processes[TERMINAL_PID] }
+    const result = run('tile columns')
+
+    expect(seen).toEqual([{ mode: 'columns' }])
+    expect(result.output[0]).toBe('tiling: columns')
+    // Nothing about the process table changed.
+    expect(processStore.getState().processes[TERMINAL_PID]).toEqual(before)
+    off()
+  })
+
+  it('defaults to grid', () => {
+    const seen: string[] = []
+    const off = events.on<{ mode: string }>('wm:tile', (p) => seen.push(p.mode))
+    run('tile')
+    expect(seen).toEqual(['grid'])
+    off()
+  })
+
+  it('names the valid layouts on an unknown one, and emits nothing', () => {
+    const seen: string[] = []
+    const off = events.on<{ mode: string }>('wm:tile', (p) => seen.push(p.mode))
+
+    const out = run('tile spiral').output[0]
+
+    expect(out).toContain('spiral: unknown layout')
+    expect(out).toContain('grid')
+    expect(out).toContain('cascade')
+    expect(seen).toEqual([])
+    off()
+  })
+
+  it('accepts every advertised mode', () => {
+    for (const mode of ['grid', 'columns', 'rows', 'cascade']) {
+      expect(run(`tile ${mode}`).output[0]).toBe(`tiling: ${mode}`)
+    }
   })
 })

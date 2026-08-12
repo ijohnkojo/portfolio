@@ -21,9 +21,10 @@ import '@xterm/xterm/css/xterm.css'
 import { SCHEMA_VERSION, createLocalStorageAdapter } from '@/kernel'
 import { findHandlerFor, type AppProps } from '@/registry'
 import { HISTORY_PATH, parseHistory, serializeHistory } from './history'
-import { createLineState, handleInput, type LineState } from './lineEditor'
+import { complete } from './completion'
+import { createLineState, handleInput, setLine, type LineState } from './lineEditor'
 import { cellAt, renderSequence } from './render'
-import { runCommand } from './shell'
+import { commands, runCommand } from './shell'
 
 const THEME = {
   background: '#0a0a0a',
@@ -194,6 +195,31 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
             term.clear()
             render()
             break
+          case 'complete': {
+            const result = complete({
+              buffer: line.buffer,
+              cursor: line.cursor,
+              cwd,
+              commands: Object.keys(commands),
+              listDir: (path) =>
+                kernel.fs.list(path).map((node) => ({
+                  name: node.name,
+                  isDir: node.type === 'dir',
+                })),
+            })
+
+            // Nothing to add means several candidates — print them, the way a
+            // second Tab would elsewhere.
+            if (result.suggestions.length > 0) {
+              endLine()
+              term.writeln(result.suggestions.join('  '))
+            } else {
+              line = setLine(line, result.buffer, result.cursor)
+            }
+            render()
+            break
+          }
+
           case 'eof':
             // Ctrl+D on an empty line closes the terminal, as a shell would.
             term.write('exit\r\n')

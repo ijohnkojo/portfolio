@@ -38,6 +38,9 @@ export const registry: Record<string, AppManifest> = {
       'proc.kill',
       'proc.focus',
       'proc.list',
+      // `tile` asks the WM for a layout over the bus rather than moving
+      // windows itself (D-023).
+      'events.emit',
     ],
     component: dynamic(() => import('@/apps/terminal/Terminal'), {
       ssr: false,

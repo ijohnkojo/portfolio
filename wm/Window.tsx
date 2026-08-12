@@ -23,8 +23,9 @@ import { createKernelAPI, systemAPI } from '@/kernel'
 import { useIsFocused, useProcess } from '@/hooks/kernel'
 import { getManifest } from '@/registry'
 import { AppErrorBoundary } from './AppErrorBoundary'
-import { geometryFor, zoneFor, type Bounds } from './snap'
-import { SNAP_PREVIEW_ID, hideSnapPreview, showSnapPreview } from './snapPreview'
+import { desktopBounds, pointerOf } from './desktop'
+import { geometryFor, zoneFor } from './snap'
+import { hideSnapPreview, showSnapPreview } from './snapPreview'
 
 const MIN_WIDTH = 240
 const MIN_HEIGHT = 160
@@ -32,25 +33,6 @@ const TITLEBAR_CLASS = 'window-titlebar'
 
 /** Dev-only commit logging, so the drag-perf claim stays verifiable. */
 const DEBUG_RENDERS = process.env.NODE_ENV === 'development'
-
-/** The desktop area windows are bounded to — the Rnd parent. */
-function desktopBounds(): Bounds {
-  const parent = document.getElementById(SNAP_PREVIEW_ID)?.parentElement
-  return { width: parent?.clientWidth ?? 0, height: parent?.clientHeight ?? 0 }
-}
-
-/** Pointer position relative to the desktop, from a mouse or touch drag event. */
-function pointerOf(event: unknown): { x: number; y: number } {
-  const parent = document.getElementById(SNAP_PREVIEW_ID)?.parentElement
-  const rect = parent?.getBoundingClientRect()
-  const source = event as { clientX?: number; clientY?: number; touches?: TouchList }
-  const point = source.touches?.[0] ?? source
-
-  return {
-    x: (point.clientX ?? 0) - (rect?.left ?? 0),
-    y: (point.clientY ?? 0) - (rect?.top ?? 0),
-  }
-}
 
 export function Window({ pid }: { pid: number }) {
   const proc = useProcess(pid)

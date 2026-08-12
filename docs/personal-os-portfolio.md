@@ -32,13 +32,13 @@ A JS/TS object graph, not a component. Three things live here:
 
 - **VFS** — tree of nodes: `{ type: 'dir' | 'file' | 'app', path, meta, content }`. Papers and projects are nodes; `cd /projects/hq` walks this tree.
 - **Process table** — flat map of open windows: `{ id, appId, position, size, zIndex, state: 'normal'|'minimized'|'maximized', focused }`.
-- **Event bus** — pub/sub so WM, shell, and apps communicate without direct references.
+- **Event bus** — pub/sub so WM, shell, and apps communicate without direct references. **▸ Built and used** — `fs:changed` announces writes, and `wm:tile` is how the shell asks the window manager for a layout without being able to move a window itself ([D-023](decisions.md)).
 
 Kernel state should be serializable to JSON on its own, independent of the rendering framework.
 
 ### Shell / terminal
 - **xterm.js** handles emulation (cursor, scrollback, ANSI) — don't hand-roll this. **▸ Built** — note the package is now `@xterm/xterm` (6.0); the unscoped `xterm` on npm is the old one.
-- A small command dispatcher on top: tokenize input → look up in a command table (`ls`, `cd`, `cat`, `open`, `help`, ~8 commands to start) → call function → read/write kernel state. **▸ Built** — ten commands. The dispatcher and the line editor are pure TypeScript with **no xterm dependency at all**: xterm is a *device* attached to the shell, not the shell itself, which is the same mechanism/policy split as the kernel and means every command is tested in bare node.
+- A small command dispatcher on top: tokenize input → look up in a command table (`ls`, `cd`, `cat`, `open`, `help`, ~8 commands to start) → call function → read/write kernel state. **▸ Built** — twelve commands. The dispatcher and the line editor are pure TypeScript with **no xterm dependency at all**: xterm is a *device* attached to the shell, not the shell itself, which is the same mechanism/policy split as the kernel and means every command is tested in bare node.
 - Piping/redirection: skip for V1, real scope creep magnet. **▸ Held** — still skipped.
 
 ### Window manager
@@ -103,8 +103,8 @@ VFS ✅, process table ✅, WM ✅, shell with ~8 commands ✅ (ten), 2–3 real
 
 Also done and not originally listed here: the syscall boundary with permission checks, the app registry with per-app code splitting, per-window error boundaries, and the persistence *shape* (see Phase 2). The SSG content routes from §5 are also done, and were arguably always part of this phase.
 
-**Phase 2** — *in progress*
-Persistence ✅ (localStorage behind a StorageAdapter, versioned schema, [D-019](decisions.md)), more apps 🟡 (four), window snapping ✅ (edge-drag and Alt+Shift+Arrow, [D-021](decisions.md)), command history ✅ (persisted as `/home/.history` in the VFS, [D-020](decisions.md)), autocomplete ⬜, tiling ⬜.
+**Phase 2** — **▸ Complete**
+Persistence ✅ ([D-019](decisions.md)), more apps ✅ (four), window snapping ✅ and tiling ✅ ([D-021](decisions.md), [D-023](decisions.md)), command history ✅ persisted as `/home/.history` ([D-020](decisions.md)), autocomplete ✅ ([D-022](decisions.md)).
 
 Snapping was deferred by [D-008](decisions.md) under §5's "no new WM feature until N apps need it" rule. Four apps and a terminal-beside-a-viewer layout is what finally needed it.
 
@@ -306,7 +306,8 @@ double-click be the same operation.
 /apps
 ○   /about/About.tsx
 ○   /sysinfo/SysInfo.tsx
-○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts, render.ts, history.ts}
+○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts,
+                render.ts, history.ts, completion.ts}
 ○   /viewer/Viewer.tsx
 ·   /games/<game-name>/Game.tsx
 

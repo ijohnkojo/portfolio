@@ -37,6 +37,12 @@ export type LineEffect =
   | { type: 'clear' }
   /** Ctrl+D on an empty line — EOF. */
   | { type: 'eof' }
+  /**
+   * Tab. The line editor cannot complete on its own — that needs the
+   * filesystem, which it deliberately knows nothing about — so it asks the
+   * host and applies the answer through `setLine` (D-022).
+   */
+  | { type: 'complete' }
 
 export const MAX_HISTORY = 100
 
@@ -60,6 +66,7 @@ const KEY = {
   home: '\x1b[H',
   end: '\x1b[F',
   delete: '\x1b[3~',
+  tab: '\t',
 } as const
 
 function withHistoryEntry(state: LineState, line: string): string[] {
@@ -70,6 +77,20 @@ function withHistoryEntry(state: LineState, line: string): string[] {
     return state.history
   }
   return [...state.history, trimmed].slice(-MAX_HISTORY)
+}
+
+/**
+ * Replace the line outright, as tab completion does. History is untouched: a
+ * completion is not a committed command.
+ */
+export function setLine(state: LineState, buffer: string, cursor: number): LineState {
+  return {
+    ...state,
+    buffer,
+    cursor: Math.max(0, Math.min(cursor, buffer.length)),
+    historyIndex: state.history.length,
+    draft: '',
+  }
 }
 
 /** Move through history. `delta` is -1 for older, +1 for newer. */
@@ -137,6 +158,9 @@ export function handleInput(state: LineState, data: string): [LineState, LineEff
 
     case KEY.ctrlL:
       return [state, [{ type: 'clear' }]]
+
+    case KEY.tab:
+      return [state, [{ type: 'complete' }]]
 
     case KEY.ctrlU:
       return [{ ...state, buffer: '', cursor: 0 }, [{ type: 'render' }]]

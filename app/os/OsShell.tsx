@@ -24,7 +24,10 @@ import {
   type DirNode,
 } from '@/kernel'
 import { getManifest, listApps } from '@/registry'
+import { DESKTOP_ID, desktopBounds } from '@/wm/desktop'
 import { geometryFor, zoneForKey } from '@/wm/snap'
+import { TILE_MODES, isTileMode } from '@/wm/tiling'
+import { applyTiling } from '@/wm/tilingController'
 import { Taskbar } from '@/wm/Taskbar'
 import { WindowManager } from '@/wm/WindowManager'
 
@@ -48,6 +51,7 @@ function ensureMounted(tree: DirNode) {
 }
 
 let booted = false
+let tileModeIndex = -1
 
 export function OsShell({ tree }: { tree: DirNode }) {
   ensureMounted(tree)
@@ -82,6 +86,17 @@ export function OsShell({ tree }: { tree: DirNode }) {
     return () => stopAutosave?.()
   }, [])
 
+  // Apps ask for a layout on the bus; the window manager decides (D-023).
+  // This is the second real use of the event bus, and the one design doc §2
+  // actually described it for.
+  useEffect(
+    () =>
+      systemAPI.events.on<{ mode: string }>('wm:tile', ({ mode }) => {
+        if (isTileMode(mode)) applyTiling(mode)
+      }),
+    []
+  )
+
   // Window snapping from the keyboard. Alt+Shift+Arrow, because Super is taken
   // by Windows and GNOME, Cmd+Arrow navigates in browsers, and Ctrl+Alt+Arrow
   // switches workspaces on GNOME. The terminal's custom key handler lets this
@@ -90,6 +105,14 @@ export function OsShell({ tree }: { tree: DirNode }) {
     function onKeyDown(event: KeyboardEvent) {
       if (!event.altKey || !event.shiftKey) return
 
+      // Alt+Shift+T cycles the tiling layouts.
+      if (event.key.toLowerCase() === 't') {
+        event.preventDefault()
+        tileModeIndex = (tileModeIndex + 1) % TILE_MODES.length
+        applyTiling(TILE_MODES[tileModeIndex])
+        return
+      }
+
       const zone = zoneForKey(event.key)
       if (zone === undefined) return
 
@@ -97,14 +120,9 @@ export function OsShell({ tree }: { tree: DirNode }) {
       if (focusedPid === null) return
 
       event.preventDefault()
-      const desktop = document.getElementById('wm-desktop')
-      const bounds = {
-        width: desktop?.clientWidth ?? 0,
-        height: desktop?.clientHeight ?? 0,
-      }
 
       if (zone === null) systemAPI.window.unsnap(focusedPid)
-      else systemAPI.window.snap(focusedPid, geometryFor(zone, bounds))
+      else systemAPI.window.snap(focusedPid, geometryFor(zone, desktopBounds()))
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -117,7 +135,7 @@ export function OsShell({ tree }: { tree: DirNode }) {
     // the visitor's system preference. See the @custom-variant in globals.css.
     <div className="dark flex h-dvh flex-col overflow-hidden bg-neutral-950">
       <div
-        id="wm-desktop"
+        id={DESKTOP_ID}
         className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-neutral-800),var(--color-neutral-950))]"
       >
         <WindowManager />

@@ -7,8 +7,10 @@ that file is the design and the intent, this one tracks the implementation and
 is updated whenever the implementation moves. Where they disagree, this file is
 right and the design doc needs a patch.
 
-**Status:** Phase 1 complete; Phase 2 under way — persistence is wired, windows
-snap, and shell history survives a reload. No game yet.
+**Status:** design doc Phases 1 and 2 complete. Kernel, syscall boundary,
+registry, window manager with snapping and tiling, crawlable SSG content,
+shell with completion and persisted history, file viewer, wired persistence.
+No game yet.
 
 ---
 
@@ -147,7 +149,17 @@ rather than exposing `off()` — `docs/gotchas.md` names uncleaned listeners as
 the leak that kills a long-lived session, so the API hands you the cleanup you
 need. `emit` iterates a copy, so a handler may unsubscribe mid-emit.
 
-Currently emitted: `fs:changed` — `{ path, appId }`, on every `fs.write`.
+Currently emitted:
+
+| Event | Payload | Emitted by | Handled by |
+|---|---|---|---|
+| `fs:changed` | `{ path, appId }` | every `fs.write` | apps that care about a file |
+| `wm:tile` | `{ mode }` | the shell's `tile` command | `OsShell`, which arranges the windows |
+
+`wm:tile` is the bus doing what design doc §2 described: an app announces intent
+and the window manager decides, rather than the app reaching into the WM
+([D-023](decisions.md)). The shell's `tile` command cannot move a window and
+does not know how big the desktop is.
 
 ### `kernel/api.ts` — the syscall boundary
 
@@ -410,8 +422,12 @@ flowchart LR
     KEYS(["keystrokes"]) --> TERM["Terminal.tsx<br/>xterm host"]
     TERM --> LE["lineEditor.ts<br/>pure state machine"]
     LE -- "submit" --> SH["shell.ts<br/>tokenize + dispatch"]
+    LE -- "complete" --> COMP["completion.ts<br/>pure · listDir injected"]
+    COMP -- "new line" --> TERM
     SH --> CMD["commands.ts<br/>the command table"]
     CMD --> API{{"kernelAPI"}}
+    CMD -. "wm:tile" .-> BUS(["event bus"])
+    BUS -. "the WM decides" .-> WM["OsShell · applyTiling"]
     SH -- "output lines" --> TERM
 ```
 
@@ -426,6 +442,8 @@ have to prove the wiring, not the logic.
 | `lineEditor.ts` | buffer, cursor, history. Pure `(state, input) => [state, effects]` |
 | `shell.ts` | tokenising and dispatch; formats `CommandError` into a line |
 | `commands.ts` | the syscall boundary and a cwd |
+| `completion.ts` | a token, a cwd, and an injected `listDir` |
+| `render.ts` | a buffer, a cursor, and a column count |
 
 **cwd is app state**, held per terminal instance, not in the kernel — design doc
 §8.4 puts app-internal state in the app. Two terminals have two working
@@ -446,6 +464,13 @@ appended on commit through `fs.write`, batched at 250ms and flushed on
 `cat /home/.history` works. `ls` hides dotfiles unless given `-a`.
 
 The terminal is therefore the first app holding `fs.write`.
+
+**Tab completion** ([D-022](decisions.md)) is a fourth pure module,
+`completion.ts`, with directory listing injected as a function. The line editor
+maps Tab to a `complete` effect rather than doing the work — it has no
+filesystem and should not grow one. Extending to the longest common prefix and
+listing only when that adds nothing reproduces bash's two-tap behaviour with no
+extra state.
 
 `render.ts` builds the repaint sequence and is pure — walking up over a wrapped
 line, erasing to end of *display*, and placing the cursor absolutely. The
@@ -512,8 +537,13 @@ than merely claimed.
   were open and where, but a restored terminal comes back empty at `/` and a
   restored viewer re-reads its file. Persisting it needs a `serialize` hook on
   the app contract ([D-019](decisions.md)).
-- **Snap zones are fixed halves.** No quarters, no custom grid, and no
-  multi-monitor notion of "the other screen".
+- **Snap zones are fixed halves.** No quarters, and no multi-monitor notion of
+  "the other screen". `tile` covers the grid case.
+- **Completion does not understand quotes.** `tokenize` handles them, but the
+  completer treats a quote as an ordinary character, so a path containing a
+  space completes badly ([D-022](decisions.md)).
+- **`wm:tile` is fire-and-forget.** The shell prints `tiling: grid` whether or
+  not anything is listening.
 - **All content ships in the `/os` payload.** `kernel.fs.read` is synchronous,
   so the whole tree — every entry's full text — must be in memory client-side
   for `cat` to work at all ([D-011](decisions.md)). Fine at tens of entries,

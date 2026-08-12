@@ -10,6 +10,9 @@
  * written for exactly this; a second implementation here would drift.
  */
 import { basename, resolvePath, type KernelAPI, type VFSNode } from '@/kernel'
+// Type and vocabulary only. The *action* goes over the event bus — an app can
+// ask for a layout, it cannot perform one (D-023).
+import { TILE_MODES, isTileMode } from '@/wm/tiling'
 
 export interface ShellContext {
   kernel: KernelAPI
@@ -236,6 +239,23 @@ const clear: Command = {
   run: () => ({ clear: true }),
 }
 
+const tile: Command = {
+  name: 'tile',
+  usage: 'tile [grid|columns|rows|cascade]',
+  summary: 'arrange all windows',
+  run: (ctx, args) => {
+    const mode = args[0] ?? 'grid'
+    if (!isTileMode(mode)) {
+      fail('tile', `${mode}: unknown layout — try ${TILE_MODES.join(', ')}`)
+    }
+
+    // The window manager subscribes and decides. This command cannot move a
+    // window itself, and does not know how big the desktop is.
+    ctx.kernel.events.emit('wm:tile', { mode })
+    return { output: [`tiling: ${mode}`] }
+  },
+}
+
 const reset: Command = {
   name: 'reset',
   usage: 'reset',
@@ -265,5 +285,5 @@ const help: Command = {
 }
 
 export const commands: Record<string, Command> = Object.fromEntries(
-  [ls, cd, pwd, cat, open, ps, kill, echo, clear, reset, help].map((c) => [c.name, c])
+  [ls, cd, pwd, cat, open, ps, kill, echo, tile, clear, reset, help].map((c) => [c.name, c])
 )
