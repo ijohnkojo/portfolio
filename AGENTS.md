@@ -7,3 +7,43 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Project
+
+A portfolio built as a mock operating system. UNIX split: the kernel provides
+mechanism (VFS, process table, event bus), everything else is swappable policy.
+
+Read [docs/README.md](docs/README.md) first — it maps the rest.
+
+## Documentation is part of the work
+
+Docs are updated **in the same commit** as the change, never afterwards.
+
+- **Plans go in `docs/plans/`**, named `YYYY-MM-DD-short-slug.md`. Every plan,
+  including ones drafted in plan mode — copy it into the repo rather than
+  leaving it in a scratch directory. Give it a status header on approval and
+  update it on ship, recording any deviations from what was planned.
+- **Decisions that constrain later work get a `D-NNN` entry** in
+  `docs/decisions.md`, with the reason and what it costs. Reference the ID from
+  code comments instead of restating the rationale.
+- **`docs/personal-os-portfolio.md` is the design doc** — patch the relevant
+  section when implementation settles one of its open questions, and mark it
+  **▸ Built** / **▸ Decided**. Don't let it drift into describing a system that
+  doesn't exist.
+- **`docs/architecture.md` is as-built** — it must match the code.
+- Add a `docs/changelog.md` entry per working session.
+
+## Invariants
+
+Two things are load-bearing and easy to break silently:
+
+1. **`kernel/` imports nothing from `apps/`, `wm/`, `registry/`, or `hooks/`,
+   and never imports React.** It uses `zustand/vanilla`. React bindings belong
+   in `hooks/kernel.ts`.
+2. **Window geometry is written to the store only on gesture *end*.** Never in
+   `onDrag`/`onResize`. And every process-table mutator must leave untouched
+   process objects referentially identical. See `docs/gotchas.md` and D-002 /
+   D-006.
+
+`pnpm verify` (with `pnpm dev` running) asserts both behaviourally. `pnpm test`
+covers the kernel.
