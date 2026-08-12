@@ -36,10 +36,13 @@ Docs are updated **in the same commit** as the change, never afterwards.
   `stateDiagram-v2` for lifecycles. File/directory trees stay plain code blocks.
   Run `pnpm check:diagrams` after editing one.
 - Add a `docs/changelog.md` entry per working session.
+- **When a feature ships, check whether it fired a `Revisit when` trigger** in
+  `docs/decisions.md` and answer it in writing. `docs/review.md` is the periodic
+  audit of decisions and gaps; re-run it rather than trusting it.
 
 ## Invariants
 
-Two things are load-bearing and easy to break silently:
+Three things are load-bearing and easy to break silently:
 
 1. **`kernel/` imports nothing from `apps/`, `wm/`, `registry/`, or `hooks/`,
    and never imports React.** It uses `zustand/vanilla`. React bindings belong

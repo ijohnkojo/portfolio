@@ -581,17 +581,22 @@ than merely claimed.
 
 ## 9. Known gaps
 
-- **The filesystem cannot delete.** No `unlink`, and the overlay is writes-only,
-  so a deletion cannot survive a reload — hence no `rm` or `mv`. Needs a
-  tombstone set and a schema bump ([D-025](decisions.md)).
+- **The filesystem cannot delete.** No `unlink`, so no `rm` or `mv`. Originally
+  scoped as needing tombstones and a schema bump; re-scoped on review to a
+  kernel `unlink` that only removes overlay-created files, leaving published
+  content read-only ([D-025](decisions.md)).
 - **The viewer and the routes render markdown differently.** Routes compile MDX;
   the viewer uses `react-markdown` ([D-016](decisions.md)). A writeup that embeds
   a React component renders it on the route and shows raw JSX in the viewer. No
   writeup does yet. Escape hatch: runtime MDX evaluation in the viewer.
 - **App-internal state is not persisted.** The session restores which windows
   were open and where, but a restored terminal comes back empty at `/` and a
-  restored viewer re-reads its file. Persisting it needs a `serialize` hook on
-  the app contract ([D-019](decisions.md)).
+  restored viewer re-reads its file. Persisting it *in general* needs a
+  `serialize` hook on the app contract ([D-019](decisions.md)) — but the
+  terminal's `cwd` does not: history already persists by writing to the VFS, and
+  cwd could do the same, with no kernel or contract change. That would remove
+  most of the half-restored feel for a fraction of the work. See
+  [review.md](review.md).
 - **Snap zones are fixed halves.** No quarters, and no multi-monitor notion of
   "the other screen". `tile` covers the grid case.
 - **Completion does not understand quotes.** `tokenize` handles them, but the

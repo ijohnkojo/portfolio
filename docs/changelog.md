@@ -471,3 +471,43 @@ screen before minimizing, which is what it should have done all along.
 
 `tree` also shipped drawing `├─` for last children and continuing the spine down
 finished branches. Visible in a screenshot, fixed, and now tested.
+
+---
+
+## 2026-08-12 — Decision review
+
+No code change. Audited all twenty-five decisions against reality — cost lines,
+revisit triggers, and known gaps — and recorded the result in
+[review.md](review.md).
+
+### Two errors in the log
+
+**D-008 was wrong and marked active.** It read "Maximize ships; snapping and
+tiling do not" while D-021 and D-023 had already shipped both. Now marked
+superseded, and kept rather than deleted, because the deferral is the point:
+§5's scope rule held the feature back until four apps needed it.
+
+**D-002's revisit trigger had fired unanswered.** "When Phase 2 snapping/tiling
+lands" — both landed, nobody re-examined it. It held, but by luck rather than
+process. Now answered in writing, and shipping a feature means checking triggers
+is a convention in `docs/README.md` and `AGENTS.md`.
+
+### Two re-scopings
+
+**D-025 was over-scoped.** Deleting needs tombstones only for *base-tree* files.
+Restrict deletion to files the user created and it collapses to removing the
+overlay entry, since the base tree is rebuilt from `/content` every load. The
+rule that falls out is better than the limitation it replaces — you can delete
+what you created, not what shipped with the build, which is D-003 extended.
+
+**Terminal `cwd` does not need the app-contract hook.** History already persists
+by writing to the VFS; cwd can do the same, with no kernel or contract change.
+That covers most of the half-restored feel without the Phase 3 shape.
+
+### The finding worth keeping
+
+Three known gaps — accessibility, mobile, URL sync — have no decision number.
+Nobody ever chose against them for a reason; they are absences by default rather
+than by choice, and all three are §5 gotchas where every other §5 item became a
+decision. For an artifact whose job is being sent to people, mobile and
+accessibility are plausibly worth more than any remaining feature.

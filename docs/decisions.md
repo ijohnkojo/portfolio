@@ -56,8 +56,14 @@ API. If that changes on upgrade, `pnpm verify`'s drag assertion catches it —
 that check exists for this reason. `wm/Window.tsx` is the only file importing
 react-rnd, so replacing it stays a one-file change.
 
-**Revisit when** Phase 2 snapping/tiling lands, or react-rnd/react-draggable
-majors bump.
+**Revisit when** react-rnd/react-draggable majors bump.
+
+**Trigger fired 2026-08-12 — reviewed, decision held.** Phase 2 snapping and
+tiling both landed. The controlled-props approach did not fight them: snapping
+reads geometry on drag-stop like everything else, and the snap preview is
+imperative DOM precisely so it stays outside React's commit cycle.
+`verify-phase2` asserts zero commits during a drag *with the preview running*,
+so the contract is now checked under the harder case.
 
 ---
 
@@ -154,12 +160,19 @@ gesture rather than watching a number settle.
 
 ---
 
-## D-008 · 2026-08-12 · active
+## D-008 · 2026-08-12 · superseded by D-021 and D-023
 ### Maximize ships; snapping and tiling do not
 
 **Why.** D-002 made maximize nearly free. Snapping/tiling is a genuine WM
 feature, and design doc §5 sets the rule: "no new WM feature until N apps exist
 that actually need it." Two stub apps do not need tiling.
+
+**Superseded the same day.** Snapping shipped in
+[D-021](#d-021--2026-08-12--active) and tiling in
+[D-023](#d-023--2026-08-12--active), once there were four apps and a real
+layout to serve. Kept rather than deleted because the deferral is the point:
+the rule held the feature back until something needed it, which is the §5 rule
+working rather than failing.
 
 ---
 
@@ -571,3 +584,19 @@ twelve read-only commands. Kept separate deliberately.
 
 Everything shipped so far only ever *adds* to the filesystem, which is why the
 overlay has been sufficient this long.
+
+**Amended 2026-08-12 after review — the scope above is wrong, and larger than
+the problem.** Tombstones are only needed to delete something that came from the
+*base tree*. If deletion is restricted to files the user created, deleting is
+just **removing the overlay entry**: the base tree is rebuilt from `/content` on
+every load, so a file that only ever lived in the overlay never comes back. No
+tombstone, no schema bump.
+
+The resulting rule is principled rather than a limitation, and is
+[D-003](#d-003--2026-08-12--active) extended: **you can delete what you created;
+you cannot delete what shipped with the build.** `rm` on published content fails
+with `read-only: part of the published content`, which is true and useful.
+
+That leaves a kernel `unlink` primitive as the only real work — tens of lines
+rather than a migration. Re-scoped, not yet built. See
+[review.md](review.md).

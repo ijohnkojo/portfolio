@@ -10,6 +10,7 @@ develops — if the code and a doc disagree, the doc is a bug.
 | [personal-os-portfolio.md](personal-os-portfolio.md) | **The design doc.** Philosophy, layer breakdown, the syscall boundary, phased build, stack. Sections reconciled with the implementation are marked **▸ Built** / **▸ Decided**. | Understanding *what this is meant to be* |
 | [architecture.md](architecture.md) | **As built.** What the code does right now — file map, kernel API surface, data shapes, render topology, known gaps. | Before changing anything |
 | [decisions.md](decisions.md) | **Decision log.** D-001…, each with the reason and what it costs. Append-only. | Before re-litigating a choice |
+| [review.md](review.md) | **Periodic audit** of the decisions and gaps: what has gone stale, which costs are now live, what to do next. Re-run it rather than trusting it. | Deciding what to work on |
 | [gotchas.md](gotchas.md) | Performance constraints, mostly about the window manager. The source of the drag rule. | Before touching `wm/` |
 | [running.md](running.md) | How to start it, drive it, and verify it. | Getting it on screen |
 | [changelog.md](changelog.md) | One entry per working session: built, decided, verified, deliberately left out. | Catching up |
@@ -35,6 +36,10 @@ develops — if the code and a doc disagree, the doc is a bug.
   trees are the exception — those stay as plain code blocks, since mermaid makes
   them worse. Run `pnpm check:diagrams` after editing one: a diagram that fails
   to parse renders as an error box on GitHub instead of failing loudly.
+- **Shipping a feature means checking whether it fired a `Revisit when`
+  trigger** in [decisions.md](decisions.md), and answering it in writing.
+  A trigger nobody notices firing does nothing — that has already happened once
+  ([review.md](review.md)).
 - **Update docs in the same commit as the change**, not afterwards.
 
 ## Current state
@@ -47,7 +52,7 @@ a session that survives a reload.
 Not yet: a game. Content is real MDX with real frontmatter; the prose is being
 written separately.
 
-Remaining work is in [architecture.md § known gaps](architecture.md) — all
-absences now rather than defects, the nearest being that app-internal state
-isn't persisted and that the viewer and the routes render markdown through
-different engines.
+Remaining work is triaged in [review.md](review.md) — all absences now rather
+than defects. The nearest items are the placeholder slugs (which become
+permanent URLs the moment anything links in), no mobile mode, and no
+accessibility work.
