@@ -115,7 +115,8 @@ await os.goto(`${BASE}/os`, { waitUntil: 'networkidle' })
 // real path from app to syscall boundary to filesystem.
 //
 // The OS boots into a terminal now, so About is launched rather than assumed.
-await os.getByRole('button', { name: 'About', exact: true }).click()
+// By data-launcher: the desktop carries an About icon with the same name.
+await os.locator('[data-launcher="about"]').click()
 // Assert it rendered *something* from the file, not a specific sentence — the
 // bio is the author's to rewrite.
 const aboutBody = os.locator('[data-app="about"] pre').first()
@@ -127,7 +128,7 @@ check(
   `${aboutText.length} chars read`
 )
 
-await os.getByRole('button', { name: 'System Info' }).click()
+await os.locator('[data-launcher="sysinfo"]').click()
 await os.locator('text=vfs nodes').first().waitFor({ state: 'visible', timeout: 10000 })
 
 const rows = await os.locator('table').first().innerText()

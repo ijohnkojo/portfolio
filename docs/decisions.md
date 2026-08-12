@@ -776,3 +776,97 @@ two commands in one, so its `description` has to say what it does with stdin.
 **Revisit when** something needs to know whether a command succeeded — that is
 the first thing exit codes would buy, and the point at which the three rules
 above stop being sufficient.
+
+---
+
+## D-030 · 2026-08-12 · active
+### The desktop is a view of `/desktop`, a real directory in the VFS
+
+Icons are the contents of `/desktop`. `cp x /desktop` puts one there, `ls
+/desktop` lists them, `rm` takes one off. There is no icon registry.
+
+**Why.** The alternative — a list of icons in component state or a separate
+store — is a second source of truth that has to be kept in step with the
+filesystem forever. Making the desktop a *view* means the shell and the desktop
+are two windows onto one tree, which is the same mechanism/policy split the
+kernel and the WM already use. It also means the desktop needed no new kernel
+surface at all: `mkdir`, `list`, `write` and `unlink` already existed.
+
+**Icon positions live in `/desktop/.positions`**, a dotfile riding the write
+overlay — the third use of [D-020](#d-020--2026-08-12--active)'s trick, after
+`/home/.history`. It persists for free, `cat /desktop/.positions` works, and a
+corrupt file degrades to the default arrangement rather than breaking the
+desktop. Dotfiles are hidden from the desktop exactly as `ls` hides them, which
+is what lets the file live inside the directory it describes.
+
+**Cost, and it is real.** `mknod` leaves no overlay entry, because the overlay
+is `path → content` and an app node is not content. So the seeded application
+shortcuts are re-created on every boot: `rm /desktop/terminal` works for the
+session and the icon comes back on reload. Files you `cp` there are content and
+persist normally.
+
+The fix would be inventing a shortcut *file* format so launchers become
+overlay-persistable — a new node shape in everything that walks the tree, to
+make deleting a default icon stick. Not worth it. Same shape as "an empty
+directory does not survive a reload" under
+[D-027](#d-027--2026-08-12--active), and the same underlying cause.
+
+**Revisit when** the desktop needs to hold something that is neither a file nor
+an app node.
+
+---
+
+## D-031 · 2026-08-12 · active
+### Icon drag obeys the window-drag rule: imperative during, committed on drop
+
+During a drag the position is written straight to the element's `transform`. On
+drop, one write to `/desktop/.positions`. There is no `setState` in
+`onPointerMove`.
+
+**Why.** This is [D-002](#d-002--2026-08-12--active) and `docs/gotchas.md`'s
+central rule arriving on a second surface. Icons are cheaper than windows, but
+the failure mode is identical and worse in aggregate: a `setState` per
+pointermove commits every icon on the desktop, every frame, for the whole
+gesture. The snap preview ([D-021](#d-021--2026-08-12--active)) writes the DOM
+directly for exactly this reason, and this is the same technique a third time.
+
+`wm/Desktop.tsx` carries the same dev-only commit counter `wm/Window.tsx` does
+([D-007](#d-007--2026-08-12--active)), and **`verify-desktop.mjs` asserts zero
+commits across fifteen pointer moves** — measured, not asserted in prose. The
+drop itself commits, which is how you can tell the instrument works.
+
+A 4px threshold separates a click from a drag, so selecting an icon does not
+rewrite the positions file.
+
+**Cost.** The gesture is invisible to React, so anything that wants to react to
+an icon *while* it is moving — a drop target, a snap-to-grid preview — has to be
+imperative too, or go through the same commit-on-end seam. That is the price the
+rule has always carried, now paid in two places.
+
+---
+
+## D-032 · 2026-08-12 · amends D-015
+### `resolveHandler` stays injected — the trigger was written from the wrong premise
+
+[D-015](#d-015--2026-08-12--active) said: *"If a second consumer appears — a
+file manager, desktop icons — promote this to a kernel-level table."* Both
+appeared. **The answer is no.**
+
+The reason `resolveHandler` is injected was never the number of consumers. It
+was that `commands/` has to keep running in bare node, and importing
+`registry/index.tsx` would drag `next/dynamic` into it. The desktop and the file
+manager are browser components — they can import `findHandlerFor` directly and
+nothing is compromised. A kernel-level table would put app knowledge in the
+kernel to serve callers that never needed it, breaking invariant 1 to solve a
+problem nobody has.
+
+**What was real** is that "what does opening this node mean" was about to exist
+in three places. That is now `registry/launch.ts` — pure, with the resolver
+passed in, so every surface shares the resolution. It returns **null for a
+directory on purpose**: the shell errors, the desktop opens Files, Files
+descends. Three callers, one resolution, three honest opinions about folders.
+
+**The lesson worth keeping:** a revisit trigger records the *symptom* someone
+expected, not the reason. When one fires, re-derive the reason before acting on
+the instruction — this one would have had us move code into the kernel to
+satisfy a sentence.

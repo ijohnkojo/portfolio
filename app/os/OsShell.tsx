@@ -24,6 +24,8 @@ import {
   type DirNode,
 } from '@/kernel'
 import { getManifest, listApps } from '@/registry'
+import { Desktop } from '@/wm/Desktop'
+import { DESKTOP_PATH } from '@/wm/desktopIcons'
 import { DESKTOP_ID, desktopBounds } from '@/wm/desktop'
 import { geometryFor, zoneForKey } from '@/wm/snap'
 import { TILE_MODES, isTileMode } from '@/wm/tiling'
@@ -32,6 +34,13 @@ import { Taskbar } from '@/wm/Taskbar'
 import { WindowManager } from '@/wm/WindowManager'
 
 const adapter = createLocalStorageAdapter()
+
+/**
+ * What sits on the desktop out of the box. Named explicitly rather than derived
+ * from the registry: the viewer is a file handler and has nothing to show
+ * without one, so "every app" would be wrong.
+ */
+const DESKTOP_APPS = ['terminal', 'about', 'sysinfo']
 
 let mounted = false
 
@@ -47,6 +56,16 @@ function ensureMounted(tree: DirNode) {
   vfsStore.getState().mkdir('/apps')
   for (const app of listApps()) {
     vfsStore.getState().mknod(`/apps/${app.id}`, appNode(app.id, app.id))
+  }
+
+  // The desktop is a view of a real directory (D-030), seeded the same way and
+  // for the same reason. `mknod` leaves no overlay entry, so these shortcuts are
+  // re-created every boot — removing one does not stick, which is the same
+  // shape as an empty directory not surviving a reload (D-027). Files you `cp`
+  // here are content, and persist normally.
+  vfsStore.getState().mkdir(DESKTOP_PATH)
+  for (const id of DESKTOP_APPS) {
+    if (getManifest(id)) vfsStore.getState().mknod(`${DESKTOP_PATH}/${id}`, appNode(id, id))
   }
 }
 
@@ -152,6 +171,8 @@ export function OsShell({ tree }: { tree: DirNode }) {
         id={DESKTOP_ID}
         className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-neutral-800),var(--color-neutral-950))]"
       >
+        {/* Under the windows: icons are the floor, windows sit on it. */}
+        <Desktop />
         <WindowManager />
       </div>
       <Taskbar />

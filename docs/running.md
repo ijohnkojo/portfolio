@@ -115,6 +115,35 @@ overlay, and `rm` reverts it.
 Nothing else does. `<`, `2>`, `&&`, `||` unquoted say so by name rather than
 looking for a file. Quoted operators are ordinary text: `echo "a | b"` works.
 
+## The desktop
+
+Icons sit under the windows, and they are **the contents of `/desktop`** — a
+real directory ([D-030](decisions.md)), not a list the desktop keeps to itself:
+
+```
+cp /home/readme.md /desktop     an icon appears
+ls /desktop                     the shell sees the same thing
+rm /desktop/readme.md           it goes away
+mkdir /desktop/scratch          a folder appears
+```
+
+| Gesture | Result |
+|---|---|
+| Click | Select. Click the background to deselect |
+| Double-click, or Enter | Open — an app starts, a file goes to whatever handles its type |
+| Drag | Arrange. Where you drop it is where it stays, across reloads |
+
+The arrangement is a file too: `cat /desktop/.positions`. Delete it and
+everything falls back to the grid.
+
+Terminal, About and System Info are seeded as shortcuts at boot. Removing one
+holds for the session but comes back on reload — the shortcuts are not content,
+so the overlay has nothing to persist. Files you copy there do persist.
+
+**Not built yet:** right-click menus, and double-clicking a folder, which is
+waiting on the Files app. See
+[plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md).
+
 ## Windows
 
 | Action | Result |
@@ -146,7 +175,7 @@ fresh.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 418 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling |
+| `pnpm test` | 443 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
@@ -154,6 +183,7 @@ fresh.
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 | `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
 | `pnpm verify:viewer` | opens files in the viewer — **needs `pnpm dev` running** |
+| `pnpm verify:desktop` | icons, opening, and the icon-drag contract — **needs `pnpm dev` running** |
 | `pnpm verify:phase2` | persistence, snapping, repaint fix — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:

@@ -31,8 +31,24 @@ export function Taskbar() {
           // tell the taskbar's two roles apart.
           data-launcher={app.id}
           onClick={() => systemAPI.proc.spawn(app.id, [], app.name)}
-          className="rounded px-2 py-1 font-mono text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+          className="flex items-center gap-1.5 rounded px-2 py-1 font-mono text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
         >
+          {/* Masked rather than an <img>, so the glyph follows the text colour
+              through hover. Same technique as the desktop icons. */}
+          <span
+            aria-hidden
+            className="h-3.5 w-3.5 bg-current"
+            style={{
+              maskImage: `url(${app.icon})`,
+              WebkitMaskImage: `url(${app.icon})`,
+              maskSize: 'contain',
+              WebkitMaskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              WebkitMaskRepeat: 'no-repeat',
+              maskPosition: 'center',
+              WebkitMaskPosition: 'center',
+            }}
+          />
           {app.name}
         </button>
       ))}

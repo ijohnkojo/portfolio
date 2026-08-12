@@ -78,7 +78,9 @@ check('exactly one window open at boot', (await mounted()) === 1, `count=${await
 
 /* 2 — launching an app pulls its chunk only now */
 const chunksBeforeSpawn = chunkRequests.length
-await page.getByRole('button', { name: 'About', exact: true }).click()
+// By data-launcher, not by name: the desktop now has an About icon too, and
+// that attribute is on the taskbar buttons precisely to tell the roles apart.
+await page.locator('[data-launcher="about"]').click()
 const aboutBody = page.locator('text=mechanism, not policy').first()
 await aboutBody.waitFor({ state: 'visible', timeout: 10000 })
 const newChunks = chunkRequests.length - chunksBeforeSpawn

@@ -14,7 +14,10 @@
     "predev": "node scripts/sync-content-assets.mjs",
     "prebuild": "node scripts/sync-content-assets.mjs",
     "verify:content": "node scripts/verify-content.mjs",
-    "verify:terminal": "node scripts/verify-terminal.mjs"
+    "verify:terminal": "node scripts/verify-terminal.mjs",
+    "verify:viewer": "node scripts/verify-viewer.mjs",
+    "verify:phase2": "node scripts/verify-phase2.mjs",
+    "verify:desktop": "node scripts/verify-desktop.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

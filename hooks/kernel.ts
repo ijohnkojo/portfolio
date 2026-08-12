@@ -56,6 +56,30 @@ export function useVFSNode(path: string): VFSNode | null {
 }
 
 /**
+ * One directory's children.
+ *
+ * `list` builds a fresh array every call, so this would re-render on every
+ * write anywhere in the filesystem without the shallow compare. With it, the
+ * VFS's structural sharing does the filtering: an untouched subtree keeps its
+ * node identities, so writing `/home/.history` does not re-render `/desktop`.
+ * Same idea as `useProcess` — subscribe to your own slice, not the tree.
+ */
+export function useDirectory(path: string): VFSNode[] {
+  return useStore(
+    vfsStore,
+    useShallow((s) => s.list(path))
+  )
+}
+
+/** A file's text, or null when it is missing, a directory, or asset-backed. */
+export function useFileText(path: string): string | null {
+  return useStore(vfsStore, (s) => {
+    const node = s.read(path)
+    return node?.type === 'file' ? (node.content ?? null) : null
+  })
+}
+
+/**
  * Subscribe for the lifetime of the component. The unsubscribe returned by
  * `events.on` *is* the effect cleanup, so a listener can't outlive its owner.
  *

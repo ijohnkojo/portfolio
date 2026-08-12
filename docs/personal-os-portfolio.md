@@ -19,7 +19,7 @@ The core idea borrowed from UNIX (and specifically Plan 9 / X11): **mechanism, n
 - Everything else — the window manager, the terminal's command set, individual apps — is **policy**, bolted on top, swappable.
 - This split is what makes "limited to what I have there and what I allow" actually true: the kernel only knows about objects you've registered, nothing more.
 
-Secondary influence: the **desktop/window metaphor** (icons, draggable windows, taskbar) comes from Xerox PARC / early Mac — a separate lineage from UNIX, layered on top as one possible "policy" implementation.
+Secondary influence: the **desktop/window metaphor** (icons, draggable windows, taskbar) comes from Xerox PARC / early Mac — a separate lineage from UNIX, layered on top as one possible "policy" implementation. **▸ Built** — and the two lineages meet where you would want them to: the icon surface is a *view of a directory* ([D-030](decisions.md)), so `cp x /desktop` and dragging an icon are the same act seen from two sides.
 
 Reference implementations worth dissecting (not necessarily reusing): **daedalOS** (React, real VFS, WM, terminal), **Puter.com**, **os.js.org**.
 

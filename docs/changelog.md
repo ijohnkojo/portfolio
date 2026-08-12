@@ -737,3 +737,86 @@ trigger, and its cost line (completion ignores quotes) is unchanged.
 
 D-029 adds one: **revisit when something needs to know whether a command
 succeeded** — the first thing exit codes would buy.
+
+---
+
+## 2026-08-12 — A clickable desktop (steps 1–2 of 6)
+
+Plan: [plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md)
+
+Everything here was reachable only by typing. The large dark rectangle in the
+middle of the screen rendered windows and nothing else, so a visitor who never
+opened the terminal saw a wallpaper and two buttons.
+
+### Built
+
+- **The desktop is a view of `/desktop`** ([D-030](decisions.md)), a real
+  directory in the VFS. `cp x /desktop` makes an icon appear, `ls /desktop`
+  lists the same thing, `rm` takes it off. No icon registry, no sync, and no new
+  kernel surface — `mkdir`, `list`, `write` and `unlink` already existed.
+- **Positions are a file**, `/desktop/.positions` — the third use of
+  [D-020](decisions.md)'s trick after `/home/.history`. Persists through the
+  write overlay for free, `cat` reaches it, and a corrupt one degrades to the
+  default grid rather than breaking the desktop.
+- **Drag to arrange, committed only on drop** ([D-031](decisions.md)).
+  `docs/gotchas.md`'s rule on a second surface: position goes straight to the
+  element's transform during the gesture, one write on `pointerup`.
+  `verify-desktop.mjs` measures it — **zero commits across fifteen pointer
+  moves**, and four after the drop, which is how you can tell the instrument
+  works.
+- **`registry/launch.ts`** — what opening a node means, shared and pure. Returns
+  **null for a directory on purpose**: three callers, one resolution, three
+  honest opinions about folders.
+- **Twelve SVG icons** in `public/icons/`, rendered through a CSS mask rather
+  than an `<img>` — an image is its own document, so `currentColor` would
+  resolve to black on a dark desktop. Masked, the glyph takes its button's text
+  colour and hover comes free. The taskbar uses the same technique, which
+  finally puts a file behind the `icon` field every manifest has declared since
+  the foundation slice.
+- **`useDirectory` and `useFileText`** in `hooks/kernel.ts`, shallow-compared so
+  the terminal flushing `/home/.history` every 250ms costs the desktop nothing.
+
+### D-015's trigger fired, and the answer was no
+
+It said: *"If a second consumer appears — a file manager, desktop icons —
+promote this to a kernel-level table."* Both are in this plan.
+
+The trigger was written from the wrong premise ([D-032](decisions.md)). The
+reason `resolveHandler` is injected was never the number of consumers — it was
+that `commands/` has to keep running in bare node. Browser components can import
+the registry directly. Following the instruction literally would have moved app
+knowledge into the kernel to satisfy a sentence.
+
+**A revisit trigger records the symptom someone expected, not the reason.**
+Worth re-deriving the reason before acting on one.
+
+### Two things found by running it
+
+**A lint rule caught the wrong shape.** The first Desktop copied `/desktop` into
+component state inside a layout effect; `react-hooks/set-state-in-effect`
+rejected it, correctly. Subscribing with `useStore` is both the fix and the
+better design — it deleted the manual `fs:changed` subscription and the path
+filtering that went with it.
+
+**Two verify scripts broke, for a real reason.** Desktop icons and taskbar
+launchers now share accessible names, so `getByRole('button', { name: 'About' })`
+became ambiguous. Both now select on `data-launcher`, the attribute added for
+exactly this and previously unused.
+
+### Also
+
+`verify:viewer` and `verify:phase2` were documented in `running.md` and absent
+from `package.json` — both had to be run as `node scripts/…`. Added, along with
+`verify:desktop`.
+
+### Verified
+
+**443 unit tests** (+25). `verify-desktop` **16/16**, and all five existing
+suites still green: terminal 36/36, phase2 29/29, WM 20/20, viewer 8/8,
+content 7/7. Build clean, 12/12 diagrams.
+
+### Still to come in this plan
+
+Context menus, rename and delete from the desktop, then Files, Editor and
+Settings. Double-clicking a folder does nothing today — Files is what it is
+waiting for.

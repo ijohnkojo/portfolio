@@ -9,8 +9,8 @@ right and the design doc needs a patch.
 
 **Status:** design doc Phases 1 and 2 complete. Kernel, syscall boundary,
 registry, window manager with snapping and tiling, crawlable SSG content,
-shell with pipelines, completion and persisted history, file viewer, wired
-persistence. No game yet.
+shell with pipelines, completion and persisted history, file viewer, a desktop
+with arrangeable icons, wired persistence. No game yet.
 
 ---
 
@@ -20,6 +20,7 @@ persistence. No game yet.
 flowchart TB
     PAGE["app/os/page.tsx<br/>server component, metadata only"]
     SHELL["app/os/OsShell.tsx<br/>'use client' — seeds the VFS,<br/>spawns the first window"]
+    DESK["wm/Desktop.tsx<br/>icons — a view of /desktop"]
     WM["wm/WindowManager.tsx<br/>subscribes to the pid list only"]
     WIN["wm/Window.tsx<br/>one per pid<br/>the only react-rnd consumer"]
     EB["wm/AppErrorBoundary.tsx"]
@@ -32,12 +33,15 @@ flowchart TB
     KERNEL["kernel/*<br/>plain TS · no React import"]
 
     PAGE --> SHELL
+    SHELL --> DESK
     SHELL --> WM
     SHELL --> TB
     WM --> WIN
     WIN --> EB
     EB --> APP
 
+    DESK -. "mime → app" .-> REG
+    DESK -. "subscribes to /desktop" .-> HOOKS
     WIN -. "resolves manifest" .-> REG
     TB -. "lists apps" .-> REG
     WIN -. "subscribes" .-> HOOKS
@@ -92,7 +96,7 @@ the obvious owner — completion has to return the completed string. Pick the
 part of the system it should not hold a reference to — the shell should not be
 able to reach the window manager at all.
 
-The payoff is concrete and measurable: **418 unit tests run in bare node in
+The payoff is concrete and measurable: **443 unit tests run in bare node in
 well under a second** — no jsdom, no browser, no component harness. That holds
 only because the line editor has no filesystem and the command table has no DOM,
 and it stops holding the first time either is handed a capability "just for this
@@ -579,7 +583,63 @@ job control, and exit codes. Design doc §2 calls shell syntax a scope-creep
 magnet and is right about where the magnet is — each of these would be its own
 decision ([D-029](decisions.md)).
 
-## 8. Apps
+## 8. The desktop
+
+The icon surface under the windows, and the newest of the three things `OsShell`
+renders. **It is a view of `/desktop`, a real directory in the VFS**
+([D-030](decisions.md)) — there is no icon registry, because the filesystem
+already is one.
+
+```mermaid
+flowchart LR
+    SHELLCMD["cp /home/readme.md /desktop"] --> VFS[("VFS<br/>/desktop")]
+    SEED["OsShell seeds app nodes<br/>at boot, idempotently"] --> VFS
+    VFS -- "useDirectory" --> DESK["Desktop.tsx"]
+    POS[("/desktop/.positions<br/>dotfile in the overlay")] -- "useFileText" --> DESK
+    DESK --> ICONS["desktopIcons.ts<br/>pure · layout + iconFor"]
+    DESK -- "double-click" --> LAUNCH["registry/launch.ts<br/>pure · resolver injected"]
+    LAUNCH --> PROC{{"proc.spawn / proc.focus"}}
+    DESK -- "drop only" --> POS
+```
+
+So `cp x /desktop` makes an icon appear and `rm /desktop/x` takes it away, with
+nothing to keep in sync. The shell and the desktop are two views of one tree.
+
+| File | Knows about |
+|---|---|
+| `wm/Desktop.tsx` | the DOM, pointer events, and which hooks to subscribe to |
+| `wm/desktopIcons.ts` | listing, `iconFor`, grid placement, the positions file. Pure |
+| `registry/launch.ts` | what opening a node means. Pure, resolver injected |
+
+**Positions are a file**, `/desktop/.positions` — the third use of
+[D-020](decisions.md)'s trick after `/home/.history`, so they persist through
+the write overlay with no new storage and `cat` reaches them. A corrupt file
+degrades to the default arrangement rather than breaking the desktop.
+
+**Dragging an icon commits nothing until the drop** ([D-031](decisions.md)).
+Position goes straight to the element's `transform` during the gesture; one
+write lands on `pointerup`. This is `docs/gotchas.md`'s rule on its second
+surface, and `verify-desktop.mjs` asserts zero commits across fifteen pointer
+moves rather than claiming it in prose.
+
+**It subscribes to nothing in the process table**, so dragging a *window* never
+re-renders an icon. `useDirectory` shallow-compares the children of `/desktop`,
+which — thanks to the VFS's structural sharing — means the terminal flushing
+`/home/.history` every 250ms costs the desktop nothing.
+
+Icons are twelve flat SVGs in `public/icons/`, rendered through a CSS **mask**
+rather than an `<img>`: an image is its own document, so the SVG's
+`currentColor` would resolve to black against a dark desktop. Masked, the glyph
+takes its button's text colour and hover and selection come for free. The
+taskbar launchers use the same technique, which is what finally put a file
+behind the `icon` field every manifest has declared since the foundation slice.
+
+**Not built yet** — steps 3 to 6 of
+[the plan](plans/2026-08-12-desktop-and-apps.md): context menus, rename and
+delete from the desktop, and the Files, Editor and Settings apps. Double-clicking
+a *folder* currently does nothing, because Files is what it is waiting for.
+
+## 9. Apps
 
 Four, all reached the same way: a manifest in `registry/index.tsx`, a lazily
 imported component, and a `kernelAPI` scoped to its declared permissions.
@@ -626,7 +686,7 @@ The raw/rendered toggle shows the file exactly as `cat` prints it, frontmatter
 included, which makes the "one read feeds both surfaces" property visible rather
 than merely claimed.
 
-## 9. Known gaps
+## 10. Known gaps
 
 - **An empty directory does not survive a reload.** Directories are implied by
   the files inside them, since a `mkdir` leaves no overlay entry of its own
@@ -644,6 +704,15 @@ than merely claimed.
   cwd could do the same, with no kernel or contract change. That would remove
   most of the half-restored feel for a fraction of the work. See
   [review.md](review.md).
+- **A desktop app shortcut cannot be removed for good.** `mknod` leaves no
+  overlay entry, so the seeded launchers are re-created every boot:
+  `rm /desktop/terminal` holds for the session and the icon returns on reload
+  ([D-030](decisions.md)). Files you `cp` there are content and persist
+  normally. Same cause as the empty-directory gap above.
+- **Nothing can be dragged *between* surfaces.** An icon moves within the
+  desktop; there is no dragging a file from a window onto it, or onto another
+  window. A cross-window drag protocol is a real feature and deliberately out of
+  [the desktop plan](plans/2026-08-12-desktop-and-apps.md).
 - **Snap zones are fixed halves.** No quarters, and no multi-monitor notion of
   "the other screen". `tile` covers the grid case.
 - **Completion does not understand quotes.** `tokenize` handles them, but the
