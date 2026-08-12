@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/*
+ * `dark:` responds to the system preference AND to a `.dark` ancestor.
+ *
+ * The site is theme-aware; the OS is always dark. Without the class form, the
+ * shared prose components (components/mdx.tsx) would render their light-mode
+ * colours — dark text — on the viewer's near-black surface whenever the visitor
+ * is in light mode.
+ */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

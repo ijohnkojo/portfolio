@@ -188,8 +188,41 @@ describe('open', () => {
     expect(processStore.getState().focusedPid).toBe(2)
   })
 
-  // The file viewer is the next app; until then this is a deliberate dead end.
-  it('names the missing handler for a file rather than failing silently', () => {
+  it('hands a file to the app that declared its mime type', () => {
+    const resolveHandler = (mime: string) => (mime === 'text/markdown' ? 'viewer' : null)
+    const out = run('open /home/about.md', { resolveHandler }).output[0]
+
+    expect(out).toBe('viewer: opened /home/about.md as pid 2')
+    expect(processStore.getState().processes[2]).toMatchObject({
+      appId: 'viewer',
+      // The path arrives in args, and the title is the bare filename.
+      args: ['/home/about.md'],
+      title: 'about.md',
+    })
+  })
+
+  it('opens a second copy for a second file, unlike an app node', () => {
+    const resolveHandler = () => 'viewer'
+    run('open /home/about.md', { resolveHandler })
+    run('open /projects/project-one/index.mdx', { resolveHandler })
+
+    const viewers = Object.values(processStore.getState().processes).filter(
+      (p) => p.appId === 'viewer'
+    )
+    expect(viewers).toHaveLength(2)
+    expect(viewers.map((v) => v.args[0])).toEqual([
+      '/home/about.md',
+      '/projects/project-one/index.mdx',
+    ])
+  })
+
+  // Degrades rather than breaks when nothing claims the type.
+  it('names the missing handler when no app declares the mime', () => {
+    const out = run('open /home/about.md', { resolveHandler: () => null }).output[0]
+    expect(out).toBe("open: no application registered for text/markdown — try 'cat'")
+  })
+
+  it('names the missing handler when no resolver is injected at all', () => {
     const out = run('open /home/about.md').output[0]
     expect(out).toBe("open: no application registered for text/markdown — try 'cat'")
   })

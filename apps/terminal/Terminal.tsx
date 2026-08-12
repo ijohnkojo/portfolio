@@ -19,7 +19,7 @@ import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 
 import { SCHEMA_VERSION } from '@/kernel'
-import type { AppProps } from '@/registry'
+import { findHandlerFor, type AppProps } from '@/registry'
 import { createLineState, handleInput, type LineState } from './lineEditor'
 import { runCommand } from './shell'
 
@@ -91,7 +91,7 @@ export default function TerminalApp({ pid, kernel }: AppProps) {
     const submit = (input: string) => {
       term.write('\r\n')
 
-      const result = runCommand(input, { kernel, cwd, pid })
+      const result = runCommand(input, { kernel, cwd, pid, resolveHandler: findHandlerFor })
       cwd = result.cwd
 
       if (result.clear) {

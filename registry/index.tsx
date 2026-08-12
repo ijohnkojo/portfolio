@@ -17,6 +17,7 @@
  */
 import dynamic from 'next/dynamic'
 
+import { findHandlerFor as resolveHandler } from './handlers'
 import type { AppManifest } from './types'
 
 function AppLoading() {
@@ -44,6 +45,17 @@ export const registry: Record<string, AppManifest> = {
       loading: AppLoading,
     }),
   },
+  viewer: {
+    id: 'viewer',
+    name: 'Viewer',
+    icon: '/icons/viewer.svg',
+    permissions: ['fs.read'],
+    handles: ['text/markdown', 'text/plain', 'application/json', 'application/pdf', 'image/*'],
+    component: dynamic(() => import('@/apps/viewer/Viewer'), {
+      ssr: false,
+      loading: AppLoading,
+    }),
+  },
   sysinfo: {
     id: 'sysinfo',
     name: 'System Info',
@@ -58,6 +70,11 @@ export const registry: Record<string, AppManifest> = {
 
 export function getManifest(appId: string): AppManifest | undefined {
   return registry[appId]
+}
+
+/** Which app opens this mime type. Matching rule lives in `handlers.ts`. */
+export function findHandlerFor(mime: string): string | null {
+  return resolveHandler(mime, Object.values(registry))
 }
 
 export function listApps(): AppManifest[] {

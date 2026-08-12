@@ -106,8 +106,14 @@ check(
   papers?.[1] === '2',
   `/papers = ${papers?.[1]} (paper-one + paper-draft)`
 )
-// One node per registered app: terminal, about, sysinfo.
-check('app nodes are registered under /apps', apps?.[1] === '3', `/apps = ${apps?.[1]}`)
+// Derived, not hardcoded: the VFS must mirror the registry exactly, whatever
+// is registered. A magic number here has gone stale on every app added so far.
+const registered = await os.locator('[data-launcher]').count()
+check(
+  'app nodes under /apps mirror the registry',
+  apps?.[1] === String(registered),
+  `/apps = ${apps?.[1]}, registry = ${registered}`
+)
 
 await os.screenshot({ path: 'scripts/content-verify.png', fullPage: false })
 await browser.close()

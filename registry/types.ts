@@ -16,4 +16,10 @@ export interface AppManifest extends AppIdentity {
   name: string
   icon: string
   component: ComponentType<AppProps>
+  /**
+   * Mime types this app can open, e.g. `['text/markdown', 'image/*']`.
+   * `findHandlerFor` uses these to resolve `open <file>` to an app, so a new
+   * file type is a manifest edit rather than a change to the shell.
+   */
+  handles?: readonly string[]
 }

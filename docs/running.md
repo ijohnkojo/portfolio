@@ -31,6 +31,15 @@ Worth trying: `ls /apps`, then `open /apps/sysinfo` — spawning a window from t
 shell. And `cd /papers && ls` shows `paper-draft/`, which the web 404s: drafts
 are hidden from crawlers, not from the OS.
 
+`open` also works on files, handing each to whichever app declared its mime type:
+
+    open /papers/paper-one/index.mdx    # rendered markdown, with a raw toggle
+    open /papers/paper-one/paper.pdf    # the browser's PDF viewer, embedded
+    open /papers/paper-one/figure.txt   # fetched from /public, not inlined
+
+Each opens its own viewer instance titled with the filename, so several files
+can be open at once.
+
 Line editing: arrows, Home/End, Ctrl+A/E/U/L, Ctrl+C to abandon a line, Ctrl+D
 on an empty line to exit. Up/down walk this session's history — persisted
 history and tab completion are still Phase 2.
@@ -44,13 +53,14 @@ No piping or redirection, deliberately (design doc §2).
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 121 unit tests — kernel, content loader, shell, line editor (node env) |
+| `pnpm test` | 130 unit tests — kernel, content loader, shell, line editor, handlers |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
 | `pnpm check:diagrams` | parses every ```` ```mermaid ```` block in the repo's markdown |
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 | `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
+| `pnpm verify:viewer` | opens files in the viewer — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:
 

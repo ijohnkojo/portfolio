@@ -7,9 +7,9 @@ that file is the design and the intent, this one tracks the implementation and
 is updated whenever the implementation moves. Where they disagree, this file is
 right and the design doc needs a patch.
 
-**Status:** kernel, syscall boundary, registry, window manager, the content
-pipeline with crawlable SSG routes, and a working shell. No file viewer, no
-games; persistence shaped but not wired.
+**Status:** design doc Phase 1 complete — kernel, syscall boundary, registry,
+window manager, content pipeline with crawlable SSG routes, shell, and file
+viewer. No games; persistence shaped but not wired.
 
 ---
 
@@ -439,7 +439,54 @@ Not implemented, deliberately: piping and redirection (design doc §2 calls them
 a scope-creep magnet), persisted history, and tab completion. History exists but
 only for the session.
 
-## 8. Known gaps
+## 8. Apps
+
+Four, all reached the same way: a manifest in `registry/index.tsx`, a lazily
+imported component, and a `kernelAPI` scoped to its declared permissions.
+
+| App | Permissions | Notes |
+|---|---|---|
+| `terminal` | `fs.read` `proc.*` | boots by default; see § 7 |
+| `viewer` | `fs.read` | opens files; `handles` declares its mime types |
+| `about` | `fs.read` | reads `/home/about.md`; can crash on demand |
+| `sysinfo` | `fs.read` `events.listen` | live kernel state |
+
+### How `open <file>` finds an app
+
+```mermaid
+flowchart LR
+    OPEN["open /papers/x/index.mdx"] --> STAT["fs.stat → mime"]
+    STAT --> RESOLVE["resolveHandler(mime)<br/>injected into ShellContext"]
+    RESOLVE -. "registry/handlers.ts" .-> RULE["exact beats type/*"]
+    RESOLVE --> SPAWN["proc.spawn(app, [path], basename)"]
+    SPAWN --> VIEW["Viewer reads args[0]"]
+    RESOLVE -- "nothing handles it" --> ERR["names the missing handler"]
+```
+
+The mapping is *injected*, not imported ([D-015](decisions.md)): `commands.ts`
+has to keep running in bare node, and importing the registry would drag
+`next/dynamic` into it. So the data lives on the manifests and the shell
+receives a function. Adding a file type is a manifest edit; the shell never
+changes.
+
+### The viewer
+
+Spawned with the path in `args[0]` — the first real use of `args`, which the
+process table had carried unused since the foundation slice. It dispatches on
+`stat(path).mime`: markdown through `react-markdown`, text and JSON as `<pre>`,
+PDFs through `<embed>` ([D-017](decisions.md)), images as `<img>`, and anything
+else as a legible "no renderer for …" notice.
+
+It handles both VFS content sources. Inline `content` renders synchronously;
+an asset-backed node (`src`, no content) is **fetched**, with loading and error
+states. That fetch is the one place `kernel.fs.read` being synchronous shows
+through — see [D-011](decisions.md).
+
+The raw/rendered toggle shows the file exactly as `cat` prints it, frontmatter
+included, which makes the "one read feeds both surfaces" property visible rather
+than merely claimed.
+
+## 9. Known gaps
 
 - **Editing a wrapped command line corrupts the display.** `Terminal.tsx`'s
   `render()` repaints with `\r\x1b[2K`, which returns to the start of the
@@ -454,9 +501,10 @@ only for the session.
   `term.hasSelection()`.
 - **`open` focuses the first running instance** of an app rather than the most
   recently used one. Only observable once something is spawned twice.
-- **`open` on a file is a dead end.** It names the missing handler
-  (`no application registered for text/markdown`) rather than doing anything.
-  The file viewer is the next app and will register as the handler.
+- **The viewer and the routes render markdown differently.** Routes compile MDX;
+  the viewer uses `react-markdown` ([D-016](decisions.md)). A writeup that embeds
+  a React component renders it on the route and shows raw JSX in the viewer. No
+  writeup does yet. Escape hatch: runtime MDX evaluation in the viewer.
 - **All content ships in the `/os` payload.** `kernel.fs.read` is synchronous,
   so the whole tree — every entry's full text — must be in memory client-side
   for `cat` to work at all ([D-011](decisions.md)). Fine at tens of entries,

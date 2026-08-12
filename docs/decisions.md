@@ -301,3 +301,78 @@ no existing app's permissions changed.
 **Cost.** Another permission to reason about, and `list()` copies the process
 array on every call — fine for `ps`, wrong if anything ever polls it in a
 render loop.
+
+---
+
+## D-015 · 2026-08-12 · active
+### `open` resolves mime → app from the manifests, injected into the shell
+
+A manifest declares `handles: ['text/markdown', 'image/*', …]`.
+`registry/handlers.ts` holds the matching rule (exact beats wildcard, whatever
+the registration order), `registry/index.tsx` binds it to the real manifests,
+and `Terminal.tsx` passes it into `ShellContext` as `resolveHandler`.
+
+**Why injected rather than imported.** `commands.ts` must keep running in bare
+node; importing the registry would drag `next/dynamic` into it. Injection keeps
+the command layer pure and lets tests supply a stub. The *data* stays on the
+manifests, so a new file type is a manifest edit, never a change to the shell.
+
+Two rejected alternatives: hardcoding the map in `commands.ts` (puts app
+knowledge in the shell), and a handler table in the kernel (real OS concept, but
+kernel surface for a single consumer — design doc §5's rule is no machinery
+until something needs it).
+
+**Cost.** `open`'s behaviour depends on what the host injects, so the unit tests
+verify wiring against a stub rather than the real registry. The end-to-end
+suite covers the real manifests. If a second consumer appears — a file manager,
+desktop icons — promote this to a kernel-level table.
+
+---
+
+## D-016 · 2026-08-12 · active
+### The viewer renders markdown with `react-markdown`, not MDX
+
+Design doc §6 sanctions either. Routes compile MDX at build time through
+`next-mdx-remote/rsc`; the viewer renders at runtime in the browser, where an
+MDX compiler is a ~200KB dependency for a capability no writeup uses yet.
+
+**Cost, and it is a genuine trap.** If a writeup ever embeds a React component,
+the crawlable route renders it and **the viewer shows the raw JSX as text**. The
+two surfaces would disagree — the same drift D-010 was designed to prevent for
+content, reappearing at the render layer. Both consume the same component map
+from `components/mdx.tsx`, which confines the divergence to JSX embeds
+specifically. Recorded in known gaps.
+
+**Revisit when** a writeup actually needs an embedded component. The escape
+hatch is runtime MDX evaluation inside the viewer.
+
+---
+
+## D-017 · 2026-08-12 · active
+### PDFs render through `<embed>`, not react-pdf
+
+**Why.** The browser's own PDF viewer already does paging, zoom, search, text
+selection, and print. react-pdf is roughly a megabyte to reimplement that
+worse. Design doc §6 offered both.
+
+**Cost.** No control over the chrome, and rendering differs between browsers.
+
+---
+
+## D-018 · 2026-08-12 · active
+### `dark:` responds to a `.dark` ancestor as well as the system preference
+
+`globals.css` defines a custom `dark` variant covering both; `OsShell` carries
+the class.
+
+**Why.** The site is theme-aware and the OS is always dark. Without this, the
+prose components shared between them (`components/mdx.tsx`) resolve their
+*light* colours — dark text — on the viewer's near-black surface whenever the
+visitor's system is in light mode. Unreadable, and invisible to anyone
+developing in dark mode.
+
+`verify-viewer.mjs` runs in `colorScheme: 'light'` for exactly this reason, and
+resolves the computed colour through a canvas because Tailwind v4 emits `lab()`.
+
+**Cost.** Two ways to be in dark mode. Anything that later wants an explicit
+light-mode toggle has to reckon with both.

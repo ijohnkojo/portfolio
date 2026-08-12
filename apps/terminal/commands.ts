@@ -9,13 +9,19 @@
  * Path handling reuses `resolvePath`/`resolve` from kernel/vfs.ts. Those were
  * written for exactly this; a second implementation here would drift.
  */
-import { resolvePath, type KernelAPI, type VFSNode } from '@/kernel'
+import { basename, resolvePath, type KernelAPI, type VFSNode } from '@/kernel'
 
 export interface ShellContext {
   kernel: KernelAPI
   cwd: string
   /** The terminal's own pid, so `ps` can mark it and `kill` can target it. */
   pid: number
+  /**
+   * Which app opens a given mime type. Injected rather than imported: the
+   * mapping lives on the manifests, and importing the registry here would drag
+   * `next/dynamic` into a module that is meant to run in bare node.
+   */
+  resolveHandler?: (mime: string) => string | null
 }
 
 export interface CommandResult {
@@ -141,9 +147,13 @@ const open: Command = {
 
     if (node.type === 'dir') fail('open', `${target}: Is a directory`)
 
-    // The file viewer is the next app; when it exists it registers as the
-    // handler and this branch becomes a spawn.
-    fail('open', `no application registered for ${node.mime} — try 'cat'`)
+    // A file: hand it to whichever app declared it in its manifest. Unlike an
+    // app node, a second copy is fine — two viewers on two files is normal.
+    const handler = ctx.resolveHandler?.(node.mime) ?? null
+    if (!handler) fail('open', `no application registered for ${node.mime} — try 'cat'`)
+
+    const pid = ctx.kernel.proc.spawn(handler, [target], basename(target))
+    return { output: [`${handler}: opened ${target} as pid ${pid}`] }
   },
 }
 

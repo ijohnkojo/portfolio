@@ -98,8 +98,8 @@ One constraint discovered while building: each manifest must carry its own **lit
 
 ## 4. Phased Build
 
-**Phase 1 (ship this)** — *in progress*
-VFS ✅, process table ✅, WM ✅, shell with ~8 commands ✅ (ten), 2–3 real apps (terminal ✅, file/PDF viewer ⬜, one game ⬜), your content loaded as VFS nodes ✅ (real MDX pipeline; placeholder prose pending).
+**Phase 1 (ship this)** — **▸ Complete**
+VFS ✅, process table ✅, WM ✅, shell with ~8 commands ✅ (ten), 2–3 real apps ✅ (terminal, file/PDF viewer, plus About and System Info — a game is the one thing on this line not built), your content loaded as VFS nodes ✅ (real MDX pipeline; placeholder prose pending).
 
 Also done and not originally listed here: the syscall boundary with permission checks, the app registry with per-app code splitting, per-window error boundaries, and the persistence *shape* (see Phase 2). The SSG content routes from §5 are also done, and were arguably always part of this phase.
 
@@ -156,7 +156,7 @@ Don't build Phase 3 primitives now. A permissions system with no second user is 
 - MDX via `next-mdx-remote/rsc` 6.0, read from disk by `lib/content.ts` rather than compiled per-file by `@next/mdx` — an interpolated `import()` in a dynamic route can't be matched to a chunk, and reading the file yields the raw source the VFS needs for `cat` as a side effect
 - `gray-matter` for frontmatter, `remark-gfm` for tables, `rehype-slug` for heading anchors
 - Typography is hand-rolled in `components/mdx.tsx`, not `@tailwindcss/typography` — this is the reading surface, so every value should be a decision
-- PDFs and other assets sit beside the writeup and are mirrored into `/public` by a prebuild script ([D-012](decisions.md)); they become `FileNode`s with `src`, never inlined
+- PDFs and other assets sit beside the writeup and are mirrored into `/public` by a prebuild script ([D-012](decisions.md)); they become `FileNode`s with `src`, never inlined. The viewer renders them through `<embed>` rather than react-pdf ([D-017](decisions.md)) — the browser's own PDF viewer is already better than anything worth building.
 
 **Persistence (Phase 2, decide now)**
 - localStorage to start, versioned schema (`schemaVersion` key)
@@ -305,7 +305,7 @@ double-click be the same operation.
 ○   /about/About.tsx
 ○   /sysinfo/SysInfo.tsx
 ○   /terminal/{Terminal.tsx, shell.ts, commands.ts, lineEditor.ts}
-·   /file-viewer/FileViewer.tsx
+○   /viewer/Viewer.tsx
 ·   /games/<game-name>/Game.tsx
 
 /registry
@@ -327,6 +327,7 @@ double-click be the same operation.
 ○   verify-wm.mjs            → drives real Chrome; asserts the drag contract
 ○   verify-content.mjs       → asserts routes render with JS disabled
 ○   verify-terminal.mjs      → drives the shell with real keystrokes
+○   verify-viewer.mjs        → opens files; runs in light mode on purpose
 ○   check-diagrams.mjs       → parses every mermaid block in the docs
 ○   sync-content-assets.mjs  → mirrors entry assets into /public
 

@@ -39,12 +39,13 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 ## Current state
 
-Shipped: kernel, syscall boundary, registry, window manager, the content
-pipeline with crawlable SSG routes, and a working shell with ten commands. The
-OS boots into a terminal.
+**Design doc Phase 1 is complete.** Kernel, syscall boundary, registry, window
+manager, content pipeline with crawlable SSG routes, a shell with ten commands,
+and a file/PDF viewer. The OS boots into a terminal.
 
-Not yet: file viewer, games. Persistence is shaped but not wired. Content is
-real MDX with real frontmatter; the prose is still placeholder.
+Not yet: a game (the one Phase 1 item left), persistence wiring. Content is real
+MDX with real frontmatter; the prose is still placeholder.
 
-Next up: the **file/PDF viewer** — `open` on a file currently names the missing
-handler, which is the seam it slots into. That finishes design doc Phase 1.
+Next is a judgement call rather than an obvious step — Phase 2 (persistence,
+snapping, history), the real writeups, or the defects in
+[architecture.md § known gaps](architecture.md).

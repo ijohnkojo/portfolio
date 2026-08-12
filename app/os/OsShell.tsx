@@ -52,7 +52,10 @@ export function OsShell({ tree }: { tree: DirNode }) {
   }, [])
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-neutral-950">
+    // `dark` is load-bearing: the OS is always dark, so components shared with
+    // the theme-aware site must resolve their dark styles here regardless of
+    // the visitor's system preference. See the @custom-variant in globals.css.
+    <div className="dark flex h-dvh flex-col overflow-hidden bg-neutral-950">
       <div className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-neutral-800),var(--color-neutral-950))]">
         <WindowManager />
       </div>

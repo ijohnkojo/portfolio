@@ -236,3 +236,52 @@ Five things had been decided in-flight and never written down. Added to
 The lesson worth keeping: a decision made silently while writing code is the one
 that does not get recorded. "I considered it and it's fine" needs to end up in a
 file, not just in the reasoning that produced the code.
+
+---
+
+## 2026-08-12 — File viewer · Phase 1 complete
+
+Plan: [plans/2026-08-12-file-viewer.md](plans/2026-08-12-file-viewer.md)
+
+### Built
+
+- **`apps/viewer/Viewer.tsx`** — dispatches on mime: markdown through
+  `react-markdown`, text/JSON as `<pre>`, PDFs through `<embed>`, images as
+  `<img>`, anything else as a legible notice. Handles both VFS content sources —
+  inline `content` synchronously, `src`-backed assets by fetching, with loading
+  and error states. Raw/rendered toggle.
+- **`open <file>` resolves mime → app from the manifests.** `handles` on the
+  manifest, matching rule in `registry/handlers.ts`, injected into the shell as
+  `resolveHandler` so `commands.ts` stays runnable in bare node.
+- **First real use of `args`** — the path arrives in `args[0]`, which the process
+  table has carried unused since the foundation slice.
+- A real PDF fixture in `content/papers/paper-one/`, so the `<embed>` path has a
+  valid document and the asset pipeline is exercised end to end.
+
+### Decided
+
+[D-015](decisions.md) mime→app injected rather than imported;
+[D-016](decisions.md) `react-markdown` in the viewer, not MDX;
+[D-017](decisions.md) `<embed>` for PDFs; [D-018](decisions.md) `dark:` responds
+to a `.dark` ancestor as well as the media query.
+
+D-018 was not in the plan and is the interesting one. The prose components are
+shared between the theme-aware site and the always-dark OS, so in light mode the
+viewer rendered **dark text on a near-black surface** — unreadable, and
+invisible to anyone developing in dark mode. `verify-viewer.mjs` now runs in
+`colorScheme: 'light'` specifically to catch it, and resolves the computed
+colour through a canvas because Tailwind v4 emits `lab()`.
+
+### Verified
+
+- **130 unit tests**; **`pnpm verify:viewer` 11/11**; regressions all green
+  (WM 20/20, content 13/13, terminal 25/25).
+
+### Notes
+
+A hardcoded count in `verify-content.mjs` went stale for the third consecutive
+app. Replaced with a derived assertion — the `/apps` node count must equal the
+number of registered launchers — so it now checks the property that actually
+matters (the VFS mirrors the registry) instead of a number that has to be
+maintained. Added `data-launcher` to the taskbar buttons to make that
+selectable.

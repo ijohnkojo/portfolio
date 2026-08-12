@@ -27,6 +27,9 @@ export function Taskbar() {
         <button
           key={app.id}
           type="button"
+          // Marks a launcher rather than a running-window button, so tooling can
+          // tell the taskbar's two roles apart.
+          data-launcher={app.id}
           onClick={() => systemAPI.proc.spawn(app.id, [], app.name)}
           className="rounded px-2 py-1 font-mono text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
         >
