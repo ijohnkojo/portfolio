@@ -176,3 +176,79 @@ to `package.json` for that is not worth it yet.
 
 **Revisit when** there is CI, or enough app surface that E2E tests should run on
 every change.
+
+---
+
+## D-010 · 2026-08-12 · active
+### Content is read from disk and rendered with `next-mdx-remote/rsc`, not compiled by `@next/mdx`
+
+`lib/content.ts` reads `content/<collection>/<slug>/index.mdx` with `node:fs`,
+parses frontmatter with gray-matter, and the route renders `entry.body` through
+`<MDXRemote>`.
+
+**Why.** The conventional `@next/mdx` setup needs
+`import('@/content/papers/' + slug)` in a dynamic route, and per
+[D-005](#d-005--2026-08-12--active) Next cannot match an interpolated import
+path back to a chunk. The alternatives were code-generating a literal-import
+registry, or reading the file.
+
+Reading wins because it produces the raw MDX source as a side effect — and the
+VFS needs exactly that string for `cat`. **One read on disk feeds both the
+crawlable route and the filesystem**, instead of two pipelines that can quietly
+disagree about what a paper says. MDX rather than plain Markdown because
+`MDXRemote` still takes a `components` map, so a writeup can embed a live React
+demo; `components/mdx.tsx` is where those get registered.
+
+**Cost.** MDX is compiled at render rather than build-time-bundled, so a syntax
+error in a writeup surfaces when that route is generated rather than at compile.
+Since every published entry is prerendered by `generateStaticParams`, that still
+means `pnpm build` fails — just later in the build than it otherwise would.
+
+---
+
+## D-011 · 2026-08-12 · active
+### The VFS tree is built on the server and passed to the client as a prop
+
+`app/os/page.tsx` is a server component that calls `buildVFSTree()` and renders
+`<OsShell tree={tree} />`.
+
+**Why.** It works at all only because the kernel's node types are plain
+serializable data ([D-001](#d-001--2026-08-12--active), design doc §2) — the
+constraint paying for itself. The alternative, fetching content over HTTP after
+boot, would make the filesystem asynchronously populated and every app would
+have to handle an empty tree.
+
+Drafts are included in the tree but excluded from routes: hidden from the web,
+not from the OS, so work in progress stays openable in the shell.
+
+`/apps` is *not* built server-side — app nodes come from the registry, which
+holds React components and is therefore necessarily a client module. `OsShell`
+registers them on mount via the `mknod` primitive added for this.
+
+**Cost, and it is a real one.** `kernel.fs.read` is synchronous, so all content
+must be in memory client-side — **every published entry's full text ships in the
+RSC payload for `/os`.** At portfolio scale (tens of KB) that is fine. It stops
+being fine at hundreds of entries, and the fix is `FileNode.src` plus an async
+read path — a kernel change, so it is recorded in architecture.md § known gaps
+now rather than discovered later.
+
+**Revisit when** the payload for `/os` gets uncomfortable, or a writeup needs to
+embed something large.
+
+---
+
+## D-012 · 2026-08-12 · active
+### Entry assets are mirrored into `public/content/` by a prebuild script
+
+Non-MDX files sitting in an entry directory become `FileNode`s with `src` set
+rather than inline content. `scripts/sync-content-assets.mjs` copies them to
+`public/content/`, wired to `predev` and `prebuild`.
+
+**Why.** An asset should live next to the writeup that uses it — that is the
+point of directory-per-entry. But Next only serves `public/`. Mirroring keeps
+authoring in one place while letting the files be served statically, and keeps
+binaries out of both the RSC payload and the VFS.
+
+**Cost.** `public/content/` is generated and gitignored, so a fresh clone must
+run `predev`/`prebuild` before assets resolve. The script wipes the directory
+before copying, so deleting an asset also removes the served copy.

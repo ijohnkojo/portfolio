@@ -3,22 +3,43 @@
 /**
  * The OS shell: client-rendered, mounted on top of the kernel.
  *
- * Seeding happens at module scope so the VFS is populated before the first
- * render — no window flashes an empty filesystem. The initial window is spawned
- * from an effect, guarded so React's development double-invoke doesn't open two.
+ * The VFS tree arrives as a prop, built from disk by the server component that
+ * renders this (docs/decisions.md D-011). It crosses the boundary as plain JSON
+ * because the kernel's node types are deliberately serializable.
+ *
+ * Mounting happens during the first render rather than in an effect, so the
+ * filesystem is populated before anything paints — no window ever renders
+ * against an empty tree.
  */
 import { useEffect } from 'react'
 
-import { processStore, vfsStore } from '@/kernel'
-import { buildContentTree } from '@/content'
+import { appNode, processStore, vfsStore, type DirNode } from '@/kernel'
+import { listApps } from '@/registry'
 import { Taskbar } from '@/wm/Taskbar'
 import { WindowManager } from '@/wm/WindowManager'
 
-vfsStore.getState().mount(buildContentTree())
+let mounted = false
+
+function ensureMounted(tree: DirNode) {
+  if (mounted) return
+  mounted = true
+
+  vfsStore.getState().mount(tree)
+
+  // App nodes are registered here rather than by the server loader: the
+  // registry holds React components, so it is necessarily a client module.
+  // This is what gives a future shell `ls /apps` and `open /apps/about`.
+  vfsStore.getState().mkdir('/apps')
+  for (const app of listApps()) {
+    vfsStore.getState().mknod(`/apps/${app.id}`, appNode(app.id, app.id))
+  }
+}
 
 let spawnedInitialWindow = false
 
-export function OsShell() {
+export function OsShell({ tree }: { tree: DirNode }) {
+  ensureMounted(tree)
+
   useEffect(() => {
     if (spawnedInitialWindow) return
     spawnedInitialWindow = true

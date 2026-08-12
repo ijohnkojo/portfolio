@@ -99,9 +99,9 @@ One constraint discovered while building: each manifest must carry its own **lit
 ## 4. Phased Build
 
 **Phase 1 (ship this)** — *in progress*
-VFS ✅, process table ✅, WM ✅, shell with ~8 commands ⬜, 2–3 real apps (terminal ⬜, file/PDF viewer ⬜, one game ⬜), your content loaded as VFS nodes 🟡 (placeholder tree in place, real writeups pending).
+VFS ✅, process table ✅, WM ✅, shell with ~8 commands ⬜, 2–3 real apps (terminal ⬜, file/PDF viewer ⬜, one game ⬜), your content loaded as VFS nodes ✅ (real MDX pipeline; placeholder prose pending).
 
-Also done and not originally listed here: the syscall boundary with permission checks, the app registry with per-app code splitting, per-window error boundaries, and the persistence *shape* (see Phase 2). Also not listed and arguably belonging to this phase: the SSG content routes from §5 — see [architecture.md § known gaps](architecture.md).
+Also done and not originally listed here: the syscall boundary with permission checks, the app registry with per-app code splitting, per-window error boundaries, and the persistence *shape* (see Phase 2). The SSG content routes from §5 are also done, and were arguably always part of this phase.
 
 **Phase 2**
 Persistence (localStorage, versioned schema), more apps, window snapping/tiling, command history/autocomplete.
@@ -115,7 +115,7 @@ Don't build Phase 3 primitives now. A permissions system with no second user is 
 
 ## 5. Gotchas
 
-- **SEO/crawlability** — papers/projects need real server-rendered routes (Next.js SSG) independent of the client-rendered OS shell. The OS is a client for browsing content that has real URLs, not the only way in. Most common failure mode in this genre.
+- **SEO/crawlability** — papers/projects need real server-rendered routes (Next.js SSG) independent of the client-rendered OS shell. The OS is a client for browsing content that has real URLs, not the only way in. Most common failure mode in this genre. **▸ Built** ([D-010](decisions.md)) — `/projects/[slug]` and `/papers/[slug]` are prerendered by `generateStaticParams`, with `generateMetadata` from frontmatter. Content is read off disk once and feeds *both* the route and the VFS, so the two can't drift. Verified with JavaScript disabled: the prose is in the server markup, not injected on hydrate.
 - **Mobile** — a draggable-overlapping-windows metaphor is desktop-first by nature. Build a genuinely different mobile mode (full-screen single-app), not a responsive squeeze.
 - **Accessibility** — div-based windows break screen readers/keyboard nav by default. Needs ARIA roles, focus traps per window, keyboard equivalents for open/close/switch.
 - **Scope creep** — "OS as product" is unbounded. Set a rule: no new WM feature until N apps exist that actually need it.
@@ -152,9 +152,11 @@ Don't build Phase 3 primitives now. A permissions system with no second user is 
 - Vitest 4.1 — kernel unit tests, node environment, no jsdom
 - `scripts/verify-wm.mjs` — drives real Chrome to assert the drag-performance contract in §5 / gotchas.md. Playwright is deliberately not a project dependency ([D-009](decisions.md)).
 
-**Content**
-- MDX or plain Markdown — papers/project writeups as VFS file nodes (`react-markdown` or `next-mdx-remote`)
-- PDFs as static assets — `react-pdf` or `<embed>`
+**Content** — **▸ Decided** ([D-010](decisions.md))
+- MDX via `next-mdx-remote/rsc` 6.0, read from disk by `lib/content.ts` rather than compiled per-file by `@next/mdx` — an interpolated `import()` in a dynamic route can't be matched to a chunk, and reading the file yields the raw source the VFS needs for `cat` as a side effect
+- `gray-matter` for frontmatter, `remark-gfm` for tables, `rehype-slug` for heading anchors
+- Typography is hand-rolled in `components/mdx.tsx`, not `@tailwindcss/typography` — this is the reading surface, so every value should be a decision
+- PDFs and other assets sit beside the writeup and are mirrored into `/public` by a prebuild script ([D-012](decisions.md)); they become `FileNode`s with `src`, never inlined
 
 **Persistence (Phase 2, decide now)**
 - localStorage to start, versioned schema (`schemaVersion` key)
@@ -273,11 +275,19 @@ double-click be the same operation.
 
 ```
 /app
-○   page.tsx                 → placeholder landing page
-·   /projects/[slug]/page.tsx  → SSG content route (SEO)
-·   /papers/[slug]/page.tsx    → SSG content route (SEO)
-○   /os/page.tsx             → server component, metadata
+○   /(site)/layout.tsx       → chrome for the crawlable half
+○   /(site)/page.tsx         → landing page, lists entries
+○   /(site)/projects/page.tsx, /papers/page.tsx      → collection listings
+○   /(site)/projects/[slug]/page.tsx, papers/[slug]  → SSG content routes (SEO)
+○   /os/page.tsx             → server component; builds the VFS tree from disk
 ○   /os/OsShell.tsx          → the OS shell entry point (CSR)
+
+/lib
+○   content.ts               → disk → entries + VFS tree. Server-only
+
+/components
+○   mdx.tsx                  → MDX component map + reading measure
+○   entry.tsx                → article, listing card, listing
 
 /kernel                      ← plain TS, no React import anywhere
 ○   vfs.ts                   → VFS store + node types + pure path helpers
@@ -308,14 +318,19 @@ double-click be the same operation.
 ○   Taskbar.tsx              → launcher + running windows
 ○   AppErrorBoundary.tsx     → per-window crash containment
 
-/content
-○   index.ts                 → builds the base VFS tree
-·   *.mdx                    → papers/projects source
+/content                     ← authored here, read at build time
+○   home/about.md
+○   projects/<slug>/index.mdx
+○   papers/<slug>/index.mdx  (+ assets alongside)
 
 /scripts
 ○   verify-wm.mjs            → drives real Chrome; asserts the drag contract
+○   verify-content.mjs       → asserts routes render with JS disabled
+○   check-diagrams.mjs       → parses every mermaid block in the docs
+○   sync-content-assets.mjs  → mirrors entry assets into /public
 
 /public/icons
+/public/content              ← generated, gitignored
 ```
 
 Two departures from the sketch:

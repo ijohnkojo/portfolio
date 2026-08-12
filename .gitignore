@@ -45,3 +45,6 @@ scripts/*.png
 
 # local agent permission state
 .claude/settings.local.json
+
+# generated: mirrored from content/ by scripts/sync-content-assets.mjs
+/public/content/

@@ -39,10 +39,12 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 ## Current state
 
-Foundation slice shipped: kernel, syscall boundary, registry, window manager,
-two stub apps. No shell/terminal, no file viewer, no games, no SSG content
-routes, persistence shaped but not wired.
+Shipped: kernel, syscall boundary, registry, window manager, two stub apps, and
+the content pipeline with crawlable SSG routes for projects and papers.
 
-Next up, per [architecture.md § known gaps](architecture.md): the SSG content
-routes — design doc §5 calls their absence the most common failure mode in this
-genre.
+Not yet: shell/terminal, file viewer, games. Persistence is shaped but not
+wired. Content is real MDX with real frontmatter; the prose is still
+placeholder.
+
+Next up, per [architecture.md § known gaps](architecture.md): the terminal —
+which is also where the minimize-unmounts-the-app gap will first bite.

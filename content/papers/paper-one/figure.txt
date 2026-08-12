@@ -1,0 +1,5 @@
+Placeholder asset.
+
+This file is not MDX, so the content loader represents it in the VFS as a
+FileNode with `src` set instead of inlining its contents. Swap it for a real
+figure, dataset, or PDF.

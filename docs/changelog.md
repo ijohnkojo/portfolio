@@ -98,3 +98,62 @@ Commits `ae94983`, and this one.
   restore. Harmless with two stateless stub apps, wrong the first time a game or
   a half-typed terminal command is minimized. Logged in
   [architecture.md § known gaps](architecture.md); not yet fixed.
+
+---
+
+## 2026-08-12 — Content pipeline + SSG routes
+
+Plan: [plans/2026-08-12-content-pipeline.md](plans/2026-08-12-content-pipeline.md)
+
+### Built
+
+- **`lib/content.ts`** — the only module that knows the content layout. Reads
+  `content/<collection>/<slug>/index.mdx` from disk, parses frontmatter with
+  gray-matter, and produces both the entry list for the routes and the base VFS
+  tree for the OS.
+- **SSG routes** — `/projects/[slug]`, `/papers/[slug]`, plus collection
+  listings and a real landing page, in an `app/(site)/` route group so `/os`
+  stays outside the chrome. `generateStaticParams` prerenders every published
+  entry; `generateMetadata` fills title/description/OpenGraph from frontmatter.
+- **Typography** — `components/mdx.tsx`, hand-rolled rather than
+  `@tailwindcss/typography`, light and dark. `components/entry.tsx` holds the
+  article, listing card, and list.
+- **`/os` now receives its VFS tree as a prop** built on the server, replacing
+  the hardcoded `content/index.ts`.
+- **`mknod`** added to the VFS store — the client needs it to register `/apps`
+  nodes onto a server-built tree.
+- **`scripts/sync-content-assets.mjs`** (`predev`/`prebuild`) mirrors non-MDX
+  files from an entry directory into `public/content/`.
+- **`scripts/verify-content.mjs`** (`pnpm verify:content`).
+
+### Decided
+
+[D-010](decisions.md) content read from disk + `next-mdx-remote/rsc` rather than
+`@next/mdx`; [D-011](decisions.md) VFS tree as a server-built prop;
+[D-012](decisions.md) entry assets mirrored into `/public`.
+
+D-010 is the one that shaped everything: an interpolated `import()` in a dynamic
+route can't be matched to a chunk (the same constraint as D-005), and reading
+the file yields the raw source the VFS needs for `cat` as a side effect. **One
+read on disk feeds both the crawlable route and the filesystem**, so the two
+cannot drift apart.
+
+### Verified
+
+- **62 unit tests** (kernel + content loader).
+- **`pnpm verify:content` — 13/13**, with JavaScript disabled: prose in the
+  server markup, GFM tables, rehype-slug anchors, description meta from
+  frontmatter, drafts absent from listings and 404 on their route, assets served.
+- **`pnpm verify` still 17/17** — the tree-as-prop change didn't regress the WM.
+- Build route table shows three `● (SSG)` entry pages and no draft.
+- The intended asymmetry holds: the web sees one paper, the OS sees two.
+
+### Notes
+
+Drafts are deliberately asymmetric — hidden from the web, visible in the OS — so
+work in progress stays openable in the shell without being crawled.
+
+The cost of D-011 is now recorded in known gaps: `kernel.fs.read` is
+synchronous, so every published entry's full text ships in the `/os` RSC
+payload. Fine at this scale, wrong at hundreds of entries, and the fix is a
+kernel change rather than a content one.

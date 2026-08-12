@@ -10,13 +10,20 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "node scripts/verify-wm.mjs",
-    "check:diagrams": "node scripts/check-diagrams.mjs"
+    "check:diagrams": "node scripts/check-diagrams.mjs",
+    "predev": "node scripts/sync-content-assets.mjs",
+    "prebuild": "node scripts/sync-content-assets.mjs",
+    "verify:content": "node scripts/verify-content.mjs"
   },
   "dependencies": {
+    "gray-matter": "^4.0.3",
     "next": "16.3.0",
+    "next-mdx-remote": "^6.0.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-rnd": "^10.5.3",
+    "rehype-slug": "^6.0.0",
+    "remark-gfm": "^4.0.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

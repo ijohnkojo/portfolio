@@ -156,6 +156,8 @@ export interface VFSState {
   list: (path: string) => VFSNode[]
   write: (path: string, content: string) => void
   mkdir: (path: string) => void
+  /** Place an arbitrary node. Unlike `write`, this can create dirs and app nodes. */
+  mknod: (path: string, node: VFSNode) => void
   mount: (root: DirNode) => void
   applyOverlay: (overlay: Record<string, string>) => void
 }
@@ -204,6 +206,14 @@ export const vfsStore = createStore<VFSState>()((set, get) => ({
         return dir(basename(n))
       }),
     }))
+  },
+
+  mknod: (path, node) => {
+    const n = normalize(path)
+    const segments = n.split('/').filter(Boolean)
+    if (segments.length === 0) throw new Error('EEXIST: cannot replace /')
+
+    set((state) => ({ root: setNode(state.root, segments, () => node) }))
   },
 
   mount: (root) => set({ root }),

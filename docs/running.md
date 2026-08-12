@@ -19,16 +19,18 @@ launcher buttons for each registered app, then one button per running window.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 48 kernel unit tests (node env, ~300ms) |
+| `pnpm test` | 62 unit tests, kernel + content loader (node env, ~300ms) |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
 | `pnpm check:diagrams` | parses every ```` ```mermaid ```` block in the repo's markdown |
+| `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:
 
 ```bash
 OS_URL=http://localhost:3000/os pnpm verify
+BASE_URL=http://localhost:3000 pnpm verify:content
 ```
 
 It must run against `pnpm dev`, not `pnpm start` — the commit logging it asserts

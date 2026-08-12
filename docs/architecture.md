@@ -7,9 +7,9 @@ that file is the design and the intent, this one tracks the implementation and
 is updated whenever the implementation moves. Where they disagree, this file is
 right and the design doc needs a patch.
 
-**Status:** foundation slice. Kernel, syscall boundary, registry, window
-manager, two stub apps. No shell/terminal, no file viewer, no games, no SSG
-content routes, persistence shaped but not wired.
+**Status:** kernel, syscall boundary, registry, window manager, two stub apps,
+and the content pipeline with crawlable SSG routes. No shell/terminal, no file
+viewer, no games; persistence shaped but not wired.
 
 ---
 
@@ -27,7 +27,7 @@ flowchart TB
 
     REG["registry/index.tsx<br/>appId → manifest<br/>one literal dynamic() per app"]
     HOOKS["hooks/kernel.ts<br/>'use client' — React bindings,<br/>scoped selectors"]
-    CONTENT["content/index.ts<br/>builds the base VFS tree"]
+    CONTENT["lib/content.ts<br/>reads content/ from disk:<br/>entries + the base VFS tree"]
     KERNEL["kernel/*<br/>plain TS · no React import"]
 
     PAGE --> SHELL
@@ -41,7 +41,9 @@ flowchart TB
     TB -. "lists apps" .-> REG
     WIN -. "subscribes" .-> HOOKS
     TB -. "subscribes" .-> HOOKS
-    SHELL -. "mounts" .-> CONTENT
+    PAGE -. "buildVFSTree()" .-> CONTENT
+    SITE["app/(site)/*<br/>SSG routes: listings and<br/>/projects/[slug] · /papers/[slug]"]
+    SITE -. "listEntries() · getEntry()" .-> CONTENT
 
     HOOKS --> KERNEL
     WIN --> KERNEL
@@ -308,9 +310,12 @@ sequenceDiagram
     participant Win as Window
     participant App as About
 
-    Page->>Shell: render (client)
-    Note over Shell,VFS: at MODULE scope, before any render
-    Shell->>VFS: mount(buildContentTree())
+    Page->>Page: buildVFSTree() from disk (server)
+    Page->>Shell: render with tree as a prop
+    Note over Page,Shell: plain JSON across the boundary —<br/>the kernel's node types are serializable
+    Note over Shell,VFS: during the FIRST render, before anything paints
+    Shell->>VFS: mount(tree)
+    Shell->>VFS: mknod app nodes under /apps from the registry
     Shell->>PROC: spawn('about') in an effect
     Note over Shell: guarded by a module flag, so React's<br/>development double-invoke opens one window
     PROC-->>WM: pid list changes
@@ -321,17 +326,81 @@ sequenceDiagram
     VFS-->>App: contents
 ```
 
-Seeding at module scope rather than in an effect is deliberate: it means the VFS
-is populated before the first render, so no window ever paints against an empty
+Mounting during the first render rather than in an effect is deliberate: the VFS
+is populated before anything paints, so no window ever renders against an empty
 filesystem.
+
+`/apps` is registered client-side because the registry holds React components
+and is necessarily a client module — the server loader builds only what it can
+read off disk.
 
 ---
 
-## 6. Known gaps
+## 6. Content pipeline
 
-- **No SSG content routes.** `/projects/[slug]` and `/papers/[slug]` don't
-  exist; `app/page.tsx` is a placeholder. Design doc §5 calls this the genre's
-  most common failure — it is the top of the queue.
+`lib/content.ts` is the only module that knows how content is laid out on disk.
+It is server-only by construction — it reads with `node:fs`, so it cannot reach
+a client bundle without failing the build.
+
+Directory per entry, so a writeup can carry assets:
+
+```
+content/
+  home/about.md                       → /home/about.md          (inline)
+  projects/<slug>/index.mdx           → /projects/<slug>/index.mdx
+  papers/<slug>/index.mdx             → /papers/<slug>/index.mdx
+  papers/<slug>/figure.txt            → FileNode with src, mirrored to /public
+```
+
+Frontmatter: `title`, `summary`, `date` (all required — a missing one throws
+with the file path rather than shipping a blank `<title>`), plus optional `tags`
+and `draft`.
+
+One read on disk serves two consumers, which is the whole point of
+[D-010](decisions.md):
+
+```mermaid
+flowchart LR
+    DISK[("content/&lt;collection&gt;/&lt;slug&gt;/index.mdx")]
+    LOADER["lib/content.ts<br/>gray-matter"]
+    BODY["entry.body<br/>frontmatter stripped"]
+    RAW["entry.raw<br/>the file as it is on disk"]
+    ROUTE["MDXRemote<br/>SSG route, crawlable"]
+    VFS[("VFS FileNode")]
+    CAT["cat / file viewer"]
+
+    DISK --> LOADER
+    LOADER --> BODY --> ROUTE
+    LOADER --> RAW --> VFS --> CAT
+```
+
+`raw` keeps the frontmatter because that is what is actually in the file, and
+what `cat` should print. `body` is what MDXRemote compiles.
+
+**Drafts are asymmetric on purpose.** `draft: true` removes an entry from
+`listEntries`, from the listing pages, and from `generateStaticParams` — so it
+is never built and never crawled. It stays in the VFS, so work in progress is
+still openable inside the OS. `pnpm verify:content` asserts both halves.
+
+| Surface | Sees drafts? |
+|---|---|
+| `/papers` listing, `/papers/<slug>` route | no — 404 |
+| VFS, and therefore the OS | yes |
+
+**Routes.** `app/(site)/` holds the crawlable half with its own chrome; `/os`
+sits outside that route group because it is full-viewport and brings its own.
+Each detail route is a thin wrapper over `EntryArticle` — `generateStaticParams`
+from `listEntries`, `generateMetadata` from frontmatter, `notFound()` otherwise.
+`components/mdx.tsx` holds the typographic component map, and is the seam where
+a writeup's own React components get registered.
+
+## 7. Known gaps
+
+- **All content ships in the `/os` payload.** `kernel.fs.read` is synchronous,
+  so the whole tree — every entry's full text — must be in memory client-side
+  for `cat` to work at all ([D-011](decisions.md)). Fine at tens of entries,
+  wrong at hundreds. The fix is `FileNode.src` plus an async read path, which
+  makes it a kernel change rather than a content one.
 - **Persistence not wired** (§ above).
 - **Minimizing a window unmounts its app.** `Window.tsx:56` returns `null` for
   `state === 'minimized'`, so app-internal state is destroyed and rebuilt on
