@@ -24,12 +24,14 @@ import {
   type DirNode,
 } from '@/kernel'
 import { getManifest, listApps } from '@/registry'
+import { useFileText } from '@/hooks/kernel'
 import { Desktop } from '@/wm/Desktop'
 import { DESKTOP_PATH } from '@/wm/desktopIcons'
 import { DESKTOP_ID, desktopBounds } from '@/wm/desktop'
 import { geometryFor, zoneForKey } from '@/wm/snap'
 import { TILE_MODES, isTileMode } from '@/wm/tiling'
 import { applyTiling } from '@/wm/tilingController'
+import { ACCENTS, SETTINGS_PATH, WALLPAPERS, parseSettings } from '@/wm/settings'
 import { Taskbar } from '@/wm/Taskbar'
 import { WindowManager } from '@/wm/WindowManager'
 
@@ -40,7 +42,7 @@ const adapter = createLocalStorageAdapter()
  * from the registry: the viewer is a file handler and has nothing to show
  * without one, so "every app" would be wrong.
  */
-const DESKTOP_APPS = ['terminal', 'files', 'editor', 'about', 'sysinfo']
+const DESKTOP_APPS = ['terminal', 'files', 'editor', 'settings', 'about', 'sysinfo']
 
 let mounted = false
 
@@ -75,6 +77,11 @@ let stopAutosave: (() => void) | undefined
 
 export function OsShell({ tree }: { tree: DirNode }) {
   ensureMounted(tree)
+
+  // Subscribed to the file rather than told over the bus: writing
+  // /home/.settings *is* applying it, so `echo … >` from the shell works too
+  // (D-034). This re-renders only when that one file changes.
+  const settings = parseSettings(useFileText(SETTINGS_PATH))
 
   useEffect(() => {
     if (booted) return
@@ -166,10 +173,16 @@ export function OsShell({ tree }: { tree: DirNode }) {
     // `dark` is load-bearing: the OS is always dark, so components shared with
     // the theme-aware site must resolve their dark styles here regardless of
     // the visitor's system preference. See the @custom-variant in globals.css.
-    <div className="dark flex h-dvh flex-col overflow-hidden bg-neutral-950">
+    <div
+      className="dark flex h-dvh flex-col overflow-hidden bg-neutral-950"
+      // Published as a custom property so the taskbar and the desktop icons can
+      // use it without anything being threaded through as a prop.
+      style={{ '--os-accent': ACCENTS[settings.accent].color } as React.CSSProperties}
+    >
       <div
         id={DESKTOP_ID}
-        className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-neutral-800),var(--color-neutral-950))]"
+        className="relative flex-1 overflow-hidden"
+        style={{ background: WALLPAPERS[settings.wallpaper].css }}
       >
         {/* Under the windows: icons are the floor, windows sit on it. */}
         <Desktop />

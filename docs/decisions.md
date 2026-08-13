@@ -907,3 +907,78 @@ be purely `fs.read` can now start processes.
 **Revisit when** a third app wants the same type, or when a file type exists
 that should open in the editor *by default* — a `.txt` note, say. The answer
 then is probably a per-type default the user can set, which is Settings' job.
+
+---
+
+## D-034 · 2026-08-13 · active
+### Settings are a file every surface subscribes to — no event, no store
+
+`/home/.settings` holds wallpaper, accent, icon size, and whether the desktop
+shows dotfiles. `OsShell`, `Desktop` and `apps/settings` all read it with
+`useFileText`. **Writing it is applying it.**
+
+**This departs from the plan, which specified an `os:settings` event on the bus**
+following [D-023](#d-023--2026-08-12--active). That was the wrong pattern here.
+D-023 is for an app that wants something *done* it cannot do itself — `tile`
+needs desktop bounds and the whole process table. Settings does not want
+anything done; it wants a value known. That is shared state, not a request, and
+the bus would be a second mechanism carrying what the filesystem already
+carries.
+
+**What subscribing buys, and it is the point:**
+
+```
+echo '{"wallpaper":"ink"}' > /home/.settings
+```
+
+changes the wallpaper. So does opening the file in the editor and saving, and so
+does `rm /home/.settings` — which restores the defaults. The settings app is an
+*editor for a file*, exactly as the terminal is an editor for `/home/.history`,
+rather than a privileged pane that owns configuration.
+
+It is the third use of [D-020](#d-020--2026-08-12--active)'s trick after history
+and icon positions, and by now that is simply how this OS persists small things.
+
+**The accent is published as a CSS custom property** on the OS root, so the
+taskbar and the desktop icons use the colour without it being threaded through
+as a prop. One assignment, two consumers, no plumbing.
+
+**Parsing degrades field by field.** A settings file is a dotfile in a writable
+filesystem; anything can `echo nonsense >` it and the editor can save it
+half-written. One bad field falls back on its own, keeping the rest. A desktop
+that will not paint is a far worse failure than a lost accent colour.
+
+**Cost.** Every surface parses the JSON on each render rather than sharing one
+parsed object — cheap at four fields, and it keeps the data flow one-directional.
+And `OsShell` now re-renders when that file changes, where before it rendered
+once; the change is rare and the subtree is small, but it is no longer a
+render-once component.
+
+---
+
+## D-035 · 2026-08-13 · active
+### `useCallback` came out of `wm/Desktop.tsx` rather than being worked around
+
+Adding a second `useFileText` subscription made React Compiler's
+`react-hooks/preserve-manual-memoization` rule refuse to compile the component:
+it could not verify the manual dependency arrays. The fix was to **delete the
+`useCallback`s**, not to satisfy the rule.
+
+**Why that is right rather than expedient.** Nothing those callbacks were passed
+to is `React.memo` — `DesktopIcon` is a plain function component, so it
+re-renders with its parent regardless of prop identity. The memoization was
+buying nothing at runtime and had never been measured. The lint rule surfaced
+cargo-cult memoization, which is what it is for.
+
+**The drag contract does not depend on it**, and that is the thing to check
+before touching anything in this file: a gesture produces *no renders at all*
+([D-031](#d-031--2026-08-12--active)), so callback identity cannot affect it.
+`verify-desktop` still measures zero commits across fifteen pointer moves.
+
+**Cost.** If `DesktopIcon` is ever wrapped in `React.memo`, these have to come
+back — and then the memo and the callbacks have to be added together, or the
+memo does nothing. Worth knowing that the two are a pair.
+
+**Note:** React Compiler is *not* enabled in `next.config.ts`; the rule ships
+with `eslint-config-next` regardless. If the compiler is ever turned on, it
+memoizes this component itself and the deletion becomes a straight win.

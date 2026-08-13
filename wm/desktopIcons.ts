@@ -10,16 +10,32 @@
  * DOM; this decides what goes where.
  */
 import type { VFSNode } from '@/kernel'
+import type { IconSize } from './settings'
 
 export const DESKTOP_PATH = '/desktop'
 
 /** Where icon positions persist. A dotfile riding the write overlay, as `/home/.history` does (D-020). */
 export const POSITIONS_PATH = `${DESKTOP_PATH}/.positions`
 
-/** One icon cell. Tall enough for two lines of label at the OS font size. */
-export const CELL = { width: 84, height: 88 } as const
+/**
+ * One icon cell, per size setting. Tall enough for two lines of label at the OS
+ * font size; `glyph` is the mask square inside it.
+ */
+export const ICON_SIZES: Record<IconSize, { width: number; height: number; glyph: number }> = {
+  small: { width: 68, height: 74, glyph: 24 },
+  medium: { width: 84, height: 88, glyph: 32 },
+  large: { width: 106, height: 112, glyph: 44 },
+}
+
+/** The default, so callers with no opinion about size need not carry one. */
+export const CELL = ICON_SIZES.medium
 export const CELL_GAP = 10
 export const EDGE_PADDING = 12
+
+export interface Cell {
+  width: number
+  height: number
+}
 
 export interface Bounds {
   width: number
@@ -59,27 +75,27 @@ export function iconFor(node: VFSNode): string {
 }
 
 /** How many icons fit in one column before wrapping to the next. */
-function perColumn(bounds: Bounds): number {
+function perColumn(bounds: Bounds, cell: Cell): number {
   const usable = bounds.height - EDGE_PADDING
-  return Math.max(1, Math.floor(usable / (CELL.height + CELL_GAP)))
+  return Math.max(1, Math.floor(usable / (cell.height + CELL_GAP)))
 }
 
 /** Grid slots fill downward first, then across — as a desktop does. */
-export function slotFor(index: number, bounds: Bounds): Point {
-  const rows = perColumn(bounds)
+export function slotFor(index: number, bounds: Bounds, cell: Cell = CELL): Point {
+  const rows = perColumn(bounds, cell)
   return {
-    x: EDGE_PADDING + Math.floor(index / rows) * (CELL.width + CELL_GAP),
-    y: EDGE_PADDING + (index % rows) * (CELL.height + CELL_GAP),
+    x: EDGE_PADDING + Math.floor(index / rows) * (cell.width + CELL_GAP),
+    y: EDGE_PADDING + (index % rows) * (cell.height + CELL_GAP),
   }
 }
 
 /** The slot a dragged icon has come to rest nearest, so nothing is placed on top of it. */
-function nearestSlot(point: Point, bounds: Bounds): number {
-  const rows = perColumn(bounds)
-  const column = Math.max(0, Math.round((point.x - EDGE_PADDING) / (CELL.width + CELL_GAP)))
+function nearestSlot(point: Point, bounds: Bounds, cell: Cell): number {
+  const rows = perColumn(bounds, cell)
+  const column = Math.max(0, Math.round((point.x - EDGE_PADDING) / (cell.width + CELL_GAP)))
   const row = Math.max(
     0,
-    Math.min(rows - 1, Math.round((point.y - EDGE_PADDING) / (CELL.height + CELL_GAP)))
+    Math.min(rows - 1, Math.round((point.y - EDGE_PADDING) / (cell.height + CELL_GAP)))
   )
   return column * rows + row
 }
@@ -137,7 +153,7 @@ export function desktopIcons(
   children: readonly VFSNode[],
   saved: Positions,
   bounds: Bounds,
-  { showHidden = false }: { showHidden?: boolean } = {}
+  { showHidden = false, cell = CELL }: { showHidden?: boolean; cell?: Cell } = {}
 ): Icon[] {
   const visible = children
     .filter((node) => showHidden || !node.name.startsWith('.'))
@@ -146,7 +162,7 @@ export function desktopIcons(
     )
 
   const taken = new Set(
-    Object.values(saved).map((position) => nearestSlot(position, bounds))
+    Object.values(saved).map((position) => nearestSlot(position, bounds, cell))
   )
   let next = 0
 
@@ -156,7 +172,7 @@ export function desktopIcons(
     if (!position) {
       while (taken.has(next)) next++
       taken.add(next)
-      position = slotFor(next, bounds)
+      position = slotFor(next, bounds, cell)
     }
 
     return {
@@ -189,9 +205,9 @@ export function uniqueName(base: string, taken: (name: string) => boolean): stri
 }
 
 /** Keep a dropped icon on the desktop, whatever the pointer did. */
-export function clampToDesktop(point: Point, bounds: Bounds): Point {
+export function clampToDesktop(point: Point, bounds: Bounds, cell: Cell = CELL): Point {
   return {
-    x: Math.max(0, Math.min(point.x, Math.max(0, bounds.width - CELL.width))),
-    y: Math.max(0, Math.min(point.y, Math.max(0, bounds.height - CELL.height))),
+    x: Math.max(0, Math.min(point.x, Math.max(0, bounds.width - cell.width))),
+    y: Math.max(0, Math.min(point.y, Math.max(0, bounds.height - cell.height))),
   }
 }

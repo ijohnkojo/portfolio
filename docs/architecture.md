@@ -10,8 +10,8 @@ right and the design doc needs a patch.
 **Status:** design doc Phases 1 and 2 complete. Kernel, syscall boundary,
 registry, window manager with snapping and tiling, crawlable SSG content,
 shell with pipelines, completion and persisted history, file viewer, file
-manager, text editor, a desktop with icons and right-click menus, wired
-persistence. No game yet.
+manager, text editor, settings, a desktop with icons, right-click menus and a
+wallpaper, wired persistence. No game yet.
 
 ---
 
@@ -97,7 +97,7 @@ the obvious owner — completion has to return the completed string. Pick the
 part of the system it should not hold a reference to — the shell should not be
 able to reach the window manager at all.
 
-The payoff is concrete and measurable: **465 unit tests run in bare node in
+The payoff is concrete and measurable: **472 unit tests run in bare node in
 well under a second** — no jsdom, no browser, no component harness. That holds
 only because the line editor has no filesystem and the command table has no DOM,
 and it stops holding the first time either is handed a capability "just for this
@@ -657,13 +657,22 @@ The background menu's **Arrange Icons** resets the grid by deleting
 `/desktop/.positions` — the file-backed design paying off as a one-line feature.
 **Tile Windows** emits `wm:tile` and lets the WM decide ([D-023](decisions.md)).
 
-**Not built yet** — step 6 of
-[the plan](plans/2026-08-12-desktop-and-apps.md): the Settings app, and with it
-the Change Wallpaper item the background menu does not yet carry.
+**Appearance comes from `/home/.settings`** ([D-034](decisions.md)) — wallpaper,
+accent, icon size, and whether dotfiles show. `OsShell`, the desktop and the
+settings app all subscribe to that one file with `useFileText`, so **writing it
+is applying it**: `echo '{"wallpaper":"ink"}' > /home/.settings` repaints the
+desktop, and `rm` restores the defaults. There is no event and no settings
+store.
+
+The accent is published as a **CSS custom property** on the OS root, so the
+taskbar and the icons use it with nothing threaded through as a prop.
+
+Icon size reaches the *layout*, not just the glyph: `desktopIcons.ts` takes a
+cell size, defaulting to medium so callers with no opinion carry none.
 
 ## 9. Apps
 
-Six, all reached the same way: a manifest in `registry/index.tsx`, a lazily
+Seven, all reached the same way: a manifest in `registry/index.tsx`, a lazily
 imported component, and a `kernelAPI` scoped to its declared permissions.
 
 | App | Permissions | Notes |
@@ -673,6 +682,7 @@ imported component, and a `kernelAPI` scoped to its declared permissions.
 | `editor` | `fs.read` `fs.write` | edits text in place; **no `handles`** ([D-033](decisions.md)) |
 | `viewer` | `fs.read` `proc.spawn` | opens files; `handles` declares its mime types; **edit** hands off |
 | `about` | `fs.read` | reads `/home/about.md`; can crash on demand |
+| `settings` | `fs.read` `fs.write` | an editor for `/home/.settings` ([D-034](decisions.md)) |
 | `sysinfo` | `fs.read` `events.listen` | live kernel state |
 
 **`files` is the third view of one filesystem** — the shell walks it, the
@@ -696,6 +706,11 @@ disk" means in any editor.
 It declares no `handles` on purpose ([D-033](decisions.md)): open and edit are
 different intents, and two exact claims on one mime would be settled by
 registration order. A test asserts no two manifests ever make one.
+
+**`settings` owns nothing.** It writes `/home/.settings` and stops; the OS reads
+that file directly. Which is why the shape lives in `wm/settings.ts` rather than
+in the app — the app is an editor for it, as the terminal is an editor for
+`/home/.history`.
 
 ### How `open <file>` finds an app
 

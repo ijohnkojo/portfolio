@@ -10,7 +10,7 @@
 > - [x] 3. Context menus
 > - [x] 4. Files
 > - [x] 5. Editor
-> - [ ] 6. Settings
+> - [x] 6. Settings — **complete**
 >
 > Read [../../AGENTS.md](../../AGENTS.md) and [../README.md](../README.md)
 > first; everything below assumes them.
@@ -36,6 +36,12 @@
 > 6. **Directories cannot be renamed anywhere.** Not called out in the plan, but
 >    it falls out of `mv`: a rename is a copy plus a remove and the VFS copy path
 >    handles one file. The desktop gets no capability the shell lacks.
+> 7. **Settings use no event.** The plan specified `os:settings` on the bus per
+>    D-023. Wrong pattern: D-023 is for an app that wants something *done* it
+>    cannot do itself, and settings only wants a value *known*. Every surface
+>    subscribes to `/home/.settings` instead, which is what makes
+>    `echo '{"wallpaper":"ink"}' > /home/.settings` work from the shell.
+>    Recorded as [D-034](../decisions.md).
 
 ## Context
 

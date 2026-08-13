@@ -943,3 +943,72 @@ suites green: terminal 36/36, phase2 29/29, WM 20/20, viewer 8/8, content 7/7.
 
 Settings — wallpaper, accent, icon size — and the Change Wallpaper item the
 background menu does not yet carry.
+
+---
+
+## 2026-08-13 — Settings, and the desktop plan closes
+
+Plan: [plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md)
+— **all six steps done.**
+
+### Built
+
+- **`settings`**, the seventh app: wallpaper, accent, icon size, and whether the
+  desktop shows dotfiles. Four generated backgrounds, no images, so nothing new
+  ships in the `/os` payload ([D-011](decisions.md)).
+- **Icon size reaches the layout**, not just the glyph — `desktopIcons.ts` now
+  takes a cell size, defaulting to medium so callers with no opinion carry none.
+- **Change Wallpaper** joins the desktop's background menu, which is the item
+  step 3 deliberately left out because it had nowhere to point.
+
+### The plan said to use the event bus. It was the wrong pattern
+
+The plan specified an `os:settings` event following [D-023](decisions.md).
+D-023 is for an app that wants something *done* that it cannot do itself —
+`tile` needs desktop bounds and the whole process table. **Settings does not
+want anything done; it wants a value known.** That is shared state, and the bus
+would be a second mechanism carrying what the filesystem already carries.
+
+So every surface subscribes to `/home/.settings` instead
+([D-034](decisions.md)), and writing the file *is* applying it:
+
+```
+echo '{"wallpaper":"ink"}' > /home/.settings
+```
+
+repaints the desktop. So does saving it in the editor, and `rm /home/.settings`
+restores the defaults. The settings app is an editor for a file, exactly as the
+terminal is an editor for `/home/.history` — not a privileged pane that owns
+configuration. Third use of [D-020](decisions.md)'s trick, and by now that is
+simply how this OS persists small things.
+
+The accent rides a **CSS custom property** on the OS root, so the taskbar and the
+icons use the chosen colour with nothing threaded through as a prop.
+
+### A lint rule caught cargo-cult memoization
+
+Adding the second `useFileText` made React Compiler's
+`preserve-manual-memoization` rule refuse to compile `wm/Desktop.tsx`. The fix
+was to **delete the `useCallback`s** rather than work around the rule
+([D-035](decisions.md)): nothing they were passed to is `React.memo`, so they
+were buying nothing at runtime and had never been measured.
+
+Checked the thing that actually matters first — the drag contract does not
+depend on callback identity, because a gesture produces no renders at all. The
+zero-commit assertion still passes.
+
+### Verified
+
+**472 unit tests** (+7). `verify-desktop` **44/44**, thirteen more than before,
+including the one worth having: `echo '{"wallpaper":"ember"}' > /home/.settings`
+from the terminal repaints the desktop, and it survives a reload. All five other
+suites green: terminal 36/36, phase2 29/29, WM 20/20, viewer 8/8, content 7/7.
+
+### Where this leaves things
+
+Seven apps and a desktop you can use without typing. `docs/review.md` is now
+badly stale — two of its four "live" items have shipped and its recommended
+order leads with settling the slugs, which was already done. **Re-run it.**
+
+The standing gap is unchanged and is not code: every content entry is still
+`draft: true`, so the public site lists nothing.

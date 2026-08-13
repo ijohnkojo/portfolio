@@ -294,7 +294,13 @@ await page.waitForTimeout(300)
 check(
   'right-clicking the background offers what you can do to a desktop',
   JSON.stringify(await menuItems()) ===
-    JSON.stringify(['New Folder', 'New File', 'Arrange Icons', 'Tile Windows'])
+    JSON.stringify([
+      'New Folder',
+      'New File',
+      'Arrange Icons',
+      'Tile Windows',
+      'Change Wallpaper',
+    ])
 )
 
 // The menu is portalled out of the window subtree, because react-rnd positions
@@ -396,6 +402,77 @@ check(
   'and the positions file is gone',
   (await run('ls -a /desktop')).includes('.positions') === false
 )
+
+/* --------------------------------------------------------------- settings */
+
+const surface = page.locator('#wm-desktop')
+const wallpaper = () => surface.evaluate((el) => getComputedStyle(el).backgroundImage)
+const iconCell = () =>
+  icon('terminal').evaluate((el) => `${el.style.width}/${el.style.height}`)
+
+const beforeWallpaper = await wallpaper()
+const beforeCell = await iconCell()
+
+await minimizeAll()
+await page.mouse.click(760, 430, { button: 'right' })
+await page.waitForTimeout(300)
+await menuItem('Change Wallpaper').click()
+await page.waitForTimeout(900)
+
+const settingsApp = page.locator('[data-app="settings"]').first()
+check('Change Wallpaper opens Settings', (await settingsApp.count()) === 1)
+
+await settingsApp.locator('[data-wallpaper="ink"]').click()
+await page.waitForTimeout(400)
+check('picking a wallpaper repaints the desktop', (await wallpaper()) !== beforeWallpaper)
+
+await settingsApp.locator('[data-icon-size="large"]').click()
+await page.waitForTimeout(400)
+check(
+  'icon size reaches the layout, not just the glyph',
+  (await iconCell()) !== beforeCell,
+  `${beforeCell} → ${await iconCell()}`
+)
+
+await settingsApp.locator('[data-accent="cyan"]').click()
+await page.waitForTimeout(300)
+check(
+  'the accent is published as a custom property the whole OS can read',
+  (await page.locator('.dark').first().evaluate((el) =>
+    getComputedStyle(el).getPropertyValue('--os-accent')
+  )).trim().length > 0
+)
+
+await minimizeAll()
+await run('touch /desktop/.hidden.md')
+await page.waitForTimeout(300)
+check('a dotfile stays hidden by default', !(await iconNames()).includes('.hidden.md'))
+
+await page.getByRole('button', { name: /^Settings/ }).last().click()
+await page.waitForTimeout(300)
+await settingsApp.locator('[data-show-hidden]').click()
+await page.waitForTimeout(400)
+check('and appears once you ask for it', (await iconNames()).includes('.hidden.md'))
+
+// The property that makes this a filesystem rather than a preferences pane.
+check(
+  'settings are a real file',
+  (await run('cat /home/.settings')).includes('"wallpaper": "ink"'),
+  '/home/.settings'
+)
+
+await run('echo \'{"wallpaper":"ember"}\' > /home/.settings')
+await page.waitForTimeout(600)
+const fromShell = await wallpaper()
+check(
+  'writing that file from the shell repaints the desktop',
+  fromShell !== (await (async () => beforeWallpaper)()) && fromShell.length > 0,
+  'no event needed — every surface subscribes to the file'
+)
+
+await page.reload({ waitUntil: 'networkidle' })
+await page.waitForTimeout(1200)
+check('and it survives a reload', (await wallpaper()) === fromShell)
 
 await page.screenshot({ path: 'scripts/desktop-verify.png' })
 

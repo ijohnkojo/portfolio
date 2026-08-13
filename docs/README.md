@@ -48,15 +48,18 @@ develops — if the code and a doc disagree, the doc is a bug.
 **Design doc Phases 1 and 2 are complete.** Kernel, syscall boundary, registry,
 window manager with snapping and tiling, crawlable SSG content routes, a shell
 with thirty-one commands, pipes and redirection, tab completion, persisted
-history, a file/PDF viewer, and a session that survives a reload.
+history, **seven apps**, and a clickable desktop whose icons are a view of a real
+directory.
 
-Not yet: a game. Content is real MDX with real frontmatter; the prose is being
-written separately.
+Not yet: a game. Content is real MDX with real frontmatter — and **every entry is
+still `draft: true`**, so the public site lists nothing. That is prose, not code,
+and it is the largest gap between what is built and what a visitor sees.
 
-Most recently shipped: [plans/2026-08-12-piping-and-redirection.md](plans/2026-08-12-piping-and-redirection.md)
-— `|`, `>` and `>>` ([D-029](decisions.md)). Nothing is queued behind it.
+Most recently shipped:
+[plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md) —
+all six steps, D-030 … D-035. Nothing is queued behind it.
 
-Remaining work is triaged in [review.md](review.md) — all absences now rather
-than defects. The nearest items are the placeholder slugs (which become
-permanent URLs the moment anything links in), no mobile mode, and no
-accessibility work.
+Remaining work is triaged in [review.md](review.md), **which is stale** — two of
+its four live items have shipped and its recommended order leads with settling
+the slugs, which is done. Re-run it. The standing gaps are: nothing published,
+no mobile mode, and no accessibility work.

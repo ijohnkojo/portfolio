@@ -80,9 +80,16 @@ function TaskbarItem({ pid }: { pid: number }) {
         if (isFocused && !minimized) systemAPI.window.setState(pid, 'minimized')
         else systemAPI.proc.focus(pid)
       }}
+      // The accent arrives as a custom property from the OS root, so nothing
+      // has to be passed down for a colour the user picked (D-034).
+      style={
+        isFocused && !minimized
+          ? { backgroundColor: 'color-mix(in srgb, var(--os-accent) 28%, transparent)' }
+          : undefined
+      }
       className={`max-w-40 truncate rounded px-2 py-1 font-mono text-xs ${
         isFocused && !minimized
-          ? 'bg-neutral-700 text-neutral-100'
+          ? 'text-neutral-100'
           : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
       } ${minimized ? 'opacity-50' : ''}`}
     >

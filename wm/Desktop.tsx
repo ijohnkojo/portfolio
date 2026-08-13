@@ -13,7 +13,7 @@
  * re-render an icon, for the reason `docs/gotchas.md` gives about unscoped
  * selectors.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { systemAPI, type VFSNode } from '@/kernel'
 import { useDirectory, useFileText } from '@/hooks/kernel'
@@ -22,8 +22,9 @@ import { launchFor, performLaunch } from '@/registry/launch'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { actionsFor, type NodeAction } from './contextMenu'
 import { DESKTOP_ID, desktopBounds } from './desktop'
+import { SETTINGS_PATH, parseSettings } from './settings'
 import {
-  CELL,
+  ICON_SIZES,
   DESKTOP_PATH,
   POSITIONS_PATH,
   clampToDesktop,
@@ -32,6 +33,7 @@ import {
   serializePositions,
   uniqueName,
   type Bounds,
+  type Cell,
   type Icon,
   type Point,
   type Positions,
@@ -79,6 +81,8 @@ export function Desktop() {
   // /home/.history every 250ms while you type costs nothing here.
   const children = useDirectory(DESKTOP_PATH)
   const positions = parsePositions(useFileText(POSITIONS_PATH))
+  const settings = parseSettings(useFileText(SETTINGS_PATH))
+  const cell = ICON_SIZES[settings.iconSize]
 
   const [bounds, setBounds] = useState<Bounds>({ width: 0, height: 0 })
   const [selected, setSelected] = useState<string | null>(null)
@@ -99,9 +103,17 @@ export function Desktop() {
     return () => observer.disconnect()
   }, [])
 
-  const exists = useCallback((name: string) => Boolean(systemAPI.fs.stat(`${DESKTOP_PATH}/${name}`)), [])
+  /**
+   * Plain functions, not `useCallback`.
+   *
+   * Nothing they are passed to is `React.memo`, so a stable identity buys
+   * exactly nothing — and React Compiler's lint refuses to preserve manual
+   * memoization it cannot verify here, correctly. The drag contract does not
+   * depend on any of this: a gesture produces no renders at all.
+   */
+  const exists = (name: string) => Boolean(systemAPI.fs.stat(`${DESKTOP_PATH}/${name}`))
 
-  const open = useCallback((icon: Icon) => {
+  const open = (icon: Icon) => {
     const launch = launchFor(icon.path, icon.node, findHandlerFor)
 
     // Null is a directory, and each surface has its own opinion about those
@@ -111,95 +123,89 @@ export function Desktop() {
       return
     }
     performLaunch(systemAPI, launch, (appId) => getManifest(appId)?.name ?? appId)
-  }, [])
+  }
 
   /**
    * One write, on drop. The gesture itself never comes through here — see the
    * pointer handlers below.
    */
-  const moveTo = useCallback(
-    (name: string, point: Point) => {
-      systemAPI.fs.write(
-        POSITIONS_PATH,
-        serializePositions({ ...positions, [name]: clampToDesktop(point, bounds) })
-      )
-    },
-    [positions, bounds]
-  )
+  const moveTo = (name: string, point: Point) => {
+    systemAPI.fs.write(
+      POSITIONS_PATH,
+      serializePositions({ ...positions, [name]: clampToDesktop(point, bounds, cell) })
+    )
+  }
 
-  const remove = useCallback((icon: Icon) => {
+  const remove = (icon: Icon) => {
     try {
       systemAPI.fs.unlink(icon.path)
       setNotice(null)
     } catch (thrown) {
       setNotice(explain(icon.name, thrown))
     }
-  }, [])
+  }
 
   /**
    * A rename is a write followed by a remove, which is exactly what `mv` is —
    * and it inherits `mv`'s limits, including that published content cannot move
    * because it cannot be removed.
    */
-  const rename = useCallback(
-    (icon: Icon, to: string) => {
-      setRenaming(null)
+  const rename = (icon: Icon, to: string) => {
+    setRenaming(null)
 
-      const name = to.trim()
-      if (!name || name === icon.name) return
-      if (exists(name)) return setNotice(`${name}: already exists`)
+    const name = to.trim()
+    if (!name || name === icon.name) return
+    if (exists(name)) return setNotice(`${name}: already exists`)
 
-      const content = systemAPI.fs.read(icon.path)
-      if (content === null) return setNotice(`${icon.name}: cannot be renamed`)
+    const content = systemAPI.fs.read(icon.path)
+    if (content === null) return setNotice(`${icon.name}: cannot be renamed`)
 
-      try {
-        systemAPI.fs.unlink(icon.path)
-      } catch (thrown) {
-        return setNotice(explain(icon.name, thrown, ' — copy it instead'))
-      }
-      systemAPI.fs.write(`${DESKTOP_PATH}/${name}`, content)
+    try {
+      systemAPI.fs.unlink(icon.path)
+    } catch (thrown) {
+      return setNotice(explain(icon.name, thrown, ' — copy it instead'))
+    }
+    systemAPI.fs.write(`${DESKTOP_PATH}/${name}`, content)
 
-      // The icon keeps its place: the positions file is keyed by name, so a
-      // rename has to carry the entry across or the icon jumps to the grid.
-      const position = positions[icon.name]
-      if (position) {
-        const next: Positions = { ...positions, [name]: position }
-        delete next[icon.name]
-        systemAPI.fs.write(POSITIONS_PATH, serializePositions(next))
-      }
+    // The icon keeps its place: the positions file is keyed by name, so a
+    // rename has to carry the entry across or the icon jumps to the grid.
+    const position = positions[icon.name]
+    if (position) {
+      const next: Positions = { ...positions, [name]: position }
+      delete next[icon.name]
+      systemAPI.fs.write(POSITIONS_PATH, serializePositions(next))
+    }
 
+    setSelected(name)
+    setNotice(null)
+  }
+
+  const create = (kind: 'folder' | 'file') => {
+    const name = uniqueName(kind === 'folder' ? 'new folder' : 'untitled.md', exists)
+    const path = `${DESKTOP_PATH}/${name}`
+
+    try {
+      if (kind === 'folder') systemAPI.fs.mkdir(path)
+      else systemAPI.fs.write(path, '')
       setSelected(name)
+      // Straight into a rename, which is what you wanted next anyway.
+      setRenaming(name)
       setNotice(null)
-    },
-    [exists, positions]
-  )
-
-  const create = useCallback(
-    (kind: 'folder' | 'file') => {
-      const name = uniqueName(kind === 'folder' ? 'new folder' : 'untitled.md', exists)
-      const path = `${DESKTOP_PATH}/${name}`
-
-      try {
-        if (kind === 'folder') systemAPI.fs.mkdir(path)
-        else systemAPI.fs.write(path, '')
-        setSelected(name)
-        // Straight into a rename, which is what you wanted next anyway.
-        setRenaming(name)
-        setNotice(null)
-      } catch (thrown) {
-        setNotice(explain(name, thrown))
-      }
-    },
-    [exists]
-  )
+    } catch (thrown) {
+      setNotice(explain(name, thrown))
+    }
+  }
 
   /** Reset the arrangement by deleting the file that holds it. */
-  const arrange = useCallback(() => {
+  const arrange = () => {
     if (systemAPI.fs.stat(POSITIONS_PATH)) systemAPI.fs.unlink(POSITIONS_PATH)
     setNotice(null)
-  }, [])
+  }
 
-  const icons = desktopIcons(children, positions, bounds)
+  const icons = desktopIcons(children, positions, bounds, {
+    showHidden: settings.showHidden,
+    cell,
+  })
 
   const menuItems: MenuItem[] = !menu
     ? []
@@ -223,6 +229,10 @@ export function Desktop() {
             label: 'Tile Windows',
             onSelect: () => systemAPI.events.emit('wm:tile', { mode: 'grid' }),
           },
+          {
+            label: 'Change Wallpaper',
+            onSelect: () => systemAPI.proc.spawn('settings', [], 'Settings'),
+          },
         ]
 
   return (
@@ -245,6 +255,7 @@ export function Desktop() {
         <DesktopIcon
           key={icon.name}
           icon={icon}
+          cell={cell}
           label={labelFor(icon.node)}
           selected={selected === icon.name}
           renaming={renaming === icon.name}
@@ -285,6 +296,7 @@ interface Gesture {
 
 function DesktopIcon({
   icon,
+  cell,
   label,
   selected,
   renaming,
@@ -296,6 +308,7 @@ function DesktopIcon({
   onCancelRename,
 }: {
   icon: Icon
+  cell: Cell & { glyph: number }
   label: string
   selected: boolean
   renaming: boolean
@@ -321,8 +334,8 @@ function DesktopIcon({
   const placement = {
     left: icon.position.x,
     top: icon.position.y,
-    width: CELL.width,
-    height: CELL.height,
+    width: cell.width,
+    height: cell.height,
   }
   const glyph = (
     /*
@@ -332,8 +345,10 @@ function DesktopIcon({
     */
     <span
       aria-hidden
-      className="h-8 w-8 shrink-0 bg-current"
+      className="shrink-0 bg-current"
       style={{
+        width: cell.glyph,
+        height: cell.glyph,
         maskImage: `url(${icon.icon})`,
         WebkitMaskImage: `url(${icon.icon})`,
         maskSize: 'contain',
@@ -378,11 +393,19 @@ function DesktopIcon({
       // Marks an icon for the verify script, and carries the name it is keyed by.
       data-desktop-icon={icon.name}
       data-selected={selected}
-      style={placement}
+      style={{
+        ...placement,
+        // The accent is a custom property published by the OS root, so the
+        // colour the user picked reaches here without a prop (D-034).
+        ...(selected
+          ? {
+              backgroundColor: 'color-mix(in srgb, var(--os-accent) 20%, transparent)',
+              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--os-accent) 45%, transparent)',
+            }
+          : null),
+      }}
       className={`absolute flex flex-col items-center gap-1.5 rounded-md px-1 pt-2 pb-1 text-center font-mono text-[11px] leading-tight transition-colors ${
-        selected
-          ? 'bg-neutral-100/10 text-neutral-100 ring-1 ring-neutral-100/25'
-          : 'text-neutral-300 hover:bg-neutral-100/5'
+        selected ? 'text-neutral-100' : 'text-neutral-300 hover:bg-neutral-100/5'
       }`}
       onClick={onSelect}
       onDoubleClick={onOpen}

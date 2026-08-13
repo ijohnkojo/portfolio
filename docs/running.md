@@ -179,8 +179,23 @@ content is fine: it becomes an overlay edit, and `rm` reverts it — exactly wha
 Try it: right-click the desktop → **New File**, name it, right-click → **Edit**,
 type something, `ctrl+s`, then `cat /desktop/<name>` in the terminal.
 
-**Not built yet:** the Settings app, and with it a wallpaper to change. See
-[plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md).
+## Settings
+
+Wallpaper, accent, icon size, and whether the desktop shows dotfiles. Reach it
+from the taskbar, the desktop, or right-click the background → **Change
+Wallpaper**.
+
+It is an editor for `/home/.settings` and nothing more — the OS reads that file
+directly, so:
+
+```
+cat /home/.settings                            read them
+echo '{"wallpaper":"ink"}' > /home/.settings   change the wallpaper from the shell
+rm /home/.settings                             back to the defaults
+```
+
+Opening it in the editor and saving works too. A half-written file degrades
+field by field rather than breaking the desktop.
 
 ## Windows
 
@@ -213,7 +228,7 @@ fresh.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 465 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
+| `pnpm test` | 472 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
@@ -221,7 +236,7 @@ fresh.
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 | `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
 | `pnpm verify:viewer` | opens files in the viewer — **needs `pnpm dev` running** |
-| `pnpm verify:desktop` | icons, the drag contract, menus, Files and the editor — **needs `pnpm dev` running** |
+| `pnpm verify:desktop` | icons, the drag contract, menus, Files, the editor and settings — **needs `pnpm dev` running** |
 | `pnpm verify:phase2` | persistence, snapping, repaint fix — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:

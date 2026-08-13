@@ -96,6 +96,18 @@ export const registry: Record<string, AppManifest> = {
       loading: AppLoading,
     }),
   },
+  settings: {
+    id: 'settings',
+    name: 'Settings',
+    icon: '/icons/settings.svg',
+    // No events permission: writing the file *is* applying the change, because
+    // every surface subscribes to it (D-034).
+    permissions: ['fs.read', 'fs.write'],
+    component: dynamic(() => import('@/apps/settings/Settings'), {
+      ssr: false,
+      loading: AppLoading,
+    }),
+  },
   sysinfo: {
     id: 'sysinfo',
     name: 'System Info',
