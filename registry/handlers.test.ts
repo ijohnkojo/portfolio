@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import { findHandlerFor } from './handlers'
+import { listApps } from './index'
 
 /**
- * The mime→app mapping is tested against a fixture rather than the real
- * registry, because the registry imports `next/dynamic` and these tests run in
- * bare node. The real manifests are exercised end-to-end by verify-viewer.
+ * The matching *rule* is tested against a fixture, so the cases stay legible
+ * and do not shift when an app is added.
+ *
+ * The real manifests are checked separately at the bottom of this file — the
+ * registry turns out to import cleanly in bare node, because `next/dynamic`'s
+ * inner `import()` calls are lazy and never run here. That is what lets the
+ * no-duplicate-claims guard cover the actual registry rather than a copy of it.
  */
 const fixture = [
   { id: 'viewer', handles: ['text/markdown', 'text/plain', 'application/pdf', 'image/*'] },
@@ -49,5 +54,30 @@ describe('findHandlerFor', () => {
   it('does not treat a wildcard prefix as a substring match', () => {
     const apps = [{ id: 'gallery', handles: ['image/*'] }]
     expect(findHandlerFor('notanimage/png', apps)).toBeNull()
+  })
+})
+
+/**
+ * The rule that keeps `open` predictable, enforced rather than remembered.
+ *
+ * `findHandlerFor` settles two *exact* claims on the same mime by registration
+ * order — silently, and differently depending on where someone added a line. So
+ * no two manifests may make one. It is why the editor declares no `handles` at
+ * all (D-033): open and edit are different intents, and the editor is reached
+ * explicitly instead.
+ */
+describe('the registry itself', () => {
+  it('never lets two apps claim the same exact mime type', () => {
+    const claims = new Map<string, string>()
+
+    for (const app of listApps()) {
+      for (const pattern of app.handles ?? []) {
+        if (pattern.endsWith('/*')) continue
+
+        const existing = claims.get(pattern)
+        expect(existing, `${app.id} and ${existing} both claim ${pattern}`).toBeUndefined()
+        claims.set(pattern, app.id)
+      }
+    }
   })
 })

@@ -870,3 +870,40 @@ descends. Three callers, one resolution, three honest opinions about folders.
 expected, not the reason. When one fires, re-derive the reason before acting on
 the instruction — this one would have had us move code into the kernel to
 satisfy a sentence.
+
+---
+
+## D-033 · 2026-08-12 · active
+### The viewer stays the default for text; the editor is reached explicitly
+
+`editor` declares **no `handles`**. The viewer keeps `text/markdown`,
+`text/plain` and `application/json`, so `open notes.md` and double-clicking an
+icon both still open the viewer. The editor is reached by intent: right-click →
+Edit on the desktop and in Files, or the viewer's own **edit** button.
+
+**Why not just give the editor the mimes.** `findHandlerFor` resolves two
+*exact* claims on the same type by registration order — silently, and
+differently depending on where in `registry/index.tsx` someone added a line. A
+coin-flip decided by file order is the worst possible answer to "what opens
+this?"
+
+**Why not add a priority field.** That is machinery for one caller, which design
+doc §5 rules out. And it would be solving the wrong problem: **open and edit are
+different intents**, which every real desktop distinguishes. Modelling them as
+one action that needs a tiebreak is the mistake.
+
+**Enforced, not remembered.** `registry/handlers.test.ts` now asserts that no
+two manifests claim the same exact mime, against the real registry — which
+turned out to import cleanly in bare node, because `next/dynamic`'s inner
+`import()` is lazy and never runs there. The guard was checked by temporarily
+giving the editor `text/markdown` and watching it fail with
+`editor and viewer both claim text/markdown`.
+
+**Cost.** There is no "open with" and no way to change the default — an editable
+file has one opener and one editor, both fixed. And the viewer needed
+`proc.spawn` added to its manifest to hand a file over, so an app that used to
+be purely `fs.read` can now start processes.
+
+**Revisit when** a third app wants the same type, or when a file type exists
+that should open in the editor *by default* — a `.txt` note, say. The answer
+then is probably a per-type default the user can set, which is Settings' job.

@@ -279,6 +279,86 @@ check(
   (await page.locator('[data-app="viewer"]').count()) === beforeFilesOpen + 1
 )
 
+/* ------------------------------------------------- context menus + editor */
+
+const menuItems = () =>
+  page.locator('[data-context-menu] [role="menuitem"]').evaluateAll((els) =>
+    els.map((e) => e.innerText.trim())
+  )
+const menuItem = (label) =>
+  page.locator('[data-context-menu] [role="menuitem"]', { hasText: label })
+
+await minimizeAll()
+await page.mouse.click(760, 430, { button: 'right' })
+await page.waitForTimeout(300)
+check(
+  'right-clicking the background offers what you can do to a desktop',
+  JSON.stringify(await menuItems()) ===
+    JSON.stringify(['New Folder', 'New File', 'Arrange Icons', 'Tile Windows'])
+)
+
+// The menu is portalled out of the window subtree, because react-rnd positions
+// windows with a transform and `fixed` would resolve against that instead.
+check(
+  'the menu escapes the window subtree',
+  (await page.locator('body > [data-context-menu]').count()) === 1,
+  'portalled to body'
+)
+
+await menuItem('New File').click()
+await page.waitForTimeout(400)
+const renameField = page.locator('[data-desktop-icon] input')
+check(
+  'New File creates one and drops straight into a rename',
+  (await renameField.count()) === 1 && (await renameField.inputValue()) === 'untitled.md'
+)
+
+await renameField.fill('scratch.md')
+await page.keyboard.press('Enter')
+await page.waitForTimeout(400)
+check('renaming moves the file', (await iconNames()).includes('scratch.md'))
+
+await icon('scratch.md').click({ button: 'right' })
+await page.waitForTimeout(300)
+check(
+  'an editable file offers all four actions',
+  JSON.stringify(await menuItems()) === JSON.stringify(['Open', 'Edit', 'Rename', 'Delete'])
+)
+
+await menuItem('Edit').click()
+await page.waitForTimeout(900)
+const editor = page.locator('[data-app="editor"]').first()
+check('Edit opens the editor', (await editor.count()) === 1)
+
+await editor.locator('textarea').click()
+await page.keyboard.type('written from the editor')
+await page.waitForTimeout(250)
+check('typing marks the buffer unsaved', (await editor.innerText()).includes('unsaved'))
+
+await page.keyboard.press('Control+s')
+await page.waitForTimeout(400)
+check('ctrl+s clears it', !(await editor.innerText()).includes('unsaved'))
+
+check(
+  'and the text is really in the filesystem',
+  (await run('cat /desktop/scratch.md')).includes('written from the editor'),
+  'the editor is the first app that creates content'
+)
+
+// A shortcut is re-seeded every boot, so Delete would appear to work and
+// silently revert. Offering less beats offering a lie (D-030).
+await minimizeAll()
+await icon('terminal').click({ button: 'right' })
+await page.waitForTimeout(300)
+check(
+  'an application shortcut offers only Open',
+  JSON.stringify(await menuItems()) === JSON.stringify(['Open'])
+)
+
+await page.keyboard.press('Escape')
+await page.waitForTimeout(250)
+check('Escape dismisses the menu', (await page.locator('[data-context-menu]').count()) === 0)
+
 /* ---------------------------------------------------------------- reload */
 
 await page.reload({ waitUntil: 'networkidle' })
@@ -295,6 +375,26 @@ check(
 check(
   'a file copied to the desktop survives too',
   (await iconNames()).includes('readme.md')
+)
+
+/* --------------------------------------------------------- arrange, last */
+
+// Deliberately after the reload assertions: this deletes the file they check.
+await minimizeAll()
+await page.mouse.click(760, 430, { button: 'right' })
+await page.waitForTimeout(300)
+await menuItem('Arrange Icons').click()
+await page.waitForTimeout(400)
+
+const arranged = await icon('about').evaluate((el) => ({ left: el.style.left, top: el.style.top }))
+check(
+  'Arrange Icons resets the grid by deleting the file that held it',
+  arranged.left !== moved.left || arranged.top !== moved.top,
+  `${moved.left}/${moved.top} → ${arranged.left}/${arranged.top}`
+)
+check(
+  'and the positions file is gone',
+  (await run('ls -a /desktop')).includes('.positions') === false
 )
 
 await page.screenshot({ path: 'scripts/desktop-verify.png' })

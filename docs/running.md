@@ -132,6 +132,15 @@ mkdir /desktop/scratch          a folder appears
 | Click | Select. Click the background to deselect |
 | Double-click, or Enter | Open — an app starts, a file goes to whatever handles its type, a folder opens in Files |
 | Drag | Arrange. Where you drop it is where it stays, across reloads |
+| Right-click an icon | Open · Edit · Rename · Delete |
+| Right-click the background | New Folder · New File · Arrange Icons · Tile Windows |
+
+Creating something drops straight into an inline rename. **Arrange Icons** resets
+the grid by deleting `/desktop/.positions`, which is all it has ever been.
+
+An application shortcut offers only **Open** — it is re-seeded at boot, so Delete
+would appear to work and come back on reload. Directories cannot be renamed, for
+the same reason `mv` refuses them.
 
 The arrangement is a file too: `cat /desktop/.positions`. Delete it and
 everything falls back to the grid.
@@ -154,9 +163,23 @@ the taskbar or the desktop, or double-click any folder.
 | `␡` | delete what is selected |
 
 It gets no privileges the shell lacks: deleting published content is refused in
-the same words `rm` uses, and for the same reason.
+the same words `rm` uses, and for the same reason. Right-click a row for
+Open · Edit · Delete.
 
-**Not built yet:** right-click menus, and the Editor and Settings apps. See
+## The editor
+
+The first app that **writes**. Reach it by intent — right-click → Edit, or the
+**edit** button in the viewer — never by opening a file, because open and edit
+are different things ([D-033](decisions.md)) and the viewer stays the default.
+
+`ctrl+s` saves; the header shows `● unsaved` until you do. Saving over published
+content is fine: it becomes an overlay edit, and `rm` reverts it — exactly what
+`>` does.
+
+Try it: right-click the desktop → **New File**, name it, right-click → **Edit**,
+type something, `ctrl+s`, then `cat /desktop/<name>` in the terminal.
+
+**Not built yet:** the Settings app, and with it a wallpaper to change. See
 [plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md).
 
 ## Windows
@@ -190,7 +213,7 @@ fresh.
 | `pnpm dev` | dev server |
 | `pnpm build` | production build |
 | `pnpm start` | serve the production build |
-| `pnpm test` | 456 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
+| `pnpm test` | 465 unit tests — kernel, content, shell, pipeline, editor, render, completion, tiling, desktop |
 | `pnpm test:watch` | same, watching |
 | `pnpm lint` | eslint |
 | `pnpm verify` | drives the real app in Chrome — **needs `pnpm dev` running** |
@@ -198,7 +221,7 @@ fresh.
 | `pnpm verify:content` | content routes render with JS disabled — **needs `pnpm dev` running** |
 | `pnpm verify:terminal` | drives the shell with real keystrokes — **needs `pnpm dev` running** |
 | `pnpm verify:viewer` | opens files in the viewer — **needs `pnpm dev` running** |
-| `pnpm verify:desktop` | icons, the icon-drag contract, and Files — **needs `pnpm dev` running** |
+| `pnpm verify:desktop` | icons, the drag contract, menus, Files and the editor — **needs `pnpm dev` running** |
 | `pnpm verify:phase2` | persistence, snapping, repaint fix — **needs `pnpm dev` running** |
 
 `pnpm verify` defaults to `http://localhost:3111/os`. For the default dev port:

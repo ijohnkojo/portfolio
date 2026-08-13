@@ -28,6 +28,19 @@ export type Launch =
   /** Nothing in the registry claims this type. */
   | { kind: 'unhandled'; mime: string }
 
+/**
+ * Text this OS can edit in place.
+ *
+ * Two conditions, and the second is the one that bites: the mime has to be text
+ * *and* the bytes have to be in the filesystem. An asset-backed node lives in
+ * `/public` ([D-012](../docs/decisions.md)) and there is nothing here to edit.
+ */
+const EDITABLE_MIMES = ['text/markdown', 'text/plain', 'application/json']
+
+export function isEditable(node: VFSNode): boolean {
+  return node.type === 'file' && EDITABLE_MIMES.includes(node.mime) && node.content !== undefined
+}
+
 /** Null for a directory: the caller decides what descending means. */
 export function launchFor(
   path: string,

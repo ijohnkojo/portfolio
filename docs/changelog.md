@@ -872,3 +872,74 @@ phase2 29/29, WM 20/20, viewer 8/8, content 7/7. Build clean.
 
 ### Left
 Context menus, Editor, Settings.
+
+---
+
+## 2026-08-12 — Context menus and the editor (steps 3 and 5 of 6)
+
+Plan: [plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md)
+
+### Built
+
+- **Right-click menus** on the desktop and in Files. `contextMenu.ts` is pure —
+  which actions apply, and where the menu goes — and `ContextMenu.tsx` is the
+  DOM.
+- **Inline rename** on the desktop, which is `mv` underneath and inherits its
+  limits. The icon keeps its place: `.positions` is keyed by name, so a rename
+  has to carry the entry across or the icon jumps back to the grid.
+- **New Folder / New File**, dropping straight into that rename. **Arrange
+  Icons** resets the grid by deleting `/desktop/.positions` — a one-line feature
+  because the arrangement was a file all along. **Tile Windows** emits `wm:tile`
+  and lets the WM decide ([D-023](decisions.md)).
+- **`editor`** — the first app that *creates* rather than reads, which is what
+  `unlink` and the write path were built for ([D-027](decisions.md)). `ctrl+s`,
+  a dirty marker, and the same refusals `cat` gives for a directory, an app, or
+  an asset-backed file.
+
+### Two rules in the menu are constraints, not taste
+
+**An application shortcut offers only Open.** It is re-seeded at every boot
+([D-030](decisions.md)), so Delete would appear to work and silently revert on
+reload — an action you would only discover was a lie by reloading. Offering less
+is more honest.
+
+**A directory cannot be renamed**, anywhere. It falls out of `mv`: a rename is a
+copy plus a remove, and the VFS copy path handles a single file. The desktop
+gets no capability the shell lacks — the same principle as the refused delete.
+
+### The mime conflict, and how it is kept closed
+
+The editor wants `text/markdown`, `text/plain` and `application/json`. **The
+viewer already claims all three**, and `findHandlerFor` settles two exact claims
+by *registration order* — silently, and differently depending on where someone
+added a line in `registry/index.tsx`.
+
+So the editor declares no `handles` at all ([D-033](decisions.md)). The viewer
+stays the default for opening; the editor is reached by intent. That is also the
+honest model — open and edit are different things, which every real desktop
+distinguishes.
+
+**Enforced rather than remembered:** `handlers.test.ts` now asserts no two
+manifests claim the same exact mime, against the *real* registry — which imports
+cleanly in bare node after all, because `next/dynamic`'s inner `import()` is
+lazy and never runs there. The guard was checked by temporarily giving the
+editor `text/markdown` and watching it fail with the right message.
+
+### One thing worth knowing about the menu
+
+It is **portalled to `document.body`**, and that is load-bearing rather than
+tidy. react-rnd positions windows with a CSS `transform`, and a transformed
+ancestor makes `position: fixed` resolve against *that* rather than the
+viewport — so a menu opened inside a window would land somewhere else entirely.
+
+### Verified
+
+**465 unit tests** (+9). `verify-desktop` **35/35**, thirteen of them new,
+including the round trip that matters most: type in the editor, `ctrl+s`, then
+`cat /desktop/scratch.md` in the terminal and read it back. All five other
+suites green: terminal 36/36, phase2 29/29, WM 20/20, viewer 8/8, content 7/7.
+
+### Left
+
+Settings — wallpaper, accent, icon size — and the Change Wallpaper item the
+background menu does not yet carry.

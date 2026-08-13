@@ -19,6 +19,7 @@ import remarkGfm from 'remark-gfm'
 import { basename, type FileNode } from '@/kernel'
 import { mdxComponents } from '@/components/mdx'
 import type { AppProps } from '@/registry'
+import { isEditable } from '@/registry/launch'
 
 type TextState =
   | { status: 'ready'; text: string }
@@ -99,6 +100,19 @@ export default function Viewer({ args, kernel }: AppProps) {
         <span className="truncate">{file.mime}</span>
         <div className="ml-auto flex items-center gap-2">
           {src && <span className="truncate opacity-60">{src}</span>}
+          {/*
+            Open and edit are different intents, which is why the editor claims
+            no mime types and is reached from here instead (D-033).
+          */}
+          {isEditable(file) && (
+            <button
+              type="button"
+              onClick={() => kernel.proc.spawn('editor', [path], basename(path))}
+              className="rounded border border-neutral-700 px-2 py-0.5 hover:border-neutral-500 hover:text-neutral-200"
+            >
+              edit
+            </button>
+          )}
           {isText && (
             <button
               type="button"

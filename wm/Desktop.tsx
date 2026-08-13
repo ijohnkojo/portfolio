@@ -6,7 +6,8 @@
  * It renders `/desktop` — a real directory in the VFS (D-030) — so `cp x
  * /desktop` from the shell makes an icon appear and `rm` takes it away, with no
  * icon registry to keep in sync. The layout arithmetic lives in
- * `desktopIcons.ts` and is pure; this file does the DOM and nothing else.
+ * `desktopIcons.ts` and the right-click rules in `contextMenu.ts`, both pure;
+ * this file does the DOM and the syscalls.
  *
  * **It subscribes to nothing in the process table.** Dragging a window must not
  * re-render an icon, for the reason `docs/gotchas.md` gives about unscoped
@@ -18,6 +19,8 @@ import { systemAPI, type VFSNode } from '@/kernel'
 import { useDirectory, useFileText } from '@/hooks/kernel'
 import { findHandlerFor, getManifest } from '@/registry'
 import { launchFor, performLaunch } from '@/registry/launch'
+import { ContextMenu, type MenuItem } from './ContextMenu'
+import { actionsFor, type NodeAction } from './contextMenu'
 import { DESKTOP_ID, desktopBounds } from './desktop'
 import {
   CELL,
@@ -27,9 +30,11 @@ import {
   desktopIcons,
   parsePositions,
   serializePositions,
+  uniqueName,
   type Bounds,
   type Icon,
   type Point,
+  type Positions,
 } from './desktopIcons'
 
 /** Dev-only commit logging, so the drag-perf claim stays verifiable (D-007). */
@@ -38,10 +43,34 @@ const DEBUG_RENDERS = process.env.NODE_ENV === 'development'
 /** Below this, the pointer was clicking rather than dragging. */
 const DRAG_THRESHOLD = 4
 
+const ACTION_LABELS: Record<NodeAction, string> = {
+  open: 'Open',
+  edit: 'Edit',
+  rename: 'Rename',
+  delete: 'Delete',
+}
+
 /** An app node's label is the manifest's name; the VFS keeps the lowercase id. */
 function labelFor(node: VFSNode): string {
   if (node.type !== 'app') return node.name
   return getManifest(node.appId)?.name ?? node.name
+}
+
+/**
+ * The kernel's errno shape is not something a reader can act on, so translate
+ * it the way `rm` does — and say the same words, because the desktop is going
+ * through the same `unlink` and deserves no softer story (D-027).
+ */
+function explain(name: string, thrown: unknown, suffix = ''): string {
+  const detail = thrown instanceof Error ? thrown.message : String(thrown)
+  return detail.startsWith('EROFS')
+    ? `${name}: read-only, part of the published content${suffix}`
+    : `${name}: ${detail}`
+}
+
+interface MenuState {
+  at: Point
+  icon?: Icon
 }
 
 export function Desktop() {
@@ -53,6 +82,9 @@ export function Desktop() {
 
   const [bounds, setBounds] = useState<Bounds>({ width: 0, height: 0 })
   const [selected, setSelected] = useState<string | null>(null)
+  const [menu, setMenu] = useState<MenuState | null>(null)
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   // The grid depends on how tall the desktop is, so it has to be measured. The
   // element belongs to the WM — we render inside it — and the observer's first
@@ -67,6 +99,8 @@ export function Desktop() {
     return () => observer.disconnect()
   }, [])
 
+  const exists = useCallback((name: string) => Boolean(systemAPI.fs.stat(`${DESKTOP_PATH}/${name}`)), [])
+
   const open = useCallback((icon: Icon) => {
     const launch = launchFor(icon.path, icon.node, findHandlerFor)
 
@@ -76,7 +110,6 @@ export function Desktop() {
       systemAPI.proc.spawn('files', [icon.path], icon.name)
       return
     }
-
     performLaunch(systemAPI, launch, (appId) => getManifest(appId)?.name ?? appId)
   }, [])
 
@@ -94,14 +127,118 @@ export function Desktop() {
     [positions, bounds]
   )
 
+  const remove = useCallback((icon: Icon) => {
+    try {
+      systemAPI.fs.unlink(icon.path)
+      setNotice(null)
+    } catch (thrown) {
+      setNotice(explain(icon.name, thrown))
+    }
+  }, [])
+
+  /**
+   * A rename is a write followed by a remove, which is exactly what `mv` is —
+   * and it inherits `mv`'s limits, including that published content cannot move
+   * because it cannot be removed.
+   */
+  const rename = useCallback(
+    (icon: Icon, to: string) => {
+      setRenaming(null)
+
+      const name = to.trim()
+      if (!name || name === icon.name) return
+      if (exists(name)) return setNotice(`${name}: already exists`)
+
+      const content = systemAPI.fs.read(icon.path)
+      if (content === null) return setNotice(`${icon.name}: cannot be renamed`)
+
+      try {
+        systemAPI.fs.unlink(icon.path)
+      } catch (thrown) {
+        return setNotice(explain(icon.name, thrown, ' — copy it instead'))
+      }
+      systemAPI.fs.write(`${DESKTOP_PATH}/${name}`, content)
+
+      // The icon keeps its place: the positions file is keyed by name, so a
+      // rename has to carry the entry across or the icon jumps to the grid.
+      const position = positions[icon.name]
+      if (position) {
+        const next: Positions = { ...positions, [name]: position }
+        delete next[icon.name]
+        systemAPI.fs.write(POSITIONS_PATH, serializePositions(next))
+      }
+
+      setSelected(name)
+      setNotice(null)
+    },
+    [exists, positions]
+  )
+
+  const create = useCallback(
+    (kind: 'folder' | 'file') => {
+      const name = uniqueName(kind === 'folder' ? 'new folder' : 'untitled.md', exists)
+      const path = `${DESKTOP_PATH}/${name}`
+
+      try {
+        if (kind === 'folder') systemAPI.fs.mkdir(path)
+        else systemAPI.fs.write(path, '')
+        setSelected(name)
+        // Straight into a rename, which is what you wanted next anyway.
+        setRenaming(name)
+        setNotice(null)
+      } catch (thrown) {
+        setNotice(explain(name, thrown))
+      }
+    },
+    [exists]
+  )
+
+  /** Reset the arrangement by deleting the file that holds it. */
+  const arrange = useCallback(() => {
+    if (systemAPI.fs.stat(POSITIONS_PATH)) systemAPI.fs.unlink(POSITIONS_PATH)
+    setNotice(null)
+  }, [])
+
   const icons = desktopIcons(children, positions, bounds)
+
+  const menuItems: MenuItem[] = !menu
+    ? []
+    : menu.icon
+      ? actionsFor(menu.icon.node).map((action) => ({
+          label: ACTION_LABELS[action],
+          onSelect: () => {
+            const icon = menu.icon!
+            if (action === 'open') open(icon)
+            if (action === 'edit') systemAPI.proc.spawn('editor', [icon.path], icon.name)
+            if (action === 'rename') setRenaming(icon.name)
+            if (action === 'delete') remove(icon)
+          },
+        }))
+      : [
+          { label: 'New Folder', onSelect: () => create('folder') },
+          { label: 'New File', onSelect: () => create('file') },
+          { label: 'Arrange Icons', onSelect: arrange },
+          {
+            // The desktop asks; the window manager decides (D-023).
+            label: 'Tile Windows',
+            onSelect: () => systemAPI.events.emit('wm:tile', { mode: 'grid' }),
+          },
+        ]
 
   return (
     <div
       className="absolute inset-0"
       // Clicking the background clears the selection, as it does anywhere else.
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) setSelected(null)
+        if (event.target !== event.currentTarget) return
+        setSelected(null)
+        setNotice(null)
+      }}
+      onContextMenu={(event) => {
+        if (event.target !== event.currentTarget) return
+        event.preventDefault()
+        setSelected(null)
+        setMenu({ at: { x: event.clientX, y: event.clientY } })
       }}
     >
       {icons.map((icon) => (
@@ -110,11 +247,32 @@ export function Desktop() {
           icon={icon}
           label={labelFor(icon.node)}
           selected={selected === icon.name}
+          renaming={renaming === icon.name}
           onSelect={() => setSelected(icon.name)}
           onOpen={() => open(icon)}
           onMove={(point) => moveTo(icon.name, point)}
+          onMenu={(at) => {
+            setSelected(icon.name)
+            setMenu({ at, icon })
+          }}
+          onRename={(to) => rename(icon, to)}
+          onCancelRename={() => setRenaming(null)}
         />
       ))}
+
+      {notice && (
+        <button
+          type="button"
+          onClick={() => setNotice(null)}
+          className="absolute bottom-3 left-1/2 max-w-[80%] -translate-x-1/2 truncate rounded border border-neutral-700 bg-neutral-900/95 px-3 py-1.5 font-mono text-xs text-red-400 shadow-lg"
+        >
+          {notice}
+        </button>
+      )}
+
+      {menu && (
+        <ContextMenu at={menu.at} items={menuItems} onDismiss={() => setMenu(null)} />
+      )}
     </div>
   )
 }
@@ -129,16 +287,24 @@ function DesktopIcon({
   icon,
   label,
   selected,
+  renaming,
   onSelect,
   onOpen,
   onMove,
+  onMenu,
+  onRename,
+  onCancelRename,
 }: {
   icon: Icon
   label: string
   selected: boolean
+  renaming: boolean
   onSelect: () => void
   onOpen: () => void
   onMove: (point: Point) => void
+  onMenu: (at: Point) => void
+  onRename: (to: string) => void
+  onCancelRename: () => void
 }) {
   const gesture = useRef<Gesture | null>(null)
 
@@ -152,18 +318,67 @@ function DesktopIcon({
     if (DEBUG_RENDERS) console.debug(`[desktop] icon ${icon.name} commit #${commits.current}`)
   })
 
+  const placement = {
+    left: icon.position.x,
+    top: icon.position.y,
+    width: CELL.width,
+    height: CELL.height,
+  }
+  const glyph = (
+    /*
+      A mask rather than an <img>: an image is its own document, so the SVG's
+      `currentColor` would resolve to black against a dark desktop. Masked, the
+      icon takes the button's text colour and hover and selection come free.
+    */
+    <span
+      aria-hidden
+      className="h-8 w-8 shrink-0 bg-current"
+      style={{
+        maskImage: `url(${icon.icon})`,
+        WebkitMaskImage: `url(${icon.icon})`,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+      }}
+    />
+  )
+
+  // A separate branch rather than an input inside the button: nested
+  // interactive elements are invalid, and every click would fight the button.
+  if (renaming) {
+    return (
+      <div
+        data-desktop-icon={icon.name}
+        style={placement}
+        className="absolute flex flex-col items-center gap-1.5 rounded-md px-1 pt-2 pb-1 text-center font-mono text-[11px] leading-tight text-neutral-100 ring-1 ring-neutral-100/25"
+      >
+        {glyph}
+        <input
+          autoFocus
+          defaultValue={icon.name}
+          aria-label={`rename ${icon.name}`}
+          onFocus={(event) => event.target.select()}
+          onBlur={(event) => onRename(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') onRename(event.currentTarget.value)
+            if (event.key === 'Escape') onCancelRename()
+          }}
+          className="w-full rounded-sm bg-neutral-800 px-1 text-center text-neutral-100 outline-none ring-1 ring-neutral-500"
+        />
+      </div>
+    )
+  }
+
   return (
     <button
       type="button"
       // Marks an icon for the verify script, and carries the name it is keyed by.
       data-desktop-icon={icon.name}
       data-selected={selected}
-      style={{
-        left: icon.position.x,
-        top: icon.position.y,
-        width: CELL.width,
-        height: CELL.height,
-      }}
+      style={placement}
       className={`absolute flex flex-col items-center gap-1.5 rounded-md px-1 pt-2 pb-1 text-center font-mono text-[11px] leading-tight transition-colors ${
         selected
           ? 'bg-neutral-100/10 text-neutral-100 ring-1 ring-neutral-100/25'
@@ -171,6 +386,10 @@ function DesktopIcon({
       }`}
       onClick={onSelect}
       onDoubleClick={onOpen}
+      onContextMenu={(event) => {
+        event.preventDefault()
+        onMenu({ x: event.clientX, y: event.clientY })
+      }}
       // Enter opens what is selected. The mouse has a double-click; the
       // keyboard needs a way in, and buttons are already focusable.
       onKeyDown={(event) => {
@@ -220,26 +439,7 @@ function DesktopIcon({
         event.currentTarget.style.transform = ''
       }}
     >
-      {/*
-        A mask rather than an <img>: an image is its own document, so the SVG's
-        `currentColor` would resolve to black against a dark desktop. Masked,
-        the icon takes the button's text colour and hover and selection come
-        for free.
-      */}
-      <span
-        aria-hidden
-        className="h-8 w-8 shrink-0 bg-current"
-        style={{
-          maskImage: `url(${icon.icon})`,
-          WebkitMaskImage: `url(${icon.icon})`,
-          maskSize: 'contain',
-          WebkitMaskSize: 'contain',
-          maskRepeat: 'no-repeat',
-          WebkitMaskRepeat: 'no-repeat',
-          maskPosition: 'center',
-          WebkitMaskPosition: 'center',
-        }}
-      />
+      {glyph}
       <span className="line-clamp-2 w-full break-words">{label}</span>
     </button>
   )

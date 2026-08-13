@@ -169,6 +169,25 @@ export function desktopIcons(
   })
 }
 
+/**
+ * A name nothing has taken yet, numbering **before the extension** so
+ * `untitled.md` becomes `untitled 2.md` rather than `untitled.md 2`.
+ *
+ * Shared with the file manager, which creates folders the same way.
+ */
+export function uniqueName(base: string, taken: (name: string) => boolean): string {
+  if (!taken(base)) return base
+
+  const dot = base.lastIndexOf('.')
+  const stem = dot > 0 ? base.slice(0, dot) : base
+  const extension = dot > 0 ? base.slice(dot) : ''
+
+  for (let n = 2; ; n++) {
+    const candidate = `${stem} ${n}${extension}`
+    if (!taken(candidate)) return candidate
+  }
+}
+
 /** Keep a dropped icon on the desktop, whatever the pointer did. */
 export function clampToDesktop(point: Point, bounds: Bounds): Point {
   return {

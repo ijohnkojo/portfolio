@@ -61,7 +61,8 @@ export const registry: Record<string, AppManifest> = {
     id: 'viewer',
     name: 'Viewer',
     icon: '/icons/viewer.svg',
-    permissions: ['fs.read'],
+    // proc.spawn is the Edit button handing this file to the editor.
+    permissions: ['fs.read', 'proc.spawn'],
     handles: ['text/markdown', 'text/plain', 'application/json', 'application/pdf', 'image/*'],
     component: dynamic(() => import('@/apps/viewer/Viewer'), {
       ssr: false,
@@ -78,6 +79,19 @@ export const registry: Record<string, AppManifest> = {
     // rather than by mime (D-032) — `launchFor` returns null for one — so a
     // declaration here would be data nothing reads.
     component: dynamic(() => import('@/apps/files/Files'), {
+      ssr: false,
+      loading: AppLoading,
+    }),
+  },
+  editor: {
+    id: 'editor',
+    name: 'Editor',
+    icon: '/icons/editor.svg',
+    permissions: ['fs.read', 'fs.write'],
+    // No `handles`, deliberately — the viewer already claims the text mimes and
+    // a second exact claim would be settled by registration order. Open and
+    // edit are different intents, so the editor is reached explicitly (D-033).
+    component: dynamic(() => import('@/apps/editor/Editor'), {
       ssr: false,
       loading: AppLoading,
     }),

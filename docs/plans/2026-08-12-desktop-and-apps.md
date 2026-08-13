@@ -7,9 +7,9 @@
 >
 > - [x] 1. Icons + `/desktop` + the surface
 > - [x] 2. Drag to arrange
-> - [ ] 3. Context menus — **deferred behind step 4**, see below
+> - [x] 3. Context menus
 > - [x] 4. Files
-> - [ ] 5. Editor
+> - [x] 5. Editor
 > - [ ] 6. Settings
 >
 > Read [../../AGENTS.md](../../AGENTS.md) and [../README.md](../README.md)
@@ -25,9 +25,17 @@
 >    node in this VFS carries that mime, and directories are resolved by caller
 >    opinion rather than by mime, so the declaration would have been data
 >    nothing reads.
-> 3. **New folder names itself** rather than prompting. Inline rename arrives
->    with the context menus in step 3, and a `window.prompt` inside an OS with
->    its own windows would be a lie.
+> 3. **New folder names itself** rather than prompting. A `window.prompt` inside
+>    an OS with its own windows would be a lie. On the desktop, creating
+>    something drops straight into an inline rename instead.
+> 4. **No Change Wallpaper item** in the background menu — it points at
+>    Settings, which is step 6.
+> 5. **Rename is disabled in Files**, offered only on the desktop. A list row
+>    has no inline field yet, and a greyed item says so more honestly than a
+>    missing one.
+> 6. **Directories cannot be renamed anywhere.** Not called out in the plan, but
+>    it falls out of `mv`: a rename is a copy plus a remove and the VFS copy path
+>    handles one file. The desktop gets no capability the shell lacks.
 
 ## Context
 

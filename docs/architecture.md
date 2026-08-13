@@ -10,7 +10,8 @@ right and the design doc needs a patch.
 **Status:** design doc Phases 1 and 2 complete. Kernel, syscall boundary,
 registry, window manager with snapping and tiling, crawlable SSG content,
 shell with pipelines, completion and persisted history, file viewer, file
-manager, a desktop with arrangeable icons, wired persistence. No game yet.
+manager, text editor, a desktop with icons and right-click menus, wired
+persistence. No game yet.
 
 ---
 
@@ -96,7 +97,7 @@ the obvious owner — completion has to return the completed string. Pick the
 part of the system it should not hold a reference to — the shell should not be
 able to reach the window manager at all.
 
-The payoff is concrete and measurable: **456 unit tests run in bare node in
+The payoff is concrete and measurable: **465 unit tests run in bare node in
 well under a second** — no jsdom, no browser, no component harness. That holds
 only because the line editor has no filesystem and the command table has no DOM,
 and it stops holding the first time either is handed a capability "just for this
@@ -638,20 +639,39 @@ behind the `icon` field every manifest has declared since the foundation slice.
 which is `launchFor` returning null and the desktop supplying its own opinion
 ([D-032](decisions.md)).
 
-**Not built yet** — steps 3, 5 and 6 of
-[the plan](plans/2026-08-12-desktop-and-apps.md): context menus and rename from
-the desktop, and the Editor and Settings apps.
+**Right-click menus** come from `contextMenu.ts` (pure: which actions apply, and
+where the menu goes) and `ContextMenu.tsx`. Two rules in the first are
+constraints rather than taste: an **application shortcut offers only Open**,
+because it is re-seeded every boot and Delete would appear to work and silently
+revert; and **a directory cannot be renamed**, because a rename is a copy plus a
+remove and the VFS copy path handles one file — the same reason `mv` refuses
+one.
+
+The menu is **portalled to `document.body`**, which is load-bearing: react-rnd
+positions windows with a CSS `transform`, and a transformed ancestor makes
+`position: fixed` resolve against that ancestor rather than the viewport. A menu
+opened inside a window would otherwise land in the wrong place. Its size is
+computed rather than measured, so nothing repositions after the first paint.
+
+The background menu's **Arrange Icons** resets the grid by deleting
+`/desktop/.positions` — the file-backed design paying off as a one-line feature.
+**Tile Windows** emits `wm:tile` and lets the WM decide ([D-023](decisions.md)).
+
+**Not built yet** — step 6 of
+[the plan](plans/2026-08-12-desktop-and-apps.md): the Settings app, and with it
+the Change Wallpaper item the background menu does not yet carry.
 
 ## 9. Apps
 
-Five, all reached the same way: a manifest in `registry/index.tsx`, a lazily
+Six, all reached the same way: a manifest in `registry/index.tsx`, a lazily
 imported component, and a `kernelAPI` scoped to its declared permissions.
 
 | App | Permissions | Notes |
 |---|---|---|
 | `terminal` | `fs.read` `fs.write` `proc.*` | boots by default; see § 7. `fs.write` is history and `>` |
 | `files` | `fs.read` `fs.write` `proc.*` | browses the tree; new folder and delete |
-| `viewer` | `fs.read` | opens files; `handles` declares its mime types |
+| `editor` | `fs.read` `fs.write` | edits text in place; **no `handles`** ([D-033](decisions.md)) |
+| `viewer` | `fs.read` `proc.spawn` | opens files; `handles` declares its mime types; **edit** hands off |
 | `about` | `fs.read` | reads `/home/about.md`; can crash on demand |
 | `sysinfo` | `fs.read` `events.listen` | live kernel state |
 
@@ -666,6 +686,16 @@ opinion rather than by mime, so a declaration would be data nothing reads.
 It also gets **no privileges the shell lacks**: deleting published content is
 refused in the same words `rm` uses, because both go through the same `unlink`
 ([D-027](decisions.md)).
+
+**`editor` is the first app that creates rather than reads** — what `unlink` and
+the write path were built for. It holds its own buffer rather than subscribing
+to the store, because a store-driven value would fight every keystroke; the cost
+is that a write from elsewhere is not noticed, which is what "saved" versus "on
+disk" means in any editor.
+
+It declares no `handles` on purpose ([D-033](decisions.md)): open and edit are
+different intents, and two exact claims on one mime would be settled by
+registration order. A test asserts no two manifests ever make one.
 
 ### How `open <file>` finds an app
 

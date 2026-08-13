@@ -17,7 +17,9 @@ import { resolvePath, type VFSNode } from '@/kernel'
 import { useDirectory } from '@/hooks/kernel'
 import { findHandlerFor, getManifest, type AppProps } from '@/registry'
 import { launchFor, performLaunch } from '@/registry/launch'
-import { iconFor } from '@/wm/desktopIcons'
+import { ContextMenu, type MenuItem } from '@/wm/ContextMenu'
+import { actionsFor } from '@/wm/contextMenu'
+import { iconFor, uniqueName } from '@/wm/desktopIcons'
 import {
   back,
   breadcrumb,
@@ -58,6 +60,7 @@ export default function Files({ args, kernel }: AppProps) {
   const [nav, setNav] = useState(() => createNavigation(args[0] ?? '/'))
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [menu, setMenu] = useState<{ at: { x: number; y: number }; node: VFSNode } | null>(null)
 
   const path = currentPath(nav)
   const entries = sortEntries(useDirectory(path))
@@ -87,33 +90,39 @@ export default function Files({ args, kernel }: AppProps) {
     [path, goTo, kernel]
   )
 
-  const remove = useCallback(() => {
-    if (!selected) return
-    const target = resolvePath(path, selected)
+  const removeNamed = useCallback(
+    (name: string) => {
+      const target = resolvePath(path, name)
 
-    try {
-      kernel.fs.unlink(target)
-      setSelected(null)
-      setError(null)
-    } catch (thrown) {
-      // The desktop and the file manager get no privileges the shell lacks:
-      // published content is read-only, and removing an *edit* to it reverts
-      // (D-027). Say it in the words `rm` uses.
-      const detail = thrown instanceof Error ? thrown.message : String(thrown)
-      setError(
-        detail.startsWith('EROFS')
-          ? `${selected}: read-only, part of the published content`
-          : `${selected}: ${detail}`
-      )
-    }
-  }, [selected, path, kernel])
+      try {
+        kernel.fs.unlink(target)
+        setSelected(null)
+        setError(null)
+      } catch (thrown) {
+        // The desktop and the file manager get no privileges the shell lacks:
+        // published content is read-only, and removing an *edit* to it reverts
+        // (D-027). Say it in the words `rm` uses.
+        const detail = thrown instanceof Error ? thrown.message : String(thrown)
+        setError(
+          detail.startsWith('EROFS')
+            ? `${name}: read-only, part of the published content`
+            : `${name}: ${detail}`
+        )
+      }
+    },
+    [path, kernel]
+  )
+
+  const remove = useCallback(() => {
+    if (selected) removeNamed(selected)
+  }, [selected, removeNamed])
 
   const newFolder = useCallback(() => {
-    // Names itself rather than prompting: an inline rename lands with the
-    // context menus in step 3 of the plan, and a window.prompt in an OS that
+    // Names itself rather than prompting: a `window.prompt` inside an OS that
     // has its own windows would be a lie.
-    let name = 'new folder'
-    for (let n = 2; kernel.fs.stat(resolvePath(path, name)); n++) name = `new folder ${n}`
+    const name = uniqueName('new folder', (candidate) =>
+      Boolean(kernel.fs.stat(resolvePath(path, candidate)))
+    )
 
     try {
       kernel.fs.mkdir(resolvePath(path, name))
@@ -123,6 +132,26 @@ export default function Files({ args, kernel }: AppProps) {
       setError(thrown instanceof Error ? thrown.message : String(thrown))
     }
   }, [path, kernel])
+
+  const menuItems: MenuItem[] = !menu
+    ? []
+    : actionsFor(menu.node).map((action) => ({
+        label: { open: 'Open', edit: 'Edit', rename: 'Rename', delete: 'Delete' }[action],
+        // Rename is the desktop's, not this window's — there is no inline field
+        // in a list row yet, and a disabled item says so more honestly than a
+        // missing one.
+        disabled: action === 'rename',
+        onSelect: () => {
+          if (action === 'open') open(menu.node)
+          if (action === 'edit') {
+            kernel.proc.spawn('editor', [resolvePath(path, menu.node.name)], menu.node.name)
+          }
+          if (action === 'delete') {
+            setSelected(menu.node.name)
+            removeNamed(menu.node.name)
+          }
+        },
+      }))
 
   return (
     <div className="flex h-full w-full flex-col bg-neutral-950 font-mono text-xs text-neutral-300">
@@ -174,6 +203,11 @@ export default function Files({ args, kernel }: AppProps) {
               data-entry={node.name}
               onClick={() => setSelected(node.name)}
               onDoubleClick={() => open(node)}
+              onContextMenu={(event) => {
+                event.preventDefault()
+                setSelected(node.name)
+                setMenu({ at: { x: event.clientX, y: event.clientY }, node })
+              }}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 event.preventDefault()
@@ -203,6 +237,8 @@ export default function Files({ args, kernel }: AppProps) {
           {error ?? (selected ? resolvePath(path, selected) : `${entries.length} entries`)}
         </span>
       </div>
+
+      {menu && <ContextMenu at={menu.at} items={menuItems} onDismiss={() => setMenu(null)} />}
     </div>
   )
 }

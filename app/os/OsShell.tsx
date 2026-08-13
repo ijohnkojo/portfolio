@@ -40,7 +40,7 @@ const adapter = createLocalStorageAdapter()
  * from the registry: the viewer is a file handler and has nothing to show
  * without one, so "every app" would be wrong.
  */
-const DESKTOP_APPS = ['terminal', 'files', 'about', 'sysinfo']
+const DESKTOP_APPS = ['terminal', 'files', 'editor', 'about', 'sysinfo']
 
 let mounted = false
 
