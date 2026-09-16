@@ -1,36 +1,73 @@
 ---
 title: NanoGlide
-summary: A wearable gyroscope module that turns hand orientation into directional commands over Bluetooth, aimed at assistive control and robotics.
+summary: DRAFT — replace this. One sentence, for a stranger.
 date: 2023-12-26
 tags: [embedded, arduino, hardware]
 draft: true
 ---
 
 {/*
-  DRAFT — summary above is mine, from your notes. Edit freely.
+  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
 
-  Repo created 2023-12-26 (used above), last push 2026-03-10. Swap the date if the
-  later work is what you want to date it by.
+  NOTE: unlike the others, this repo is NOT on this machine — I could not find
+  it under ~/projects, ~/work or ~/learn. Everything below comes from the
+  earlier draft's notes off the GitHub README, so it is second-hand. Check it
+  against the repo before publishing, and fill the gaps from memory — you built
+  it, and this is the entry where your memory is the best available source.
 
-  Facts from the repo README, delete as the prose replaces them:
-    - MPU6050 accel/gyro reads yaw/pitch/roll; Arduino Nano translates orientation into
-      directional commands (F/B/R/L/S), sent over Bluetooth (HC-05) to a receiver
-    - Applications: assistive tech (wheelchair direction), home automation (door access),
-      robotics / interactive systems
-    - Hardware: Arduino Nano, MPU6050, HC-05, LED indicator, optional 3D-printed housing
-    - Software: Arduino IDE, Wire.h, I2Cdev.h, MPU6050_6Axis_MotionApps20.h (Jeff Rowberg),
-      SoftwareSerial.h
-    - Demo video linked in the repo — worth embedding or linking prominently
+  date: repo created 2023-12-26, last push 2026-03-10. Currently dated by
+  creation. If the 2026 work is substantial, date it by that instead and say
+  what you came back to fix.
 */}
 
 ## Overview
 
+{/*
+  - wearable gyroscope module: hand orientation → directional commands
+  - MPU6050 accel/gyro reads yaw/pitch/roll
+  - Arduino Nano translates orientation into F/B/R/L/S commands
+  - sent over Bluetooth (HC-05) to a receiver
+  - intended applications: assistive tech (wheelchair direction), home
+    automation (door access), robotics / interactive systems
+*/}
+
 ## What it does
+
+{/*
+  Yours. The thing a reader wants to know and the README doesn't say: how do
+  you turn a continuous orientation into five discrete commands without it
+  flickering between them when your hand is near a boundary? Thresholds?
+  Hysteresis? Dead zone? That's the actual engineering in this project.
+*/}
 
 ## How it's built
 
+{/*
+  Hardware: Arduino Nano, MPU6050, HC-05, LED indicator, optional 3D-printed
+  housing.
+  Software: Arduino IDE, Wire.h, I2Cdev.h, MPU6050_6Axis_MotionApps20.h
+  (Jeff Rowberg's library), SoftwareSerial.h.
+
+  Worth saying: you used the MPU6050's DMP rather than fusing raw accel/gyro
+  yourself — check that's right, it's what MotionApps implies.
+*/}
+
 ## Status
+
+{/*
+  - what state is it actually in? does it still work?
+  - the 2026-03-10 push — what was that?
+  - this is the oldest thing in the portfolio (2023). If it's a first-year
+    project, saying so is fine and puts it in context rather than making it
+    compete with the HEP work.
+*/}
 
 ## Links
 
 - [Repo](https://github.com/ijohnkojo/NanoGlide_GyroHand-Control-Module)
+
+{/*
+  The README links a demo video. Embedding or linking it prominently is worth
+  more than any paragraph here — it's a hardware project, people want to see
+  the hand move.
+*/}

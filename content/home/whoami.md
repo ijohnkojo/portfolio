@@ -1,29 +1,38 @@
 # whoami
 
-Michael Noamesi. Physics and computer science at Gettysburg College.
+{/*
+  THIS IS YOURS TO WRITE. The previous version here was written by Claude and
+  read like it. Nobody can write your bio but you, and this is the one file on
+  the site where that matters most.
 
-I work where experimental particle physics meets the software that has to carry
-it — mostly on the software side, because that is where the bottleneck usually
-turns out to be.
+  Three constraints worth knowing before you start:
 
-Summer 2026 I was an IRIS-HEP fellow on `hq`, a pull-based task queue for
-high-energy-physics analysis. The prototype already worked; the job was making
-it deployable. TLS on the HTTP boundary, an executor that owns its own queue so
-two runs on one server cannot collide, a path for getting results back to the
-client, and eventually the Analysis Grand Challenge running on top of it. I
-demonstrated it live — including what happens when you kill a worker mid-run,
-which is not the same thing as what you would like to happen. Mentored by Peter
-Fackeldey (Princeton) and Oksana Shadura (UNL).
+  1. This file renders in two places — `whoami` / `cat /home/whoami.md` in the
+     shell, and /about on the web. So it has to read fine as PLAIN TEXT in a
+     terminal. Go easy on markdown; an indented block renders as a code block
+     in both, which is why the contact list below is indented.
+  2. It is compiled as MDX, so use JSX-style comments like this one. An HTML
+     comment breaks the build, and so does a stray curly brace in prose.
+  3. Short is better. Someone who wants more clicks into the work.
 
-Before that, a US-CMS PURSUE internship at Fermilab with the CMS-EXO-HSCP
-group, benchmarking dE/dx estimators for reconstructing the mass of heavy
-stable charged particles in CMS data.
+  Raw material, so you're not starting from a blank file:
 
-I build things outside physics too: a VS Code extension that explains selected
-code, a command-line tool for walking directory trees that are too large or too
-broken for `tree`, a gyroscope module you wear on your hand and point.
+  - Michael Noamesi. Gettysburg College, Physics & CS. (This is how you
+    introduce yourself on your own conference slides.)
+  - IRIS-HEP fellow, Summer 2026, ended 30 Aug. hq — pull-based task queue for
+    HEP analysis. Mentors Peter Fackeldey (Princeton), Oksana Shadura (UNL).
+    Gave a live demo at the AGC Demo Day.
+  - Before that: US-CMS PURSUE internship at Fermilab, CMS-EXO-HSCP, dE/dx
+    estimators for HSCP mass reconstruction. Dr. Emery Nibigira.
+  - Other things you've built: a VS Code extension that won First Hack Category
+    at YCP Hacks 2025, a Python CLI for large directory trees, an Arduino
+    gyroscope wearable.
+  - This site is an operating system. /home/about.md explains why.
 
-This site is one of them. It is an operating system — `/home/about.md` says why.
+  A prompt, if a blank page is the problem: what do you actually want someone
+  to know about you in the ten seconds before they decide whether to keep
+  reading? Write that, then stop.
+*/}
 
     email     ijohnkojo@gmail.com
     github    github.com/ijohnkojo

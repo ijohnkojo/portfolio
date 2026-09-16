@@ -1,103 +1,103 @@
 ---
 title: HSCP Mass Reconstruction
-summary: Benchmarking dE/dx estimators — harmonic-2, adaptive truncated mean, and a per-track Landau-MPV fit — for reconstructing the mass of heavy stable charged particles in CMS data, during a US-CMS PURSUE internship at Fermilab.
+summary: DRAFT — replace this. One sentence, for a stranger who is not a physicist.
 date: 2025-10-13
 tags: [physics, cms]
 draft: true
 ---
 
 {/*
-  REVIEW BEFORE PUBLISHING — this one contains physics claims and you are the
-  only person who can sign off on them.
+  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
+  From your README and git log at ~/work/optimizing_DEDx_estimator.
 
-  Written from your repo README at ~/work/optimizing_DEDx_estimator. Two
-  deliberate choices to check:
+  YOU are the only person who can sign off on the physics here. I have not
+  written any interpretation — see the Results section especially.
 
-  1. The secondary peak is written as an OBSERVATION IN A PROTOTYPE, not a
-     finding. That follows your own README ("indicative of possible
-     reliability after further optimization"), not the earlier draft here,
-     which called it a peak "the Landau-MPV fit did not predict" — a stronger
-     claim than your own notes support.
-  2. `date` is 2025-10-13, your last commit. Swap it if the internship period
-     or the PHY 477 paper is the better marker of when this was done.
-
-  The README's roadmap is still open (systematics, estimator API, ROC tables
-  vs CMS baselines). The Status section says so rather than implying a
-  finished result.
+  date is 2025-10-13, your last commit. Change it if the internship period or
+  the PHY 477 paper is the better marker.
 */}
 
 ## Overview
 
-During a US-CMS PURSUE internship at Fermilab, working with Dr. Emery Nibigira
-and the CMS-EXO-HSCP group, I benchmarked several ways of estimating specific
-ionization — dE/dx — per track, and compared what each one does to the
-reconstructed mass of a heavy stable charged particle.
-
-The sample was a 1800 GeV gluino, 2018 CMS NanoAOD at 13 TeV, generated with
-PYTHIA 8.240 under the CP5 tune and NNPDF3.1.
+{/*
+  - US-CMS PURSUE internship, Fermilab. Dr. Emery Nibigira, CMS-EXO-HSCP group.
+  - Sample: 1800 GeV gluino, 2018 13 TeV CMS NanoAOD.
+    PYTHIA v8.240, CP5 tune, NNPDF3.1.
+  - Work ran Jul 2025 → Oct 2025 (first commit 2025-05-29 scaffold; "mass recon
+    success" 2025-08-01; last commit 2025-10-13).
+*/}
 
 ## Motivation
 
-Nearly everything produced at the LHC is relativistic, which makes it useless
-for this purpose: at high βγ a particle's energy loss sits near the
-minimum-ionizing plateau, where dE/dx is almost flat and carries very little
-information about what the particle is.
-
-A heavy, slow particle is the exception. It loses substantially more energy per
-unit length, and the size of that excess depends on βγ — so combined with the
-momentum the tracker already measures, dE/dx becomes a handle on mass. This is
-what makes a search for something heavy and long-lived possible at all.
-
-The difficulty is that energy loss in a single silicon hit is not a
-well-behaved quantity. It follows a Landau distribution, with a long tail on
-the high side, and a track supplies only a modest number of hits. So the
-per-track number is an estimate from a small, skewed sample, and the choice of
-estimator is not bookkeeping — it sets the mass resolution, and the resolution
-sets the sensitivity.
+{/*
+  Your call how much to explain. The shape of it, to check against:
+  - most LHC particles are relativistic → dE/dx sits near the minimum-ionizing
+    plateau → carries little mass information
+  - a heavy, slow particle ionizes much more; the excess depends on βγ, so with
+    tracker momentum you get mass
+  - but per-hit energy loss is Landau-distributed (long high tail) and a track
+    gives few hits → the per-track estimate is noisy → choice of estimator sets
+    the mass resolution, which sets search sensitivity
+  - say why this matters for an HSCP search specifically — that's yours
+*/}
 
 ## Method
 
-I implemented and compared three estimators:
+{/*
+  Three estimators benchmarked:
+  - harmonic-2 mean (CMS baseline; robust to Landau tails vs arithmetic mean)
+  - adaptive truncated mean — fraction of high-ionizing hits dropped scales
+    with hit count / track length
+  - per-track Landau-MPV fit — adaptively binned Landau fit, ROOT MINUIT/MIGRAD,
+    MPV taken as dE/dx. Convergence monitored, non-physical results filtered.
 
-- **Harmonic-2 mean** — the CMS baseline, and more robust to the Landau tail
-  than an arithmetic mean.
-- **Adaptive truncated mean** — drops a fraction of the highest-ionizing hits,
-  with the fraction scaling to the number of hits on the track rather than
-  being fixed. A short track cannot afford to lose as much as a long one.
-- **Per-track Landau-MPV fit** — an adaptively binned Landau fit per track
-  using ROOT's MINUIT/MIGRAD, taking the most probable value as the estimate.
-  Rather than trying to be robust against the tail, this one models it.
+  Cleaning / selection:
+  - isHighPurity selection
+  - remove Ih ≤ 0
+  - filter detector edge effects
 
-Around the estimators sits the less interesting and equally necessary half:
-`isHighPurity` track selection, removal of non-physical `Ih ≤ 0` values,
-filtering of detector edge effects, and per-track convergence monitoring so a
-failed fit is discarded rather than quietly returned. Diagnostics were run
-against both track momentum and pseudorapidity, since an estimator that is
-unbiased overall can still be wrong in a corner of the detector.
+  Diagnostics run vs track momentum (p) and pseudorapidity (η).
+
+  Stack: ROOT/PyROOT, NumPy, SciPy, Matplotlib, Jupyter, Conda (env.yml),
+  Makefile for automation.
+
+  Repo modules: notebooks/ (estimator comparisons, mass reco, ROC curves),
+  src/, output/, cumulative_efficiencies.csv
+*/}
 
 ## Results
 
-The Landau-MPV fit converged on roughly **89.6% of about 130,000 tracks** —
-which is the first thing worth knowing about it, because an estimator that
-fails on one track in ten is a different proposition from one that always
-returns something.
+{/*
+  NUMBERS ONLY — interpretation is yours, and I have deliberately not written
+  any.
 
-Its reconstructed mass distribution showed a **secondary peak**. I want to be
-careful about this: in a prototype fit, a second peak is a thing to explain
-before it is a thing to celebrate. It may point at a genuine population, or at
-a failure mode of the fit under particular track conditions. Distinguishing
-those is exactly what the remaining systematic work is for, and I did not get
-that far.
+  - Landau-MPV fit converged on ~89.6% of ~130k tracks
+  - secondary mass peak observed in the Landau-MPV reconstructed mass
+    distribution
+  - cumulative efficiency vs dE/dx cut → cumulative_efficiencies.csv
 
-Cumulative efficiency against dE/dx cut was tabulated for comparison across
-estimators.
+  On the secondary peak: your README says "indicative of possible reliability
+  after further optimization." An earlier draft of this file called it a peak
+  "the Landau-MPV fit did not predict," which is a much stronger claim than
+  your own notes support. Say what you actually think it is — and if you don't
+  know yet, say that; it's a more honest and more interesting sentence than
+  either version.
+*/}
 
 ## Status / next steps
 
-Unfinished, deliberately listed rather than glossed: systematic variation
-studies over truncation fraction and track selection, a clean estimator API,
-complete ROC tables against the CMS baselines, and bias and resolution
-summaries broken down by kinematic bin.
+{/*
+  Open, from your README roadmap — unfinished and worth listing rather than
+  hiding:
+  - systematic variation studies (truncation %, track selection)
+  - clean estimator API in src/
+  - complete ROC tables vs CMS baselines
+  - bias and resolution summaries by kinematic bin
+
+  Commit log also shows late work you may want to mention: "adaptive trunc"
+  (2025-10-12), "starting with gaussianity trimmer" (2025-10-13) — the trimmer
+  looks like it was in progress when you stopped.
+*/}
 
 ## Links
 

@@ -1,32 +1,81 @@
 ---
 title: The Professor (Academic Explainer)
-summary: A VS Code extension that explains selected code through Gemini in four modes — summary, Big-O, line by line, and ELI5. Won First Hack Category at YCP Hacks 2025.
-date: 2025-11-08
+summary: DRAFT — replace this. One sentence. The hackathon win is worth putting in it.
+date: 2025-11-09
 tags: [typescript, vscode-extension, ai, hackathon]
 draft: true
 ---
 
 {/*
-  DRAFT — summary above is mine, from your notes. Edit freely.
+  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
+  From ~/projects/academic-explainer — package.json and git log.
 
-  Naming: repo is `the_professor`, the Marketplace product is "Academic Explainer".
-  Slug follows the Marketplace name; rename the directory to `the-professor` if you'd
-  rather the hackathon win take top billing — everything follows the directory.
+  ⚠ ATTRIBUTION — CHECK THIS BEFORE PUBLISHING.
+  package.json has `"publisher": "asmitbhardwaj"`, and your commit log includes
+  "I love you brothers". This looks like a TEAM project, not a solo one. Name
+  your teammates and be specific about which parts were yours. Same standard
+  you're applying to hq — it reads better, not worse, when the boundary is
+  explicit.
 
-  Facts from the repo README, delete as the prose replaces them:
-    - Right-click → "Ask Professor" → mode: Summary, Big-O Analysis, Line by Line, ELI5
-    - Config: auto-explain-on-select (default on), min selection chars (default 12)
-    - Requires Node.js 18+, VS Code 1.84.0+
-    - Won First Hack Category, YCP Hacks 2025
+  date changed to 2025-11-09 (last commit). Old draft said 2025-11-08.
+
+  Naming: repo/package is `academic-explainer`, displayName is "The Professor".
+  Slug follows the directory. Rename the directory to `the-professor` if you'd
+  rather the product name lead — everything follows the directory.
 */}
 
 ## Overview
 
+{/*
+  - VS Code extension. Select code → right-click → "Ask Professor" → it
+    explains it.
+  - Four modes: Summary, Big-O Analysis, Line by Line, ELI5
+  - Backed by Gemini
+  - Won First Hack Category, YCP Hacks 2025
+  - package.json: displayName "The Professor", MIT, categories
+    Education / AI / Other, engines vscode ^1.84.0, Node 18+
+  - Description on the package: "An AI-powered professor that explains the
+    academic theory behind your code — right inside VS Code."
+*/}
+
 ## What it does
+
+{/*
+  - config: `academic-explainer.autoExplainOnSelect` (default on),
+    `academic-explainer.minSelectionChars` (default 12) — auto-popup threshold
+  - contextCache.ts — there's a caching layer. Why? (cost? latency? repeated
+    selections?) That's a real engineering decision worth one sentence.
+  - CSS_PARSER_GUIDE.md in the repo suggests language-specific handling —
+    check whether that shipped
+*/}
 
 ## How it's built
 
+{/*
+  Yours. Bits worth covering: extension.ts activation + command registration,
+  how the selection gets to Gemini, how the response is rendered, and what
+  contextCache is keyed on.
+*/}
+
 ## The hackathon
+
+{/*
+  Built in THREE DAYS: first commit 2025-11-07, last 2025-11-09.
+
+  Your commit messages tell the story better than a retrospective would:
+    2025-11-07  "fixed repo structure" → " fixed file structure again"
+    2025-11-07  "I love you brothers"
+    2025-11-08  "api call sucessfull"
+    2025-11-08  "shit is starting to work somewhat"
+    2025-11-08  "ui getting together" → "fixing" → "fix the ui"
+    2025-11-09  "cooked"
+    2025-11-09  "Merge origin/main: resolve dist/extension.js.map conflict"
+    2025-11-09  "stuff" → "stuffff" → "struff"
+
+  The dist/ merge conflict is a classic — you were committing build output at
+  3am and it collided. Worth a line if you want the piece to feel like a
+  hackathon rather than a product.
+*/}
 
 ## Links
 

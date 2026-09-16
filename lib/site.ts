@@ -10,5 +10,10 @@ export const SITE_URL = 'https://ijohnkojo.dev'
 
 export const SITE_NAME = 'Michael Noamesi'
 
+/**
+ * PLACEHOLDER — rewrite. This is the meta description: it is what shows under
+ * the link in a search result, so it is worth one honest sentence in your own
+ * words rather than this one.
+ */
 export const SITE_DESCRIPTION =
-  'Michael Noamesi — physics and computer science at Gettysburg College, working where experimental particle physics meets the software that carries it.'
+  'Michael Noamesi — physics and computer science at Gettysburg College.'

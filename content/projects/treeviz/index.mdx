@@ -1,36 +1,78 @@
 ---
 title: TreeViz
-summary: A CLI for exploring large directory hierarchies, with traversal that survives symlinks, permission errors, and broken links rather than aborting on them.
-date: 2025-08-28
+summary: DRAFT — replace this. One sentence, for a stranger.
+date: 2025-08-22
 tags: [python, cli, tui]
 draft: true
 ---
 
 {/*
-  DRAFT — summary above is mine, from your notes. Edit freely.
+  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
+  From ~/projects/TreeViz — README and git log.
 
-  Repo created 2025-05-29, last push 2025-08-28 (used above). README marks it WIP.
-
-  Facts from the repo README, delete as the prose replaces them:
-    - Fast, interactive visualisation for large hierarchies (filesystem trees, graphs)
-    - Robust recursive traversal: symlink-aware, handles permission errors and broken
-      links, truncation markers past max entries
-    - CLI via setup.py — `treeviz <path>` with depth / max-entries / symlink flags
-    - Backends planned: Graphviz/DOT export, NetworkX, Rich/Textual TUI, Tkinter/PyQt
-    - Cross-platform: tested Linux/macOS/WSL; Windows in progress
-    - Done: safe traversal, CLI parser, summary counters
-    - Not done: TUI, graph visualisers, GUI, plugin system
-
-  Worth a line: this portfolio's own `tree` command is the same idea, much smaller.
+  date changed to 2025-08-22 (actual last commit). The old draft said
+  2025-08-28, which matched nothing in the log.
 */}
 
 ## Overview
 
+{/*
+  - CLI for exploring large directory hierarchies
+  - README marks it WIP, and it is — see Status
+  - Worked on 2025-05-29 → 2025-06-04, then a gap, then 2025-08-11 → 2025-08-22
+  - Modules in treeviz/: walker.py, fs_utils.py, renderer.py, tree.py, cli.py,
+    model.py, config.py, gui.py
+  - Installable CLI via setup.py: `treeviz <path>` with depth / max-entries /
+    symlink flags
+*/}
+
 ## What it does
+
+{/*
+  - recursive traversal that does not abort on the things that normally kill a
+    naive walker: symlinks (loop-aware), permission errors, broken links
+  - truncation markers once past max entries
+  - file and directory counts (implemented 2025-08-22)
+  - cross-platform: tested Linux/macOS/WSL, Windows in progress
+*/}
 
 ## How it's built
 
+{/*
+  Yours to write. The bit worth explaining is the traversal — robustness is the
+  whole point of the project, so how you handle a symlink loop and a
+  PermissionError is the interesting content, not the CLI parsing.
+*/}
+
+## What went wrong
+
+{/*
+  Straight from your commit log. This is the most human material in the repo —
+  use it.
+
+  - 2025-05-31 "still figuring out why pytest can't find treeviz.walker"
+    → 2025-06-01 "fixed the bug that preventing pytest to find treeviz module,
+      check setup.py"
+    Two days on a packaging problem, not a code problem. Very relatable.
+  - 2025-06-04 "can't seem to get the ascii printed out, debug_walk.py prints
+    out all files and dir in the dir" — the walker worked before the renderer
+    did. debug_walk.py is STILL in the repo root.
+  - 2025-05-31 "renamed the .github folder to .gitHub, I'm not automating
+    actions now" — you deliberately disabled CI to stop it nagging.
+  - 2025-08-21 "fixed walker bug in cli.py"
+*/}
+
 ## Status
+
+{/*
+  Done: safe traversal, CLI parser, summary counters, file/dir counts.
+  Not done: TUI (last commit 2025-08-22 is literally "implementing tui" — it
+  was in progress when you stopped), graph visualisers, GUI, plugin system.
+  Planned backends: Graphviz/DOT export, NetworkX, Rich/Textual TUI, Tkinter/PyQt.
+
+  Worth a line: the `tree` command in this portfolio's own shell is the same
+  idea, much smaller.
+*/}
 
 ## Links
 

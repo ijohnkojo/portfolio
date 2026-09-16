@@ -17,18 +17,19 @@ export default function Home() {
       */}
       <section className="max-w-[60ch] space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Michael Noamesi</h1>
+        {/*
+          PLACEHOLDER — rewrite in your own words. Deliberately flat and
+          factual rather than polished, so there is nothing here worth keeping
+          by accident. Two or three sentences is the right length.
+        */}
         <p className="leading-7 text-neutral-700 dark:text-neutral-300">
-          Physics and computer science at Gettysburg College. I work where
-          experimental particle physics meets the software that has to carry
-          it — most recently as an IRIS-HEP fellow, on a task queue for
-          analysis at scale.
+          Physics and computer science at Gettysburg College. I work on
+          software for experimental particle physics.
         </p>
         <p className="leading-7 text-neutral-700 dark:text-neutral-300">
-          This site is a mock operating system. The kernel knows about three
-          things — a filesystem, a process table, and an event bus — and
-          everything else is policy layered on top. Every writeup below also
-          has a real URL and is server-rendered; the OS is one way to read
-          them, not the only way.
+          This site is a mock operating system. Everything below is also a real
+          URL, server-rendered — the OS is one way to read it, not the only
+          one.
         </p>
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <Link

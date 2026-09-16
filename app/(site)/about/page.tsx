@@ -3,13 +3,13 @@ import { notFound } from 'next/navigation'
 
 import { HomeArticle } from '@/components/entry'
 import { getHomeFile } from '@/lib/content'
+import { SITE_DESCRIPTION } from '@/lib/site'
 
 const SOURCE = 'whoami.md'
 
 export const metadata: Metadata = {
   title: 'About',
-  description:
-    'Michael Noamesi — physics and computer science at Gettysburg College, working where experimental particle physics meets the software that carries it.',
+  description: SITE_DESCRIPTION,
 }
 
 /**

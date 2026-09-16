@@ -179,12 +179,20 @@ If you want a live demo inside a writeup, say so — the viewer needs handling
 first.
 
 MDX comments — `{/* … */}` — are safe: both surfaces strip them, so they are a
-good place for working notes while a writeup is in progress.
+good place for working notes while a writeup is in progress. **An HTML comment
+is not**, and neither is a stray `{` or `}` in prose or inside a comment: any
+`{…}` is parsed as a JavaScript expression, and a malformed one fails the build
+with `Could not parse expression with acorn` rather than pointing at the line.
 
 **`content/home/`** is not a collection — it is loose content. `about.md` is
-what the About app shows and a good place for a short bio; `readme.md` is a
-guide to the filesystem for anyone exploring with the shell. Text files there
-are inlined so `cat` works; anything else gets a `src` like an entry asset.
+what the About app shows; `readme.md` is a guide to the filesystem for anyone
+exploring with the shell; `whoami.md` is the bio, and is the one file rendered
+in two places at once — the `whoami` command and the `/about` route
+([D-036](decisions.md)). Text files there are inlined so `cat` works; anything
+else gets a `src` like an entry asset.
+
+Files under `content/home/` that have a web route are **compiled as MDX**, so
+the comment rule above applies to them too — even though they are `.md`.
 
 ---
 

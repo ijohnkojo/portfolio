@@ -1,13 +1,14 @@
 # now
 
-Updated 15 September 2026.
+{/*
+  YOURS. A few sentences, updated whenever. The point of a /now file is that it
+  is current and casual — it is the one place on a portfolio allowed to be
+  unpolished.
 
-The IRIS-HEP fellowship ended on 30 August. `hq` has gone from full-time to
-evenings — documentation, and tidying the path that gets results back to the
-client.
+  As of 2026-09-15 you told me:
+  - fellowship ended 30 Aug
+  - still on hq, but less, because classes started
+  - starting a QM project, probably entanglement, for applied linear algebra
 
-Classes are back. The next thing is a quantum mechanics project for applied
-linear algebra, most likely on entanglement: the first time the mathematics and
-the physics have been the same course rather than two.
-
-Everything here is a real file. `cat /home/whoami.md` for the longer version.
+  Put the date on it so a reader knows how stale it is.
+*/}

@@ -1,109 +1,134 @@
 ---
 title: hq (hep-queue)
-summary: Hardening a pull-based task queue for HEP analysis as an IRIS-HEP fellow — TLS and an executor abstraction to make it deployable, then the Analysis Grand Challenge running on top of it.
+summary: DRAFT — replace this. One sentence, for a stranger. What hq is and what you did to it.
 date: 2026-08-30
 tags: [physics, distributed-systems, iris-hep]
 draft: true
 ---
 
 {/*
-  REVIEW BEFORE PUBLISHING. Assembled from your 22 commits in ~/irishep/hq
-  (2026-06-08 to 2026-08-28, across both the ijohnkojo and both-sides
-  identities) and from your two talks. Facts are verified against the log; the
-  prose is drafted and yours to cut.
+  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
+  Everything below is verified against ~/irishep/hq (22 commits, 2026-06-08 to
+  2026-08-28) or your own slides. Commit hashes are there so you can check me.
 
-  The attribution boundary below is deliberate and was checked twice. These are
-  NOT yours and are not claimed: peakRSS tracking, per-task subprocess
+  DO NOT CLAIM — in the repo, not yours: peakRSS tracking, per-task subprocess
   isolation, Redis Streams / consumer groups / fault recovery, heartbeat
-  telemetry. Both of your decks list several of them as future roadmap items,
-  which is independent confirmation. Keep it that way.
+  telemetry. Your own decks list several as roadmap items.
+
+  `both-sides` commits are yours (old username). Only one, a merge: 5807a4d.
 */}
 
 ## Overview
 
-`hq` is a pull-based task queue for high-energy-physics analysis, prototyped by
-Peter Fackeldey as an alternative to `dask-distributed` for large task graphs.
-Workers fetch work over HTTP; the server tracks no worker pool and pushes
-nothing. Redis holds the queue and the task state, and snapshots both to disk.
-
-I spent the summer of 2026 on it as an IRIS-HEP fellow, mentored by Peter
-Fackeldey (Princeton) and Oksana Shadura (UNL), with the target being
-deployment at analysis facilities — coffea-casa specifically, ahead of the
-HL-LHC.
-
-The architecture was not mine and the idea was not mine. The distance between
-"a prototype that works on its author's machine" and "a thing another person
-can deploy and trust" was the work.
+{/*
+  - hq = pull-based task queue for HEP analysis. Prototyped by Peter Fackeldey.
+    Alternative to dask-distributed for large task graphs.
+  - IRIS-HEP fellowship, Summer 2026. Ended 2026-08-30.
+  - Mentors: Peter Fackeldey (Princeton), Oksana Shadura (UNL).
+  - Target: coffea-casa deployment, ahead of HL-LHC.
+  - Stack: Bun/TypeScript server, Python client+worker (uv), Redis (Dragonfly
+    drop-in).
+  - North star from your slides: `hq.map()` in place of Dask on coffea-casa.
+*/}
 
 ## What I contributed
 
-Roughly in order, because the order is the argument:
+{/*
+  TLS / deployability
+  - 8daa669 (Jun 21) client/ and worker/ split into separate directories +
+    TLS started
+  - c1fd11d (Jun 22) HTTPS option
+  - f60b3af (Jun 25) certs discovered via env vars, not hardcoded paths
+  - worth saying why the split mattered: separately installable, different
+    deps, facility puts them on different machines
 
-**Making it deployable.** TLS on the HTTP boundary and an HTTPS option for the
-server, with certificates discovered through environment variables rather than
-hardcoded paths, and `verify=` wired through both the client and the worker. I
-also split `client/` and `worker/` into separate directories, which sounds like
-tidying and is not: they are separately installable things with different
-dependencies, and a facility deploys them to different machines.
+  Executor
+  - 15ca208 (Jul 22) HQExecutor — context manager: own queue, spawns workers,
+    submit/map, waits for terminal state, cleans up
+  - 1d2a5d1 (Jul 10) per-client unique IDs; queue names UUID7 so two runs on
+    one server don't collide
 
-**Giving it an executor.** `HQExecutor` is a single context manager — it takes
-a queue of its own, spawns workers, exposes `submit`/`map`, waits until
-everything reaches a terminal state, and cleans up. Queue names are UUID7, so
-two people (or two runs) sharing one server cannot collide. Before this, using
-`hq` meant orchestrating those steps by hand.
+  Results path
+  - 9811e59 (Jul 22) workers write pickles to shared FS at
+    HQ_RESULT_DIR/{queue}/{id}.pkl; client gathers return values
+  - before this: status-only. You could tell a task finished, not what it
+    returned. Blocker for merging histograms.
 
-**Closing the result path.** Workers write their results as pickles to a shared
-filesystem under `HQ_RESULT_DIR/{queue}/{id}.pkl`, and the client gathers the
-return values rather than only polling for status. A queue that tells you a task
-succeeded but not what it produced is not usable for analysis, and this was the
-gap that had to close before anything could merge histograms.
+  AGC — the big one, and missing from every previous draft
+  - 27894e1 (Aug 13) "workers runnign agc". CMS Open Data ttbar AGC pipeline
+    on hq. coffea_hq_runner_smoke.py, coffea_hq_ship_smoke.py,
+    agc_hq_vs_futures.py (benchmark vs Python futures), cabinetry configs,
+    histograms + prefit figures
+  - f8f388a (Aug 24) pipeline split out to its own repo: agc-hq
 
-**Proving it on a real workload.** I brought the CMS Open Data ttbar Analysis
-Grand Challenge pipeline onto `hq` — Coffea runner and ship smoke tests,
-cabinetry configurations, and a benchmark comparing `hq` against Python
-futures. The AGC is the field's standard "does this actually work" workload,
-and running it is a different claim from running a synthetic `map`. The
-pipeline now lives in its own repository, [agc-hq](https://github.com/ijohnkojo/agc-hq).
+  Docs + tooling
+  - 1e00a74 (Aug 13) "I have been able to put together a working documentation
+    for the codebase"
+  - 0cd0abe (Aug 13) testrun.sh — Redis + Bun TLS + workers + client in one
+    command
+  - 897bced / 3bbc576 (Aug 24-28) docs moved out to hq_docs repo
 
-**Writing it down.** A documented architecture and operations set — deployment,
-configuration, the executor, the result path — plus `scripts/testrun.sh`, which
-brings up Redis, the server over TLS, workers and a client in one command. The
-documentation lives in [hq_docs](https://github.com/ijohnkojo/hq_docs). This is
-the part that decides whether anybody else ever runs the thing.
-
-**A histogram service.** `histserv`, a server-side option for histogram
-handling, with its own smoke test and documentation.
+  histserv — 0185dd0 (Aug 28), src/hq/histserv.py, 126 lines
+  - gRPC remote histogram transport. Instead of returning whole pickled
+    histograms through the shared-FS result path, tasks stream pre-binned
+    fills to a histserv server; client snapshots the merged result at the end.
+  - API: init_remote_hists(templates, address) → make_buffered() →
+    flush_buffered(buffered, unique_id=chunk_id) → snapshot_hists()
+  - THE INTERESTING BIT, and it's yours: flush is ONE IDEMPOTENT RPC PER HIST,
+    keyed on chunk_id. Your demo-day slide 5 worried that requeue-on-timeout
+    gives at-least-once delivery, so side effects must be idempotent. This is
+    you actually building for that. Worth connecting explicitly — it's the
+    strongest single thing in the entry and nobody would spot it from outside.
+*/}
 
 ## What I did not do
 
-Worth stating, because the repository contains it and I did not write it:
-per-task subprocess environments, peak-RSS tracking, the Redis Streams work
-with its consumer groups and fault recovery, and heartbeat telemetry. Several
-of these appear in my own talks as roadmap items rather than results, which is
-where they belonged at the time.
+{/*
+  - per-task software environments, peakRSS tracking, Redis Streams work,
+    heartbeat telemetry — upstream, not you
+  - keep this section. It makes everything above it credible.
+*/}
 
-## Technical details
+## The parts that did not go smoothly
 
-The stack is deliberately mixed: a TypeScript server on Bun, a Python client
-and worker managed with `uv`, and Redis for the queue and state — with
-Dragonfly usable as a drop-in.
+{/*
+  Real detail, from your own commit log. Use what you want — this is the stuff
+  that makes a writeup read like a person wrote it.
 
-The tradeoffs the design accepts are real and are not hidden. Pickup latency is
-bounded by the poll interval, roughly a second. There is no locality-aware
-scheduling; a worker takes the next task, not the nearest one. And when a worker
-dies holding a claimed task, that task is marked lost rather than requeued —
-the ownership record exists in Redis, but at the time of writing nothing acts
-on it. I proposed requeue-on-timeout as the fix and
-[demonstrated the failure live](/presentations/hq-agc-demo-day) rather than
-describing it.
+  - a9114c0 (Jun 8) you renamed typescript/ → hq_server. Then f60b3af (Jun 25)
+    renamed it BACK. Two and a half weeks. Why? (merge pain against upstream?)
+  - 7ac0e1f (Jun 25) "fixed circular import issue again in util.ts" — "again".
+    It came back. 6 lines in util.ts.
+  - f6a6204 (Jul 10) "removed the noise" — net -39 lines across client.py,
+    util.py, worker.py, example/simple/worker.py. You deleted more than you
+    added. What was the noise?
+  - cbb3c31 / 4250d80 (Jul 22) had to stop tracking generated example
+    artifacts after they were already committed.
 
-What the design buys in exchange is cheap networking, workers that can join and
-leave freely — which suits opportunistic HTCondor slots — and durable
-stop-and-resume, which most tooling in this space simply does not offer.
+  Also: ~/irishep/hq still has an uncommitted README.md change in the working
+  tree.
+*/}
+
+## Tradeoffs
+
+{/*
+  From the upstream README + your slides. These are design facts, not yours,
+  but the entry is better for naming them:
+  - pickup latency bounded by poll interval, ~1s
+  - no locality-aware scheduling — worker takes next task, not nearest
+  - worker dies holding a claimed task → ~30s heartbeat timeout, marked lost,
+    NOT requeued. Ownership IS tracked (workers:running:{workerId}); nothing
+    acts on it. You proposed requeue-on-timeout.
+  - in exchange: cheap networking, workers join/leave freely (suits
+    opportunistic HTCondor slots), durable stop-and-resume
+*/}
 
 ## Status
 
-The fellowship ended on 30 August 2026. The work continues at a slower pace.
+{/*
+  - fellowship ended 2026-08-30
+  - as of Sept 2026: still on it, but evenings, classes are back
+*/}
 
 ## Links
 
