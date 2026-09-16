@@ -48,6 +48,7 @@ const table: Command[] = [
   proc.kill,
   proc.exit,
   // system
+  system.whoami,
   system.echo,
   system.date,
   system.history,

@@ -1,7 +1,7 @@
 # Changelog
 
-Reverse-chronological. One entry per working session: what got built, what was
-verified, and what was deliberately left out.
+Chronological, oldest first. One entry per working session: what got built, what
+was verified, and what was deliberately left out.
 
 ---
 
@@ -1012,3 +1012,74 @@ order leads with settling the slugs, which was already done. **Re-run it.**
 
 The standing gap is unchanged and is not code: every content entry is still
 `draft: true`, so the public site lists nothing.
+
+---
+
+## 2026-09-15 — Identity, the launch set, and a domain
+
+Plan: [plans/2026-09-01-launch-content.md](plans/2026-09-01-launch-content.md)
+
+The first session about *content* rather than machinery, and the first in which
+the site says who built it.
+
+### The site now has an author
+
+`content/home/whoami.md` and `now.md`, read by two surfaces that cannot
+disagree: `whoami` in the shell, `/about` on the web ([D-036](decisions.md)).
+`getHomeFile()` is the singleton counterpart to `readEntry()` — no slug, no
+listing, no `draft` flag. `now.md` deliberately got **no** command: a command
+earns its place by making something discoverable, and `cat /home/now.md`
+already works.
+
+The landing page leads with a name instead of a project title, the footer
+carries an email and a GitHub link, and `about` is in the nav.
+
+### Three facts were wrong, and one was wrong in the useful direction
+
+- The presentations entry claimed a **CoDaS-HEP talk at Princeton**. It was a
+  remote **IRIS-HEP AGC Demo Day** talk; CoDaS-HEP week merely overlapped it.
+  Renamed `codas-hep-2026-hardening-hq` → `hq-agc-demo-day`, since the false
+  venue was baked into the URL and the VFS path.
+- The `hq` draft flagged a possible **over-claim** — commits not matching the
+  author's git identity. Resolved: `both-sides` is a former GitHub username of
+  the same person, and its one commit is a merge. The four genuinely upstream
+  features are named and disclaimed in the entry.
+- The same draft **under-claimed by a month.** Its notes stopped at 2026-07-22;
+  the log runs to 2026-08-28. Missing: the Analysis Grand Challenge running on
+  `hq`, the documentation set, `testrun.sh`, the `agc-hq` and `hq_docs` repo
+  splits, and `histserv`.
+- HSCP's secondary mass peak was written as a **finding**. Its own README calls
+  it "indicative of possible reliability after further optimization" — an
+  observation in a prototype. The entry now says that.
+
+### Metadata, for a real domain
+
+`lib/site.ts` holds the canonical URL; the root layout, `app/sitemap.ts` and
+`app/robots.ts` all read it. Titles template to `%s — Michael Noamesi`, and the
+default title is the person rather than the project. The sitemap is built from
+`listAllPublished()`, so a draft cannot leak into it.
+
+`.dev` is HSTS-preloaded — the TLD is HTTPS-only with no insecure fallback, so
+an `http://` URL there fails outright rather than redirecting. Noted in
+`lib/site.ts` where someone might otherwise write one.
+
+### Verified
+
+**474 unit tests** (+2, both for `whoami`). `verify:content` 7/7,
+`verify:terminal` 36/36, production build clean, `eslint` clean. One test caught
+a real constraint: `lib/content.test.ts` asserts the raw file contains
+`title: <title>` verbatim, so **a colon in a title fails the build** — YAML
+would force quotes and the two surfaces would stop agreeing. Documented in
+[authoring.md](authoring.md) rather than worked around.
+
+### Deliberately left out
+
+**Nothing was published.** All three entries remain `draft: true`. The prose was
+drafted from verified sources but not by their author, and each carries a
+`REVIEW BEFORE PUBLISHING` comment. Flipping the flag before he has read
+first-person claims about his own research is the one mistake this plan exists
+to prevent.
+
+Also outstanding: the favicon is still the Next.js default, the root `README.md`
+is still `create-next-app` boilerplate, and the deck PDFs are not yet converted
+and dropped beside their entries.

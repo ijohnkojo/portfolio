@@ -146,6 +146,31 @@ export function getEntry(collection: Collection, slug: string): Entry | null {
   )
 }
 
+export interface HomeFile {
+  /** Frontmatter stripped — what MDXRemote compiles. */
+  body: string
+  /** The file exactly as it sits on disk, as `cat` prints it. */
+  raw: string
+  vfsPath: string
+}
+
+/**
+ * One loose file under `content/home`, by name.
+ *
+ * Same rule as an entry ([D-010](../docs/decisions.md)): one read on disk feeds
+ * both surfaces, so `/about` on the web and `whoami` in the shell can never
+ * disagree about the bio. The difference is that this is a singleton rather
+ * than a collection — no slug, no listing, and no `draft` flag, because there
+ * is nothing to choose between.
+ */
+export function getHomeFile(name: string): HomeFile | null {
+  const filePath = path.join(CONTENT_DIR, 'home', name)
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return null
+
+  const raw = fs.readFileSync(filePath, 'utf8')
+  return { raw, body: matter(raw).content, vfsPath: `/home/${name}` }
+}
+
 /* -------------------------------------------------------------------------- */
 /* VFS                                                                        */
 /* -------------------------------------------------------------------------- */

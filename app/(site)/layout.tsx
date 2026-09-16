@@ -12,6 +12,9 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
           personal-os
         </Link>
         <nav className="flex items-center gap-4 text-neutral-500">
+          <Link href="/about" className="hover:text-current">
+            about
+          </Link>
           <Link href="/projects" className="hover:text-current">
             projects
           </Link>
@@ -29,12 +32,27 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
 
       <main className="flex-1 py-8">{children}</main>
 
-      <footer className="border-t border-neutral-200 py-8 font-mono text-xs text-neutral-500 dark:border-neutral-800">
-        Built as an operating system. The shell is at{' '}
-        <Link href="/os" className="underline underline-offset-2">
-          /os
-        </Link>
-        .
+      <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-neutral-200 py-8 font-mono text-xs text-neutral-500 dark:border-neutral-800">
+        <a
+          href="mailto:ijohnkojo@gmail.com"
+          className="underline underline-offset-2 hover:text-current"
+        >
+          ijohnkojo@gmail.com
+        </a>
+        <a
+          href="https://github.com/ijohnkojo"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline underline-offset-2 hover:text-current"
+        >
+          github
+        </a>
+        <span className="text-neutral-400 dark:text-neutral-600">
+          built as an operating system — the shell is at{' '}
+          <Link href="/os" className="underline underline-offset-2">
+            /os
+          </Link>
+        </span>
       </footer>
     </div>
   )

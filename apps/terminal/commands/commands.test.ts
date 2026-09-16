@@ -431,6 +431,25 @@ describe('exit', () => {
   })
 })
 
+describe('whoami', () => {
+  it('prints the bio file', () => {
+    vfsStore.setState({
+      root: dir('/', {
+        home: dir('home', { 'whoami.md': file('whoami.md', '# whoami\n\nMichael Noamesi.') }),
+      }),
+      overlay: {},
+    })
+    expect(run('whoami').output).toEqual(['# whoami', '', 'Michael Noamesi.'])
+  })
+
+  // It reads through the syscall boundary like every other command, so a
+  // missing file is an ordinary shell failure rather than a special case.
+  it('fails like cat when the file is absent', () => {
+    vfsStore.setState({ root: dir('/', { home: dir('home', {}) }), overlay: {} })
+    expect(run('whoami').output[0]).toBe('whoami: /home/whoami.md: No such file or directory')
+  })
+})
+
 describe('man', () => {
   it('prints usage, description, and examples', () => {
     const out = run('man grep').output.join('\n')

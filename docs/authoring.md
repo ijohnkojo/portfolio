@@ -73,6 +73,12 @@ collection-specific metadata costs nothing.
 `title`, `summary`, and `date` are enforced: a missing one **fails the build**
 with the file path, rather than shipping a blank `<title>`.
 
+**Keep a colon out of the `title`.** YAML would force you to quote it, and
+`lib/content.test.ts` asserts that the raw file contains `title: <the title>`
+verbatim — because `cat` and `stat` show the file on disk, and a quoted title
+means the two surfaces no longer agree about what a writeup is called. An em
+dash does the same work as a colon and needs no quoting.
+
 Then write MDX — markdown, plus React components if you register them in
 `components/mdx.tsx`. See the caveat at the bottom before you do.
 

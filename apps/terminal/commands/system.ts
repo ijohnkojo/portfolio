@@ -3,7 +3,7 @@
  */
 import { TILE_MODES, isTileMode } from '@/wm/tiling'
 import { HISTORY_PATH, parseHistory } from '../history'
-import { fail, operands, type Command } from './types'
+import { fail, operands, readOrFail, toLines, type Command } from './types'
 
 export const echo: Command = {
   name: 'echo',
@@ -77,6 +77,29 @@ export const clear: Command = {
   summary: 'clear the screen',
   description: 'Clears the terminal. Ctrl+L does the same without losing the line you are typing.',
   run: () => ({ clear: true }),
+}
+
+/**
+ * The bio lives at a path rather than in this file, so the shell, `cat`, `grep`
+ * and the web route at /about are all reading the same bytes — D-010's rule
+ * (one read on disk, two surfaces) applied to a single file instead of a
+ * collection.
+ *
+ * `whoami` earns a command of its own where `now` does not: typing it into a
+ * terminal is a reflex, so it is the one piece of prose here a visitor will
+ * find without being told. `cat /home/now.md` is the discoverable form of the
+ * other, and a second command would be a synonym for it.
+ */
+export const WHOAMI_PATH = '/home/whoami.md'
+export const NOW_PATH = '/home/now.md'
+
+export const whoami: Command = {
+  name: 'whoami',
+  usage: 'whoami',
+  summary: 'print the bio',
+  description: `Prints ${WHOAMI_PATH}. It is a real file, so cat, grep, wc and open reach it too, and the same text is served at /about on the web. See also ${NOW_PATH}, which is shorter and changes more often.`,
+  examples: ['whoami', `cat ${NOW_PATH}`],
+  run: (ctx) => ({ output: toLines(readOrFail(ctx, 'whoami', WHOAMI_PATH)) }),
 }
 
 export const reset: Command = {

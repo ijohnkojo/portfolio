@@ -1,37 +1,103 @@
 ---
 title: HSCP Mass Reconstruction
-summary: Benchmarking dE/dx estimators for reconstructing the mass of heavy stable charged particles in CMS data, and finding a secondary peak the Landau-MPV fit did not predict.
-date: 2025-11-01
+summary: Benchmarking dE/dx estimators — harmonic-2, adaptive truncated mean, and a per-track Landau-MPV fit — for reconstructing the mass of heavy stable charged particles in CMS data, during a US-CMS PURSUE internship at Fermilab.
+date: 2025-10-13
 tags: [physics, cms]
 draft: true
 ---
 
 {/*
-  DRAFT — summary above is mine, from your notes. Edit freely; if the secondary
-  peak isn't the headline finding, that sentence should change.
+  REVIEW BEFORE PUBLISHING — this one contains physics claims and you are the
+  only person who can sign off on them.
 
-  Context: US-CMS PURSUE internship, Fermilab, under Dr. Emery Nibigira,
-  CMS-EXO-HSCP group. Date above is a placeholder — swap for whatever marks it
-  "done": the internship period, the PHY 477 reflection paper, or the last real commit.
+  Written from your repo README at ~/work/optimizing_DEDx_estimator. Two
+  deliberate choices to check:
 
-  Facts from the repo README, delete as the prose replaces them:
-    - Sample: 1800 GeV gluino, 2018 13 TeV CMS NanoAOD (PYTHIA v8.240, CP5, NNPDF3.1)
-    - Estimators benchmarked: harmonic-2 mean, adaptive truncated mean, Landau-MPV fit
-      (ROOT MINUIT/MIGRAD)
-    - Landau-MPV converged on ~89.6% of ~130k tracks
-    - Secondary mass peak observed in the Landau-MPV reconstructed distribution
-    - Stack: ROOT/PyROOT, NumPy, SciPy, Matplotlib, Jupyter, Conda
+  1. The secondary peak is written as an OBSERVATION IN A PROTOTYPE, not a
+     finding. That follows your own README ("indicative of possible
+     reliability after further optimization"), not the earlier draft here,
+     which called it a peak "the Landau-MPV fit did not predict" — a stronger
+     claim than your own notes support.
+  2. `date` is 2025-10-13, your last commit. Swap it if the internship period
+     or the PHY 477 paper is the better marker of when this was done.
+
+  The README's roadmap is still open (systematics, estimator API, ROC tables
+  vs CMS baselines). The Status section says so rather than implying a
+  finished result.
 */}
 
 ## Overview
 
+During a US-CMS PURSUE internship at Fermilab, working with Dr. Emery Nibigira
+and the CMS-EXO-HSCP group, I benchmarked several ways of estimating specific
+ionization — dE/dx — per track, and compared what each one does to the
+reconstructed mass of a heavy stable charged particle.
+
+The sample was a 1800 GeV gluino, 2018 CMS NanoAOD at 13 TeV, generated with
+PYTHIA 8.240 under the CP5 tune and NNPDF3.1.
+
 ## Motivation
+
+Nearly everything produced at the LHC is relativistic, which makes it useless
+for this purpose: at high βγ a particle's energy loss sits near the
+minimum-ionizing plateau, where dE/dx is almost flat and carries very little
+information about what the particle is.
+
+A heavy, slow particle is the exception. It loses substantially more energy per
+unit length, and the size of that excess depends on βγ — so combined with the
+momentum the tracker already measures, dE/dx becomes a handle on mass. This is
+what makes a search for something heavy and long-lived possible at all.
+
+The difficulty is that energy loss in a single silicon hit is not a
+well-behaved quantity. It follows a Landau distribution, with a long tail on
+the high side, and a track supplies only a modest number of hits. So the
+per-track number is an estimate from a small, skewed sample, and the choice of
+estimator is not bookkeeping — it sets the mass resolution, and the resolution
+sets the sensitivity.
 
 ## Method
 
+I implemented and compared three estimators:
+
+- **Harmonic-2 mean** — the CMS baseline, and more robust to the Landau tail
+  than an arithmetic mean.
+- **Adaptive truncated mean** — drops a fraction of the highest-ionizing hits,
+  with the fraction scaling to the number of hits on the track rather than
+  being fixed. A short track cannot afford to lose as much as a long one.
+- **Per-track Landau-MPV fit** — an adaptively binned Landau fit per track
+  using ROOT's MINUIT/MIGRAD, taking the most probable value as the estimate.
+  Rather than trying to be robust against the tail, this one models it.
+
+Around the estimators sits the less interesting and equally necessary half:
+`isHighPurity` track selection, removal of non-physical `Ih ≤ 0` values,
+filtering of detector edge effects, and per-track convergence monitoring so a
+failed fit is discarded rather than quietly returned. Diagnostics were run
+against both track momentum and pseudorapidity, since an estimator that is
+unbiased overall can still be wrong in a corner of the detector.
+
 ## Results
 
+The Landau-MPV fit converged on roughly **89.6% of about 130,000 tracks** —
+which is the first thing worth knowing about it, because an estimator that
+fails on one track in ten is a different proposition from one that always
+returns something.
+
+Its reconstructed mass distribution showed a **secondary peak**. I want to be
+careful about this: in a prototype fit, a second peak is a thing to explain
+before it is a thing to celebrate. It may point at a genuine population, or at
+a failure mode of the fit under particular track conditions. Distinguishing
+those is exactly what the remaining systematic work is for, and I did not get
+that far.
+
+Cumulative efficiency against dE/dx cut was tabulated for comparison across
+estimators.
+
 ## Status / next steps
+
+Unfinished, deliberately listed rather than glossed: systematic variation
+studies over truncation fraction and track selection, a clean estimator API,
+complete ROC tables against the CMS baselines, and bias and resolution
+summaries broken down by kinematic bin.
 
 ## Links
 

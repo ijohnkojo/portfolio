@@ -1,0 +1,97 @@
+---
+title: hq (hep-queue) — a pull-based task queue for HEP analysis
+summary: A live demo of hq at the IRIS-HEP Analysis Grand Challenge Demo Day — bringing the stack up over TLS, killing a worker mid-run, and restarting the server to show the queue outlive both.
+date: 2026-07-17
+venue: IRIS-HEP Analysis Grand Challenge Demo Day
+location: Remote
+tags: [physics, distributed-systems, iris-hep, talk]
+draft: true
+---
+
+{/*
+  REVIEW BEFORE PUBLISHING. Prose drafted from your own slides
+  (~/irishep/hq/docs/stuff/agc_demo_day_hq.pptx) — the facts are yours, the
+  sentences are not. Check the Dask characterisation in particular: it is
+  restated from slide 2, but you are the one who has to defend it.
+
+  Previously mis-filed as a CoDaS-HEP talk at Princeton. It was remote; the
+  CoDaS-HEP week merely overlapped it. Do not reintroduce that venue.
+*/}
+
+## Overview
+
+I gave this talk remotely at the IRIS-HEP Analysis Grand Challenge Demo Day, in
+July 2026, partway through a summer fellowship spent on `hq` — a pull-based
+task queue for high-energy-physics analysis, originally prototyped by Peter
+Fackeldey. The work was not inventing it. It was getting it to the point where
+somebody other than its author could deploy it.
+
+Rather than talk through that, I ran it, and then broke it on purpose.
+
+## Why pull-based
+
+The thing `hq` is an alternative to is `dask-distributed`, and the argument for
+replacing it is specific rather than general.
+
+Dask's scheduler is push-based and lives in a single Python process. Every
+scheduling decision — task assignment, dependency tracking, worker state,
+result routing — is made serially on one thread. At the scale the Analysis
+Grand Challenge cares about, that control plane is where the pressure shows up
+first. And the scheduler's state is held in memory: stop it and the state is
+gone with it.
+
+`hq` inverts the direction. Workers pull work; the server pushes nothing and
+tracks no worker pool. Tasks travel as opaque cloudpickle payloads over
+HTTP(S), Redis holds the queue and the task state and snapshots both to disk,
+and `hq-server` holds no authoritative state of its own. Two things follow from
+that, and they are the reason the design is interesting rather than merely
+different:
+
+- **Load balancing is not a decision anybody makes.** Start more workers and
+  they compete to drain the same queue.
+- **Stop and resume is a supported workflow.** Restart the server, restart
+  Redis, or stop for the day and come back — queued work is still queued. Most
+  of the tooling in this space cannot do that.
+
+## What I demonstrated
+
+Live, in order:
+
+1. Bring up the stack — Redis, then `hq-server` over TLS.
+2. Submit a long `map` through `HQExecutor`, which takes a queue of its own so
+   two runs on one server cannot collide, spawns workers, and cleans up after
+   itself.
+3. Kill a worker mid-run.
+4. Stop Redis and the server entirely, restart them, and show the queue still
+   holding the work that had not been done.
+
+## What it did not survive
+
+This is the part I would rather a talk included, so I included it.
+
+When a worker dies, what happens depends on whether it had already claimed the
+task. Work still sitting in the queue is fine — any live worker picks it up.
+A task the dead worker had already claimed is **not** fine: after roughly
+thirty seconds its heartbeat times out, and the task is marked lost. It is not
+put back on the queue.
+
+The irritating part is that the bookkeeping for fixing this already exists —
+ownership is tracked in `workers:running:{workerId}`. Redis knows which worker
+held which task. Nothing acts on it.
+
+The fix I proposed is requeue-on-timeout: when a worker times out, reset each
+task it owned to queued and push it back. That buys at-least-once delivery, and
+at-least-once has consequences worth saying out loud rather than discovering
+later:
+
+- A slow worker may finish a task that has already been requeued, so anything
+  with side effects needs to be idempotent.
+- Too aggressive a `HQ_WORKER_TIMEOUT` produces false timeouts, and a false
+  timeout is just duplicated work.
+- A task that reliably kills its worker will be requeued forever unless there
+  is a maximum attempt count and somewhere for it to go afterwards.
+
+## Links
+
+- [The work behind this talk](/papers/hq)
+- [Upstream (pfackeldey/hq)](https://github.com/pfackeldey/hq)

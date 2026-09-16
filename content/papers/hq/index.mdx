@@ -1,54 +1,114 @@
 ---
 title: hq (hep-queue)
-summary: Hardening a pull-based task queue for HEP analysis as an IRIS-HEP fellow — server-side TLS, an executor abstraction, and a restructured client/worker split.
-date: 2026-07-22
+summary: Hardening a pull-based task queue for HEP analysis as an IRIS-HEP fellow — TLS and an executor abstraction to make it deployable, then the Analysis Grand Challenge running on top of it.
+date: 2026-08-30
 tags: [physics, distributed-systems, iris-hep]
 draft: true
 ---
 
 {/*
-  DRAFT — summary above is mine, from your notes plus the local repo. Edit freely.
+  REVIEW BEFORE PUBLISHING. Assembled from your 22 commits in ~/irishep/hq
+  (2026-06-08 to 2026-08-28, across both the ijohnkojo and both-sides
+  identities) and from your two talks. Facts are verified against the log; the
+  prose is drafted and yours to cut.
 
-  ATTRIBUTION, PLEASE CHECK BEFORE PUBLISHING.
-  Filtering ~/irishep/hq by your git identity, these commits are yours:
-    - server-side TLS + HTTPS option; certs discovered via env vars
-    - client/ and worker/ split into separate directories
-    - per-client unique IDs
-    - HQExecutor (context-managed queue + local workers + wait)
-    - results to a shared FS via HQ_RESULT_DIR
-    - circular-import fix in util.ts
-
-  These appear in the log but NOT under your authorship filter — confirm before claiming:
-    - `track peakRSS usage per task`
-    - `run task payload in a dedicated subprocess` (per-task environment isolation)
-    - Redis Streams / consumer groups / fault recovery — not visible as yours at all
-    - heartbeat telemetry — not visible as yours at all
-  Possible reasons: unpushed work, a second git identity (a `both-sides` account
-  shows up in a merge), or genuinely upstream. Worth being exact — this is the one
-  kind of error that costs you.
-
-  Architecture context from the local README (upstream design, not your work):
-    - Pull-based: workers fetch from an HTTP server; the server tracks no worker pool
-      and pushes nothing. Cheaper networking than dask-distributed, and workers can
-      join/leave freely — suits HTCondor slots.
-    - Tradeoff: pickup latency bounded by ~1s poll, no locality-aware scheduling.
-    - Stack: bun (TypeScript server), uv (Python client/worker), Redis (dragonfly drop-in).
-    - Eight ADRs in docs/adr/ — worth linking if they're yours.
-
-  Fellowship context: IRIS-HEP Summer 2026, mentored by Peter Fackeldey (Princeton)
-  and Oksana Shadura (UNL); aimed at Coffea-casa deployment ahead of HL-LHC.
-  Related: the CoDaS-HEP lightning talk, /presentations/codas-hep-2026-hardening-hq
+  The attribution boundary below is deliberate and was checked twice. These are
+  NOT yours and are not claimed: peakRSS tracking, per-task subprocess
+  isolation, Redis Streams / consumer groups / fault recovery, heartbeat
+  telemetry. Both of your decks list several of them as future roadmap items,
+  which is independent confirmation. Keep it that way.
 */}
 
 ## Overview
 
+`hq` is a pull-based task queue for high-energy-physics analysis, prototyped by
+Peter Fackeldey as an alternative to `dask-distributed` for large task graphs.
+Workers fetch work over HTTP; the server tracks no worker pool and pushes
+nothing. Redis holds the queue and the task state, and snapshots both to disk.
+
+I spent the summer of 2026 on it as an IRIS-HEP fellow, mentored by Peter
+Fackeldey (Princeton) and Oksana Shadura (UNL), with the target being
+deployment at analysis facilities — coffea-casa specifically, ahead of the
+HL-LHC.
+
+The architecture was not mine and the idea was not mine. The distance between
+"a prototype that works on its author's machine" and "a thing another person
+can deploy and trust" was the work.
+
 ## What I contributed
+
+Roughly in order, because the order is the argument:
+
+**Making it deployable.** TLS on the HTTP boundary and an HTTPS option for the
+server, with certificates discovered through environment variables rather than
+hardcoded paths, and `verify=` wired through both the client and the worker. I
+also split `client/` and `worker/` into separate directories, which sounds like
+tidying and is not: they are separately installable things with different
+dependencies, and a facility deploys them to different machines.
+
+**Giving it an executor.** `HQExecutor` is a single context manager — it takes
+a queue of its own, spawns workers, exposes `submit`/`map`, waits until
+everything reaches a terminal state, and cleans up. Queue names are UUID7, so
+two people (or two runs) sharing one server cannot collide. Before this, using
+`hq` meant orchestrating those steps by hand.
+
+**Closing the result path.** Workers write their results as pickles to a shared
+filesystem under `HQ_RESULT_DIR/{queue}/{id}.pkl`, and the client gathers the
+return values rather than only polling for status. A queue that tells you a task
+succeeded but not what it produced is not usable for analysis, and this was the
+gap that had to close before anything could merge histograms.
+
+**Proving it on a real workload.** I brought the CMS Open Data ttbar Analysis
+Grand Challenge pipeline onto `hq` — Coffea runner and ship smoke tests,
+cabinetry configurations, and a benchmark comparing `hq` against Python
+futures. The AGC is the field's standard "does this actually work" workload,
+and running it is a different claim from running a synthetic `map`. The
+pipeline now lives in its own repository, [agc-hq](https://github.com/ijohnkojo/agc-hq).
+
+**Writing it down.** A documented architecture and operations set — deployment,
+configuration, the executor, the result path — plus `scripts/testrun.sh`, which
+brings up Redis, the server over TLS, workers and a client in one command. The
+documentation lives in [hq_docs](https://github.com/ijohnkojo/hq_docs). This is
+the part that decides whether anybody else ever runs the thing.
+
+**A histogram service.** `histserv`, a server-side option for histogram
+handling, with its own smoke test and documentation.
+
+## What I did not do
+
+Worth stating, because the repository contains it and I did not write it:
+per-task subprocess environments, peak-RSS tracking, the Redis Streams work
+with its consumer groups and fault recovery, and heartbeat telemetry. Several
+of these appear in my own talks as roadmap items rather than results, which is
+where they belonged at the time.
 
 ## Technical details
 
+The stack is deliberately mixed: a TypeScript server on Bun, a Python client
+and worker managed with `uv`, and Redis for the queue and state — with
+Dragonfly usable as a drop-in.
+
+The tradeoffs the design accepts are real and are not hidden. Pickup latency is
+bounded by the poll interval, roughly a second. There is no locality-aware
+scheduling; a worker takes the next task, not the nearest one. And when a worker
+dies holding a claimed task, that task is marked lost rather than requeued —
+the ownership record exists in Redis, but at the time of writing nothing acts
+on it. I proposed requeue-on-timeout as the fix and
+[demonstrated the failure live](/presentations/hq-agc-demo-day) rather than
+describing it.
+
+What the design buys in exchange is cheap networking, workers that can join and
+leave freely — which suits opportunistic HTCondor slots — and durable
+stop-and-resume, which most tooling in this space simply does not offer.
+
 ## Status
+
+The fellowship ended on 30 August 2026. The work continues at a slower pace.
 
 ## Links
 
 - [Fork](https://github.com/ijohnkojo/hq)
 - [Upstream (pfackeldey/hq)](https://github.com/pfackeldey/hq)
+- [agc-hq — the AGC ttbar pipeline](https://github.com/ijohnkojo/agc-hq)
+- [hq_docs — architecture and operations](https://github.com/ijohnkojo/hq_docs)
+- [The AGC Demo Day talk](/presentations/hq-agc-demo-day)

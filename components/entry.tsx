@@ -3,7 +3,7 @@ import { MDXRemote } from 'next-mdx-remote/rsc'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
 
-import type { Entry } from '@/lib/content'
+import type { Entry, HomeFile } from '@/lib/content'
 import { Prose, mdxComponents } from './mdx'
 
 const mdxOptions = {
@@ -55,6 +55,36 @@ export function EntryArticle({ entry }: { entry: Entry }) {
           Also readable inside the OS at{' '}
           <Link href="/os" className="underline underline-offset-2">
             {entry.vfsPath}
+          </Link>
+        </p>
+      </footer>
+    </article>
+  )
+}
+
+/**
+ * A loose `content/home` file rendered as a page — the web half of what
+ * `whoami` prints in the shell.
+ *
+ * Unlike an entry it carries no frontmatter header, because its own first line
+ * is already a heading; `[&>*:first-child]:mt-0` pulls that heading up to the
+ * top of the page, since the MDX map spaces headings for the middle of a
+ * document rather than the start of one.
+ */
+export function HomeArticle({ file }: { file: HomeFile }) {
+  return (
+    <article>
+      <Prose>
+        <div className="[&>*:first-child]:mt-0">
+          <MDXRemote source={file.body} components={mdxComponents} options={mdxOptions} />
+        </div>
+      </Prose>
+
+      <footer className="mt-16 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+        <p className="font-mono text-xs text-neutral-500">
+          The same file inside the OS at{' '}
+          <Link href="/os" className="underline underline-offset-2">
+            {file.vfsPath}
           </Link>
         </p>
       </footer>

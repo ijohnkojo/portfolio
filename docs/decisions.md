@@ -982,3 +982,43 @@ memo does nothing. Worth knowing that the two are a pair.
 **Note:** React Compiler is *not* enabled in `next.config.ts`; the rule ships
 with `eslint-config-next` regardless. If the compiler is ever turned on, it
 memoizes this component itself and the deletion becomes a straight win.
+
+---
+
+## D-036 · 2026-09-15 · active
+### The bio is a file, read by both surfaces — not a page with a copy in the shell
+
+`content/home/whoami.md` is the only place the bio exists. The web route
+`/about` reads it through `getHomeFile()`; the shell's `whoami` reads it through
+`kernel.fs.read`. Neither owns it.
+
+**Why this rather than a React page with prose in JSX.** The obvious
+implementation is an `/about/page.tsx` containing the text, plus — if the OS
+should also answer `whoami` — a second copy inside the shell. Two copies of a
+bio drift the moment one is edited, and the drift is invisible: nothing fails,
+the site simply starts disagreeing with itself about who wrote it.
+
+This is [D-010](#d-010--2026-08-12--active)'s rule (one read on disk, two
+surfaces) applied to a **singleton** rather than a collection. The differences
+from an entry are all subtractions: no slug, no listing, no `draft` flag,
+because there is nothing to choose between. `getHomeFile()` is correspondingly
+smaller than `readEntry()` — no required-field validation, since there is no
+frontmatter to get wrong.
+
+**`whoami` gets a command; `now` does not.** Typing `whoami` into a terminal is
+a reflex, so it is the one piece of prose here a visitor finds without being
+told — that is what the command buys. `now.md` is reachable by `cat /home/now.md`
+like any other file, and a `now` command would be a synonym for `cat` with a
+path baked in. The rule: a command earns its place when it makes something
+*discoverable*, not when it saves typing.
+
+**Cost.** `content/home/` now has two kinds of file in it — `about.md`, which
+the About app reads, and `whoami.md`/`now.md`, which the web also renders — with
+nothing in the directory marking which is which. `buildHomeDir()` treats them
+identically, correctly, but someone adding a third file will not know from the
+filesystem whether the web is expected to serve it. If that set grows past
+three, it wants either a convention or its own directory.
+
+**Revisit when** a second singleton needs a web route, or when a `content/home`
+file needs frontmatter — at that point `getHomeFile()` is doing enough of
+`readEntry()`'s job to be worth merging with it.

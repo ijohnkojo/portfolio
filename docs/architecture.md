@@ -419,10 +419,17 @@ Directory per entry, so a writeup can carry assets:
 ```
 content/
   home/about.md                       → /home/about.md          (inline)
+  home/whoami.md                      → /home/whoami.md         (inline)
+  home/now.md                         → /home/now.md            (inline)
   projects/<slug>/index.mdx           → /projects/<slug>/index.mdx
   papers/<slug>/index.mdx             → /papers/<slug>/index.mdx
   papers/<slug>/figure.txt            → FileNode with src, mirrored to /public
 ```
+
+Anything dropped into `content/home/` appears in the VFS without code changes —
+`buildHomeDir()` walks the directory rather than naming files. `getHomeFile()`
+is the other half: it reads one such file for a server route, so `/about` and
+the shell's `whoami` render the same bytes ([D-036](decisions.md)).
 
 Frontmatter: `title`, `summary`, `date` (all required — a missing one throws
 with the file path rather than shipping a blank `<title>`), plus optional `tags`
@@ -463,8 +470,17 @@ still openable inside the OS. `pnpm verify:content` asserts both halves.
 sits outside that route group because it is full-viewport and brings its own.
 Each detail route is a thin wrapper over `EntryArticle` — `generateStaticParams`
 from `listEntries`, `generateMetadata` from frontmatter, `notFound()` otherwise.
-`components/mdx.tsx` holds the typographic component map, and is the seam where
-a writeup's own React components get registered.
+`/about` is the exception: it renders `HomeArticle` over a single
+`content/home` file rather than a collection entry, so it has no slug, no
+listing and no `draft` flag. `components/mdx.tsx` holds the typographic
+component map, and is the seam where a writeup's own React components get
+registered.
+
+**Metadata.** `lib/site.ts` holds the canonical URL, name and description; the
+root layout sets `metadataBase` and the title template from it, and
+`app/sitemap.ts` and `app/robots.ts` read the same constant. The sitemap is
+built from `listAllPublished()`, so a draft cannot leak into it and a published
+entry cannot be left out.
 
 ## 7. The shell
 
