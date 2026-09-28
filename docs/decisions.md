@@ -7,6 +7,13 @@ Format: **D-NNN** · date · status · the decision · why · what it costs.
 
 Statuses: `active` · `superseded by D-NNN` · `revisit when …`
 
+> **Paths before D-037 predate the move of the OS into `os/`** (2026-09-27).
+> Where an entry says `kernel/`, `wm/`, `apps/`, `registry/` or `hooks/`, the
+> code is now under `os/`; `app/os/OsShell.tsx` is `os/OsShell.tsx`; and
+> `buildVFSTree` moved from `lib/content.ts` to `os/vfsTree.ts`. The entries
+> themselves are left as written — this log is append-only. Link targets were
+> updated so they still resolve; no wording was changed.
+
 ---
 
 ## D-001 · 2026-08-12 · active
@@ -511,7 +518,7 @@ Tab there offers commands rather than the contents of the cwd. It reuses
 knows what a quote is — the completer still does not parse, it asks.
 
 This is one of two instances of the same pattern — see
-[architecture.md § when a layer needs something it is not allowed to have](architecture.md),
+[architecture.md § when a layer needs something it is not allowed to have](os/architecture.md),
 which states the rule and when to prefer an effect over an event.
 
 ---
@@ -546,7 +553,7 @@ import is so there is one list of layout names rather than two that drift.
 
 The sibling of [D-022](#d-022--2026-08-12--active): same problem, different
 mechanism. The rule and the choice between them are written up in
-[architecture.md § when a layer needs something it is not allowed to have](architecture.md).
+[architecture.md § when a layer needs something it is not allowed to have](os/architecture.md).
 
 ---
 
@@ -1022,3 +1029,90 @@ three, it wants either a convention or its own directory.
 **Revisit when** a second singleton needs a web route, or when a `content/home`
 file needs frontmatter — at that point `getHomeFile()` is doing enough of
 `readEntry()`'s job to be worth merging with it.
+
+---
+
+## D-037 · 2026-09-27 · active
+### The OS is a separate, frozen project in `os/`; the site never imports it
+
+`kernel/`, `wm/`, `apps/`, `registry/`, `hooks/` and `OsShell.tsx` moved into
+`os/`, and `buildVFSTree` moved from `lib/content.ts` to `os/vfsTree.ts`. The
+dependency runs one way: the OS reads `content/` through `lib/content.ts`, and
+nothing outside `os/` and `app/os/` imports the OS. `lib/boundary.test.ts`
+asserts both directions — no site file imports `@/os`, and the OS reaches into
+the site only through an allowlist (`lib/content`, `lib/memo`, and
+`components/mdx` for the viewer's prose styling, per
+[D-018](#d-018--2026-08-12--active)).
+
+**Why.** The site is being rebuilt around a knowledge graph of the work, and
+the OS stops being the site's framing and becomes one project in it — "some
+web OS I built", reachable from its node and its project page. It is kept, not
+removed, and frozen until OS work resumes, when it may change direction
+entirely. Moving it into its own directory makes the top level describe the
+site, and makes "frozen" enforceable rather than a promise: the site cannot
+come to depend on something that may be rewritten.
+
+It was cheap because the coupling already ran almost entirely the right way.
+Before the move the site depended on the OS in exactly one line —
+`lib/content.ts` importing `dir`/`file` from the kernel to build the VFS — and
+that function belongs to the OS anyway. The move was paths only: 67 files,
+import specifiers rewritten, no logic touched, and every one of the 465 tests
+outside the content split and all 148 browser checks passing identically
+before and after.
+
+The OS's docs moved to `docs/os/` with a frozen banner. Its design doc was
+**not** re-framed: it is the design record of a separate project, and
+patching it to fit the site would erase what it was.
+
+**Cost.** Paths in D-001 … D-036, in older plans, and in the frozen docs name
+the pre-move locations; a note at the top of this log and a banner on each
+frozen doc translate them. The registry's literal `dynamic()` imports now read
+`@/os/apps/…` — still literal, so [D-005](#d-005--2026-08-12--active) holds.
+The OS keeps its tests running while frozen, so a site change that breaks it
+still fails `pnpm test`; that is intended, and is the price of keeping it
+alive rather than archived.
+
+**Revisit when** OS work resumes — the backlog is `docs/os/backlog.md` — or if
+the OS ever needs something from the site beyond the allowlist.
+
+---
+
+## D-038 · 2026-09-27 · active
+### Pipeline behaviour is tested on fixture content, not on whatever is published
+
+Tests that check how the pipeline *behaves* — drafts are hidden from the web,
+drafts stay in the VFS — run against `lib/__fixtures__/content/`, which holds
+exactly one published entry and one draft. `loadFixtureContent()` gets them a
+second, independent copy of `lib/content.ts` by importing it afresh with
+`process.cwd()` pointed at `lib/__fixtures__/`. Tests about *real* content
+(slugs are kebab-case, titles are colon-free, every directory is a declared
+collection) still read `content/` through the ordinary import.
+
+**Why.** Two draft tests read real content and required it to contain a draft.
+When every entry was published on 2026-09-27 (`516e366`), they failed — not
+because drafts had stopped working, but because there was nothing left to test
+against. Publishing an entry is an editorial act; it should not be able to turn
+the test suite red, and a test that passes or fails according to this week's
+content checks the content, not the code. A test on the fixture's own shape
+("one published, one draft") stops it from quietly drifting into testing
+nothing.
+
+**Why a fresh import rather than a directory parameter.** The first version
+exported `createContentReader(dir)`. `pnpm build` then warned that dynamic
+filesystem access made Turbopack **trace the whole project** — every source
+file and `public/` — into the server output, because a directory passed as an
+argument is invisible to its static analysis. `path.join(process.cwd(),
+'content')` computed inside the module is what keeps tracing scoped to
+`content/`. So the module keeps that shape, and the test seam lives in the
+test instead.
+
+**Cost.** `lib/content.ts` must keep computing its directory from
+`process.cwd()` at import time, or the fixture copy silently reads real
+content — the fixture-shape test is what would catch it. The fixture tree must
+stay valid as the loader changes: a new required field means updating two
+fixture files. And real content is no longer checked for draft behaviour, only
+the fixture is; the loader is the same code either way, which is why that is
+acceptable.
+
+**Revisit when** a pipeline behaviour depends on something the fixture cannot
+express — an asset, a presentation's venue, a `content/home` file.

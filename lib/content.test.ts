@@ -6,12 +6,18 @@ import { describe, expect, it } from 'vitest'
 import {
   COLLECTIONS,
   allEntries,
-  buildVFSTree,
   getEntry,
   listAllPublished,
   listEntries,
 } from './content'
-import { resolve } from '@/kernel'
+import { loadFixtureContent } from './__fixtures__/fixtureContent'
+
+/**
+ * A miniature content tree with one published entry and one draft. Behaviour
+ * tests read this rather than `content/`, so they check the pipeline and not
+ * whatever happens to be published this week (D-038).
+ */
+const fixture = await loadFixtureContent()
 
 describe('entries', () => {
   it('reads every entry directory in every collection', () => {
@@ -72,95 +78,36 @@ describe('entries', () => {
 
 describe('drafts', () => {
   it('are excluded from listings and unroutable', () => {
-    for (const collection of COLLECTIONS) {
-      expect(listEntries(collection).every((e) => !e.draft)).toBe(true)
-    }
-    for (const draft of allEntries().filter((e) => e.draft)) {
-      expect(getEntry(draft.collection, draft.slug)).toBeNull()
-    }
-  })
-
-  // Hidden from the web, not from the OS — work in progress stays openable.
-  it('are still present in the VFS', () => {
-    const drafts = allEntries().filter((e) => e.draft)
-    expect(drafts.length, 'no draft entries to test against').toBeGreaterThan(0)
-
-    for (const draft of drafts) {
-      const node = resolve(buildVFSTree(), draft.vfsPath)
-      expect(node, draft.vfsPath).not.toBeNull()
-      expect(node!.type).toBe('file')
-      expect(getEntry(draft.collection, draft.slug), draft.vfsPath).toBeNull()
-    }
-  })
-
-  it('are still read by allEntries', () => {
-    expect(allEntries().some((e) => e.draft)).toBe(true)
-  })
-})
-
-describe('VFS tree', () => {
-  const tree = buildVFSTree()
-
-  it('exposes every entry at the path its route implies', () => {
-    for (const entry of allEntries()) {
-      const node = resolve(tree, entry.vfsPath)
-      expect(node, entry.vfsPath).not.toBeNull()
-      expect(node!.type).toBe('file')
-      if (node!.type === 'file') expect(node!.content).toBe(entry.raw)
-    }
-  })
-
-  it('carries entry metadata on the node, for a viewer or the shell to use', () => {
-    for (const entry of allEntries()) {
-      expect(resolve(tree, entry.vfsPath)!.meta, entry.vfsPath).toMatchObject({
-        title: entry.title,
-        href: entry.href,
-        draft: entry.draft,
-      })
-    }
-  })
-
-  it('represents non-MDX assets by src, never inlining their contents', () => {
-    const withAssets = allEntries().filter((e) => e.assets.length > 0)
-    // Not a silent pass: say so when there is nothing to exercise.
-    if (withAssets.length === 0) {
-      console.warn('  (no entry carries an asset — the src path is untested)')
-      return
-    }
-
-    for (const entry of withAssets) {
-      for (const asset of entry.assets) {
-        const node = resolve(tree, `/${entry.collection}/${entry.slug}/${asset.name}`)
-        expect(node, asset.name).not.toBeNull()
-        if (node!.type === 'file') {
-          expect(node!.src).toBe(asset.src)
-          expect(node!.content).toBeUndefined()
-        }
+    for (const reader of [fixture, { allEntries, listEntries, getEntry }]) {
+      for (const collection of COLLECTIONS) {
+        expect(reader.listEntries(collection).every((e) => !e.draft)).toBe(true)
+      }
+      for (const draft of reader.allEntries().filter((e) => e.draft)) {
+        expect(reader.getEntry(draft.collection, draft.slug)).toBeNull()
       }
     }
   })
 
-  it('inlines text under /home but gives binaries a src', () => {
-    const readme = resolve(tree, '/home/readme.md')
-    expect(readme!.type).toBe('file')
-    if (readme!.type === 'file') {
-      expect(readme!.content).toContain('Getting around')
-      expect(readme!.src).toBeUndefined()
-    }
+  it('are still read by allEntries', () => {
+    const draft = fixture.allEntries().find((e) => e.draft)
+    expect(draft, 'the fixture tree must contain a draft').toBeDefined()
+    expect(fixture.getEntry(draft!.collection, draft!.slug)).toBeNull()
+    expect(fixture.listAllPublished().some((e) => e.slug === draft!.slug)).toBe(false)
+  })
+})
+
+describe('fixture content', () => {
+  // Guards the guard: if the fixture stopped containing both kinds, the draft
+  // tests above would pass while checking nothing.
+  it('holds one published entry and one draft', () => {
+    const entries = fixture.allEntries()
+    expect(entries.filter((e) => e.draft)).toHaveLength(1)
+    expect(entries.filter((e) => !e.draft)).toHaveLength(1)
   })
 
-  it('mounts loose home files inline, since the About app cats them', () => {
-    const node = resolve(tree, '/home/about.md')
-    expect(node!.type).toBe('file')
-    if (node!.type === 'file') expect(node!.content).toBeTruthy()
-  })
-
-  it('does not build /apps — the client registry owns that', () => {
-    expect(resolve(tree, '/apps')).toBeNull()
-  })
-
-  it('is JSON-serializable, which is what lets it cross to the client', () => {
-    expect(() => JSON.parse(JSON.stringify(tree))).not.toThrow()
+  it('is a separate copy — the real content is still read from content/', () => {
+    expect(allEntries().some((e) => e.collection === 'papers' && e.slug === 'fixture-draft')).toBe(false)
+    expect(fixture.allEntries().every((e) => e.vfsPath.includes('fixture-'))).toBe(true)
   })
 })
 

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
-import { buildVFSTree } from '@/lib/content'
-import { OsShell } from './OsShell'
+import { buildVFSTree } from '@/os/vfsTree'
+import { OsShell } from '@/os/OsShell'
 
 export const metadata: Metadata = {
   title: 'personal-os',

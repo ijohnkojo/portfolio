@@ -6,6 +6,8 @@
 > - [x] 2. `whoami` — one file, two views (OS command + `/about` site route)
 > - [x] 3. Curate and write the launch set — prose drafted for all three
 > - [ ] 4. Flip `draft: false` on the launch set only — **deliberately not done**
+>       · *2026-09-27: done by the author in `516e366` — all six, not only the
+>       launch set, with the summaries still reading `DRAFT — replace this.`*
 > - [x] 5. SEO/metadata pass: `metadataBase`, OG tags, sitemap, robots
 >       (favicon still the Next.js default)
 > - [x] 6. Site chrome: contact/links in the footer, name on the landing page

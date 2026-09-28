@@ -1,0 +1,94 @@
+---
+title: personal-os
+summary: DRAFT — replace this. One sentence, for a stranger. It is a web OS you built and can boot from here.
+date: 2026-09-15
+tags: [typescript, react, nextjs]
+draft: false
+---
+
+{/*
+  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
+  From this repo — docs/os/, docs/decisions.md, and the git log.
+
+  Framing, as of 2026-09-27: this is a web OS you built. It is one project
+  among the others, kept frozen while the site is rebuilt around the graph.
+  You said you may have different ideas for it later — so write this for
+  what it is now, and expect to revise it.
+
+  date: 2026-09-15, the last commit that touched OS code (e4208c7, the
+  `whoami` command). Same convention as hq — the end of the body of work.
+  Replace it if you prefer another.
+
+  The repo (ijohnkojo/portfolio) is private. Do not add a repo link unless
+  you make it public.
+*/}
+
+## Overview
+
+{/*
+  - a mock operating system that runs in the browser, at /os
+  - built on the UNIX split: the kernel provides mechanism (a virtual
+    filesystem, a process table, an event bus); everything else — window
+    manager, shell, apps — is policy on top, and swappable
+  - apps never touch kernel state directly: every call goes through a syscall
+    boundary that checks the permissions the app declared in its manifest
+  - its filesystem is the site's own content, read from the same files on
+    disk as the web pages — `cat` a writeup and you get its source
+*/}
+
+## What it does
+
+{/*
+  - windows: drag, resize, minimize, maximize, snap to halves, tile
+  - a shell with thirty-one commands, pipes and redirection (| > >>), tab
+    completion, and history persisted as a file (/home/.history)
+  - seven apps: terminal, files, editor, viewer (markdown, JSON, PDF, images),
+    settings, about, sysinfo — each lazily loaded, each in its own error
+    boundary (an app that crashes shows a "segmentation fault" panel and the
+    rest keeps running)
+  - a desktop whose icons are a view of a real directory, /desktop — so
+    `cp x /desktop` makes an icon appear
+  - settings are a file too (/home/.settings): writing it repaints the desktop
+  - the session survives a reload: open windows, positions, and anything you
+    wrote, stored in localStorage behind a versioned schema
+*/}
+
+## How it's built
+
+{/*
+  Stack: Next.js 16, React 19, TypeScript, Tailwind 4, Zustand (vanilla — the
+  kernel imports no React), react-rnd for windows, xterm.js for the terminal.
+  Tested with Vitest: 463 unit tests for the OS, all in bare node with no
+  browser; plus six scripts that drive real Chrome.
+
+  Yours to choose what to explain. The decisions log has 36 entries; the ones
+  that carry the most weight:
+  - D-001 the kernel has no React import, which is why its tests run in node
+  - D-002 / D-006 a window drag commits to state only when the drag ends, so
+    nothing re-renders while a window moves
+  - D-010 one read of content/ feeds both the web pages and the filesystem
+  - D-023 the shell cannot touch the window manager; it emits an event and
+    the window manager decides
+*/}
+
+## Timeline
+
+{/*
+  - 2026-08-12 → 2026-08-13: kernel, window manager, shell, apps, desktop —
+    most of it in these two days (23 of the repo's commits)
+  - 2026-09-15: `whoami` — the bio as a file, read by the shell and the site
+  - 2026-09-27: frozen as a separate project; the site's front page became a
+    knowledge graph
+*/}
+
+## Status
+
+{/*
+  Frozen, not abandoned. Known gaps: no phone layout, little keyboard or
+  screen-reader support, the back button does nothing inside it, and it has
+  no link back to the rest of the site. The list is in docs/os/backlog.md.
+*/}
+
+## Links
+
+- [Launch the OS](/os)

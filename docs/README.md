@@ -1,21 +1,36 @@
 # Docs
 
-Living documentation for the personal-OS portfolio. Kept current as the project
-develops — if the code and a doc disagree, the doc is a bug.
+Living documentation for the portfolio site — and, in [os/](os/), for the web
+OS that lives in the same repo as a separate, frozen project. If the code and a
+doc disagree, the doc is a bug.
 
-## Files
+## The site
 
 | File | What it is | When to read it |
 |---|---|---|
-| [personal-os-portfolio.md](personal-os-portfolio.md) | **The design doc.** Philosophy, layer breakdown, the syscall boundary, phased build, stack. Sections reconciled with the implementation are marked **▸ Built** / **▸ Decided**. | Understanding *what this is meant to be* |
-| [architecture.md](architecture.md) | **As built.** What the code does right now — file map, kernel API surface, data shapes, render topology, known gaps. | Before changing anything |
-| [decisions.md](decisions.md) | **Decision log.** D-001…, each with the reason and what it costs. Append-only. | Before re-litigating a choice |
-| [review.md](review.md) | **Periodic audit** of the decisions and gaps: what has gone stale, which costs are now live, what to do next. Re-run it rather than trusting it. | Deciding what to work on |
-| [gotchas.md](gotchas.md) | Performance constraints, mostly about the window manager. The source of the drag rule. | Before touching `wm/` |
+| [design.md](design.md) | **The design doc.** What the site is for, the knowledge graph, the data model. Sections reconciled with the implementation are marked **▸ Built** / **▸ Decided**. | Understanding *what this is meant to be* |
+| [architecture.md](architecture.md) | **As built.** Structure, the site/OS boundary, the content pipeline, routes, known gaps. | Before changing anything |
+| [decisions.md](decisions.md) | **Decision log** for the whole repo. D-001…, each with the reason and what it costs. Append-only. | Before re-litigating a choice |
+| [review.md](review.md) | **Periodic audit** of the decisions and gaps. Re-run it rather than trusting it. | Deciding what to work on |
 | [authoring.md](authoring.md) | **How to add a project or paper**: directory shape, frontmatter, slugs, drafts, assets, adding a collection. | Writing content |
-| [running.md](running.md) | How to start it, drive it, and verify it. | Getting it on screen |
+| [running.md](running.md) | How to start it, test it, and verify it. | Getting it on screen |
 | [changelog.md](changelog.md) | One entry per working session: built, decided, verified, deliberately left out. | Catching up |
 | [plans/](plans/) | Implementation plans, dated. Each carries a status header. | Starting or resuming work |
+
+## The OS — frozen since 2026-09-27
+
+A separate project in [`os/`](../os/), reachable at `/os` and from its node on
+the site ([D-037](decisions.md)). These docs describe it as it was when frozen,
+and carry a banner saying so.
+
+| File | What it is |
+|---|---|
+| [os/backlog.md](os/backlog.md) | **Start here when OS work resumes.** What was deferred, and why. |
+| [os/design.md](os/design.md) | Its design doc — philosophy, layers, the syscall boundary. Written when the OS *was* the site. |
+| [os/architecture.md](os/architecture.md) | As built at the freeze: kernel, window manager, shell, desktop, apps. |
+| [os/gotchas.md](os/gotchas.md) | Performance constraints; the source of the drag rule. |
+| [os/running.md](os/running.md) | Driving the shell, the desktop and the apps, and the OS's browser checks. |
+| [os/walkthrough.md](os/walkthrough.md) | A guided tour for someone new to it. |
 
 ## Conventions
 
@@ -27,9 +42,10 @@ develops — if the code and a doc disagree, the doc is a bug.
   entry to [decisions.md](decisions.md) with the reason. Reference it from code
   comments and other docs rather than restating the rationale.
 - **The design doc gets patched, not appended.** When implementation settles an
-  open question in `personal-os-portfolio.md`, edit that section and mark it
+  open question in [design.md](design.md), edit that section and mark it
   **▸ Decided** with a link to the `D-NNN` entry — so the doc never drifts into
-  describing a system that doesn't exist.
+  describing a system that doesn't exist. The OS's design doc is frozen and is
+  not patched until OS work resumes.
 - **Diagrams are mermaid**, in ```` ```mermaid ```` fences — never ASCII art.
   They render on GitHub and in most editors, and they stay editable. Pick the
   type that matches the thing: `flowchart` for structure, `sequenceDiagram` for
@@ -45,21 +61,16 @@ develops — if the code and a doc disagree, the doc is a bug.
 
 ## Current state
 
-**Design doc Phases 1 and 2 are complete.** Kernel, syscall boundary, registry,
-window manager with snapping and tiling, crawlable SSG content routes, a shell
-with thirty-one commands, pipes and redirection, tab completion, persisted
-history, **seven apps**, and a clickable desktop whose icons are a view of a real
-directory.
+**The site is being rebuilt around a knowledge graph** —
+[plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md). Phase 1 is
+done: the OS moved into `os/` and became a frozen project with its own docs
+(D-037), the content tests stopped depending on what is published (D-038), and
+the OS got a project entry of its own, `projects/personal-os`. The graph itself
+is Phases 2–5, not yet built.
 
-Not yet: a game. Content is real MDX with real frontmatter — and **every entry is
-still `draft: true`**, so the public site lists nothing. That is prose, not code,
-and it is the largest gap between what is built and what a visitor sees.
+**Content:** seven entries, all published since `516e366` — but every summary
+still reads `DRAFT — replace this.` That is prose, not code, and it is the
+largest gap between what is built and what a visitor sees.
 
-Most recently shipped:
-[plans/2026-08-12-desktop-and-apps.md](plans/2026-08-12-desktop-and-apps.md) —
-all six steps, D-030 … D-035. Nothing is queued behind it.
-
-Remaining work is triaged in [review.md](review.md), **which is stale** — two of
-its four live items have shipped and its recommended order leads with settling
-the slugs, which is done. Re-run it. The standing gaps are: nothing published,
-no mobile mode, and no accessibility work.
+[review.md](review.md) was last run on 2026-08-12 and predates the split; it
+is stale. Re-run it.

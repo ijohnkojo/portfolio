@@ -212,7 +212,7 @@ never re-renders an icon.
 ### Dragging obeys the window rule
 
 **This is the one thing in this plan that can silently wreck the app.**
-[gotchas.md](../gotchas.md) and [D-002](../decisions.md) say live drag is
+[gotchas.md](../os/gotchas.md) and [D-002](../decisions.md) say live drag is
 imperative and local; persisted geometry is state. Icons are a second surface
 for the same rule:
 

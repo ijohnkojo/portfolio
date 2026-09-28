@@ -75,8 +75,8 @@ Commits `ae94983`, and this one.
 ### Built
 
 - `docs/` reorganised: [README.md](README.md) (map + conventions),
-  [architecture.md](architecture.md) (as-built), [decisions.md](decisions.md)
-  (D-001…D-009), [running.md](running.md), this changelog, and
+  [architecture.md](os/architecture.md) (as-built), [decisions.md](decisions.md)
+  (D-001…D-009), [running.md](os/running.md), this changelog, and
   [plans/](plans/) with the foundation-slice plan moved in from the scratch
   directory and given a status header.
 - `docs/personal-os-portfolio.md` reconciled with the implementation — §3, §4,
@@ -97,7 +97,7 @@ Commits `ae94983`, and this one.
   for `state === 'minimized'`, so app-internal state is destroyed and rebuilt on
   restore. Harmless with two stateless stub apps, wrong the first time a game or
   a half-typed terminal command is minimized. Logged in
-  [architecture.md § known gaps](architecture.md); not yet fixed.
+  [architecture.md § known gaps](os/architecture.md); not yet fixed.
 
 ---
 
@@ -220,7 +220,7 @@ triggers, and both gaps that got fixed (SSG routes, minimize-unmounts) had been
 removed from the list when they were.
 
 Five things had been decided in-flight and never written down. Added to
-[architecture.md § known gaps](architecture.md):
+[architecture.md § known gaps](os/architecture.md):
 
 - **Editing a wrapped command line corrupts the display** — verified, not
   speculative. `render()` clears only the current row, so a line longer than the
@@ -393,7 +393,7 @@ prefix, and `/home/` completes straight past the hidden `.history`. The code was
 right in both cases.
 
 **Design doc Phases 1 and 2 are now complete.** What remains on the list is a
-game, and the gaps in [architecture.md](architecture.md) — all absences.
+game, and the gaps in [architecture.md](os/architecture.md) — all absences.
 
 ---
 
@@ -408,7 +408,7 @@ Which is the same failure the earlier gap audit found — something explained
 clearly in conversation and never written into the repo, so the next person to
 hit it re-derives or re-litigates it.
 
-Now in [architecture.md § 1](architecture.md) with the effect/event comparison,
+Now in [architecture.md § 1](os/architecture.md) with the effect/event comparison,
 referenced from both decisions, and added to the invariants in `AGENTS.md` so it
 loads into future sessions rather than waiting to be discovered.
 
@@ -1083,3 +1083,91 @@ to prevent.
 Also outstanding: the favicon is still the Next.js default, the root `README.md`
 is still `create-next-app` boilerplate, and the deck PDFs are not yet converted
 and dropped beside their entries.
+
+---
+
+## 2026-09-27 — The OS becomes a project; the site gets a new front door (Phase 1 of 5)
+
+Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md)
+
+### The reframe
+
+The site is being rebuilt around a knowledge graph of the work. The OS stops
+being the site's framing and becomes one project in it — "some web OS I built",
+booted by clicking its node. It is kept, tested and **frozen**, not removed; OS
+work resumes after the graph ships, possibly in a different direction. Phase 1
+makes that structural before any graph code exists.
+
+### Built
+
+- **The OS moved into `os/`** — `kernel/ wm/ apps/ registry/ hooks/` and
+  `OsShell.tsx`. `/os` is still `app/os/page.tsx`, now a route and nothing else.
+  `buildVFSTree` moved from `lib/content.ts` to `os/vfsTree.ts`, so the content
+  pipeline no longer imports the kernel: the site depended on the OS in exactly
+  that one line, and now in none.
+- **`lib/boundary.test.ts`** asserts the direction ([D-037](decisions.md)):
+  nothing outside `os/` and `app/os/` imports the OS, and the OS imports from
+  the site only through a named allowlist.
+- **Draft tests run on fixture content** ([D-038](decisions.md)).
+  `lib/__fixtures__/content/` holds one published entry and one draft;
+  `loadFixtureContent()` imports a second copy of `lib/content.ts` bound to it.
+  This fixes the two tests that had failed on `main` since `516e366` published
+  every entry — not a code regression, just nothing left to test against.
+- **`content/projects/personal-os/`** — the OS as a published project entry,
+  with a FACTS, NOT PROSE block to write over, a placeholder summary like the
+  other six, dated 2026-09-15 (its last commit), and a link to `/os`.
+- **The docs split.** The OS's design doc, architecture, gotchas, walkthrough
+  and shell guide moved to `docs/os/` with a frozen banner, and
+  [os/backlog.md](os/backlog.md) collects what would change its behaviour. New
+  for the site: [design.md](design.md), [architecture.md](architecture.md) (the
+  content pipeline moved here from the OS doc) and [running.md](running.md).
+  `AGENTS.md` names the site as the project, keeps the OS's three invariants
+  under a frozen heading with `os/` paths, and adds two for the site. The repo
+  `README.md` is no longer `create-next-app` boilerplate.
+
+### Corrected
+
+- **authoring.md claimed extra frontmatter fields reach `stat`.** They never
+  did: the VFS copies six named fields into `meta`. The doc now says what is
+  true, and making it true is on the OS backlog.
+- **Link targets were retargeted repo-wide** after the moves, including in the
+  append-only decision log and old plans — hrefs only, no wording. A note at the
+  top of `decisions.md` translates pre-move paths.
+- **Stale state:** the docs README said every entry was a draft; the
+  2026-09-01 plan now notes that its step 4 was done in `516e366`.
+
+### Decided
+
+- **D-037** — the OS is a separate, frozen project; the dependency runs one way.
+- **D-038** — pipeline behaviour is tested on fixtures. The first version took
+  the content directory as a parameter; `pnpm build` then warned that Turbopack
+  was tracing **the whole project** into the server output, because it cannot
+  see through a parameter. The module keeps its statically scoped path and the
+  test seam moved into the test.
+
+### Verified
+
+- **480 unit tests** (was 474, two failing). Of the 474, 465 are unchanged; nine
+  moved to `os/vfsTree.test.ts` or onto fixtures. New: three boundary tests,
+  two fixture-shape tests, one real-content VFS draft test.
+- **The move is paths only:** all 67 moved files are byte-identical to their
+  originals once the `@/os/` prefix and the gotchas path are normalised.
+- **All six browser suites against `pnpm dev`, before and after — 148/148 both
+  times, with identical check lists:** `verify` 20, `verify:content` 11,
+  `verify:terminal` 36, `verify:viewer` 8, `verify:desktop` 44,
+  `verify:phase2` 29.
+- `pnpm build` clean, with no warnings; `/projects/personal-os` prerendered.
+  `eslint` clean. 17/17 diagrams parse; every relative doc link resolves except
+  one that was already broken in a 2026-08-12 plan.
+- No `Revisit when` trigger fired. D-005's literal `dynamic()` imports still
+  hold (they now read `@/os/apps/…`). D-036's fires in Phase 2, when
+  `graph.json` becomes a second `content/home` file read by the web.
+
+### Deliberately left out
+
+- **Any OS behaviour change** — the exit back to the site, `stat` showing every
+  field, the OS's own stale copy. All on [os/backlog.md](os/backlog.md).
+- **Any graph code.** Phases 2–5.
+- **The site chrome** still frames the site as an OS; the `/os` nav item and
+  `boot →` button go in Phase 3, the rest gets `PLACEHOLDER` comments there.
+- **`review.md` was marked stale, not re-run.**

@@ -1,21 +1,31 @@
 /**
- * Content pipeline — disk to both the crawlable routes and the VFS.
+ * Content pipeline — reads `content/` off disk for every surface that needs it.
  *
  * Server-only by construction: it reads with `node:fs`, so it cannot end up in
  * a client bundle without failing the build.
  *
- * One read serves two consumers, which is the point (see docs/decisions.md
- * D-010). The SSG route renders `entry.body` through MDXRemote; the VFS gets
- * `entry.raw` — frontmatter included, because that is what is actually on disk
- * and what `cat` should print.
+ * One read serves every consumer, which is the point (see docs/decisions.md
+ * D-010). The SSG routes render `entry.body` through MDXRemote; the OS builds
+ * its filesystem from `entry.raw` in `os/vfsTree.ts` — frontmatter included,
+ * because that is what is actually on disk and what `cat` should print.
+ *
+ * This module knows nothing about the OS. The dependency runs one way: the OS
+ * reads content through here, and nothing here imports the OS (D-037).
  */
 import fs from 'node:fs'
 import path from 'node:path'
 
 import matter from 'gray-matter'
 
-import { dir, file, type DirNode, type FileNode, type VFSNode } from '@/kernel'
+import { memo } from './memo'
 
+/**
+ * Computed from `process.cwd()` at import, and deliberately not a parameter:
+ * a path Turbopack can see is scoped to `content/` keeps its file tracing
+ * scoped there too. Taking the directory as an argument made it trace the
+ * whole project into the server output. Tests get a fixture-bound copy of this
+ * module by importing it afresh with `process.cwd()` pointed elsewhere (D-038).
+ */
 const CONTENT_DIR = path.join(process.cwd(), 'content')
 const ENTRY_FILE = 'index.mdx'
 
@@ -38,23 +48,6 @@ export interface Entry {
   assets: Array<{ name: string; src: string }>
   href: string
   vfsPath: string
-}
-
-/**
- * Read once per process in production, fresh every time in development — so
- * editing a writeup shows up without restarting the dev server.
- */
-function memo<T>(fn: () => T): () => T {
-  if (process.env.NODE_ENV === 'development') return fn
-  let value: T
-  let filled = false
-  return () => {
-    if (!filled) {
-      value = fn()
-      filled = true
-    }
-    return value
-  }
 }
 
 function isDirectory(p: string): boolean {
@@ -171,88 +164,17 @@ export function getHomeFile(name: string): HomeFile | null {
   return { raw, body: matter(raw).content, vfsPath: `/home/${name}` }
 }
 
-/* -------------------------------------------------------------------------- */
-/* VFS                                                                        */
-/* -------------------------------------------------------------------------- */
-
-function mimeFor(name: string): string {
-  const ext = path.extname(name).toLowerCase()
-  if (ext === '.mdx' || ext === '.md') return 'text/markdown'
-  if (ext === '.pdf') return 'application/pdf'
-  if (ext === '.json') return 'application/json'
-  if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') return `image/${ext.slice(1)}`
-  return 'text/plain'
-}
-
-function assetNode(name: string, src: string): FileNode {
-  // `src` instead of inline content: assets stay out of the RSC payload.
-  return { type: 'file', name, mime: mimeFor(name), src }
-}
-
-/** Text mimes are small enough to inline and `cat`-able; everything else is not. */
-const INLINE_MIMES = new Set(['text/markdown', 'text/plain', 'application/json'])
-
 /**
- * Loose files under content/home. Text is inlined so `cat` works; anything else
- * gets a `src` like an entry asset would — reading a PDF as UTF-8 would inline
- * mojibake into the page payload.
+ * Every loose file under `content/home`, as a name and the URL its mirrored
+ * copy is served from. Reading one is the caller's decision — a PDF read as
+ * UTF-8 would be mojibake.
  */
-function buildHomeDir(): DirNode {
+export function listHomeFiles(): Array<{ name: string; src: string }> {
   const homeDir = path.join(CONTENT_DIR, 'home')
-  const children: Record<string, VFSNode> = {}
-  if (!isDirectory(homeDir)) return dir('home', children)
+  if (!isDirectory(homeDir)) return []
 
-  for (const e of fs.readdirSync(homeDir, { withFileTypes: true })) {
-    if (!e.isFile()) continue
-
-    const mime = mimeFor(e.name)
-    children[e.name] = INLINE_MIMES.has(mime)
-      ? file(e.name, fs.readFileSync(path.join(homeDir, e.name), 'utf8'), mime)
-      : assetNode(e.name, `/content/home/${e.name}`)
-  }
-  return dir('home', children)
+  return fs
+    .readdirSync(homeDir, { withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => ({ name: e.name, src: `/content/home/${e.name}` }))
 }
-
-function entryDirNode(entry: Entry): DirNode {
-  const children: Record<string, VFSNode> = {
-    [ENTRY_FILE]: {
-      ...file(ENTRY_FILE, entry.raw, 'text/markdown'),
-      meta: {
-        title: entry.title,
-        summary: entry.summary,
-        date: entry.date,
-        tags: entry.tags,
-        draft: entry.draft,
-        href: entry.href,
-      },
-    },
-  }
-
-  for (const asset of entry.assets) {
-    children[asset.name] = assetNode(asset.name, asset.src)
-  }
-
-  return { ...dir(entry.slug, children), meta: { title: entry.title } }
-}
-
-/**
- * The base tree handed to the client at boot. Drafts are included — they are
- * hidden from the web, not from the OS, so work in progress stays openable.
- *
- * `/apps` is not built here: app nodes come from the registry, which is a
- * client module (it holds React components). OsShell registers them on mount.
- */
-export const buildVFSTree = memo((): DirNode => {
-  const root = dir('/', { home: buildHomeDir() })
-
-  for (const collection of COLLECTIONS) {
-    const children: Record<string, VFSNode> = {}
-    for (const entry of allEntries()) {
-      if (entry.collection !== collection) continue
-      children[entry.slug] = entryDirNode(entry)
-    }
-    root.children[collection] = dir(collection, children)
-  }
-
-  return root
-})

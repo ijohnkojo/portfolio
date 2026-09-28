@@ -2,19 +2,14 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 /**
- * The kernel is plain TypeScript with no React import, so its tests run in a
- * bare node environment — no jsdom, no component harness.
+ * Everything tested here is plain TypeScript with no DOM — the site's content
+ * and graph logic under lib/, and the OS under os/ — so it all runs in a bare
+ * node environment, with no jsdom and no component harness.
  */
 export default defineConfig({
   test: {
     environment: 'node',
-    include: [
-      'kernel/**/*.test.ts',
-      'lib/**/*.test.ts',
-      'apps/**/*.test.ts',
-      'registry/**/*.test.ts',
-      'wm/**/*.test.ts',
-    ],
+    include: ['lib/**/*.test.ts', 'os/**/*.test.ts'],
   },
   resolve: {
     alias: {

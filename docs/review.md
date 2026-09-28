@@ -1,7 +1,7 @@
 # Decision Review
 
 A periodic audit of [decisions.md](decisions.md) and
-[architecture.md § known gaps](architecture.md): which choices have gone stale,
+[architecture.md § known gaps](os/architecture.md): which choices have gone stale,
 which costs have become live, and what is worth doing next.
 
 Distinct from the other docs on purpose. `decisions.md` records *what was
@@ -10,6 +10,11 @@ decided and why*; `architecture.md` records *what exists*; this records
 worth re-running rather than trusting.
 
 **Last run:** 2026-08-12, covering D-001 … D-025.
+
+**Stale:** this run predates the split of 2026-09-27 ([D-037](decisions.md)).
+Its findings are about what is now the frozen OS, whose known gaps live in
+[os/architecture.md](os/architecture.md#10-known-gaps); the site's are in
+[architecture.md](architecture.md#known-gaps). The next run should cover both.
 
 ---
 

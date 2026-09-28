@@ -67,8 +67,10 @@ draft: false
 | `venue` | no | for `presentations` — the event |
 | `location` | no | for `presentations` — where it was |
 
-Any other field you add is carried through to the VFS and shown by `stat`, so
-collection-specific metadata costs nothing.
+Any other field you add stays in the file, so `cat` in the OS shows it and it
+costs nothing to add. It is **not** shown by `stat`, which prints only the named
+fields above — making `stat` show every field is on the
+[OS backlog](os/backlog.md).
 
 `title`, `summary`, and `date` are enforced: a missing one **fails the build**
 with the file path, rather than shipping a blank `<title>`.
@@ -90,7 +92,7 @@ Then write MDX — markdown, plus React components if you register them in
 flowchart LR
     DISK[("content/papers/&lt;slug&gt;/index.mdx")] --> LOADER["lib/content.ts<br/>read once at build time"]
     LOADER --> ENTRIES["listEntries() · getEntry()"]
-    LOADER --> TREE["buildVFSTree()"]
+    LOADER --> TREE["os/vfsTree.ts<br/>buildVFSTree()"]
     ENTRIES --> ROUTES["/papers/&lt;slug&gt;<br/>prerendered, crawlable"]
     TREE --> VFS[("the VFS")]
     VFS --> OS["the OS: ls · cat · grep · stat · open"]
@@ -106,7 +108,7 @@ web page and the OS can never disagree about what a paper says.
 markup, so it works with JavaScript disabled.
 
 **In the OS** — the same file. `cat` prints it exactly as stored, frontmatter
-and all. `stat` prints the frontmatter on its own. `grep` searches the text,
+and all. `stat` prints its title, summary, date, tags and draft flag. `grep` searches the text,
 `tags` indexes the tags, `open` hands it to the viewer.
 
 **Assets** — anything that is not `.mdx` or `.md` is mirrored into
@@ -185,7 +187,7 @@ is not**, and neither is a stray `{` or `}` in prose or inside a comment: any
 with `Could not parse expression with acorn` rather than pointing at the line.
 
 **`content/home/`** is not a collection — it is loose content. `about.md` is
-what the About app shows; `readme.md` is a guide to the filesystem for anyone
+what the OS's About app shows; `readme.md` is a guide to the filesystem for anyone
 exploring with the shell; `whoami.md` is the bio, and is the one file rendered
 in two places at once — the `whoami` command and the `/about` route
 ([D-036](decisions.md)). Text files there are inlined so `cat` works; anything
