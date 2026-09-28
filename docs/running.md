@@ -20,7 +20,7 @@ resolve.
 | Command | Does |
 |---|---|
 | `pnpm dev` | dev server |
-| `pnpm build` | production build — every published entry should appear as ● (SSG) |
+| `pnpm build` | production build — every published entry should appear as ● (SSG). Lists any published entry whose summary is still a `DRAFT` placeholder, without failing |
 | `pnpm start` | serve the production build |
 | `pnpm test` | unit tests for the site (`lib/`) and the OS (`os/`), all in bare node |
 | `pnpm test:watch` | same, watching |

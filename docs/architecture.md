@@ -7,7 +7,8 @@ file is right and the design doc needs a patch.
 **Status, 2026-09-27:** the site is a set of server-rendered pages built from
 `content/` — a home page listing the work, `/about`, and a listing and detail
 route per collection. It is being rebuilt around a knowledge graph of the work
-([plan](plans/2026-09-27-graph-home.md)); nothing of the graph exists yet. The
+([plan](plans/2026-09-27-graph-home.md)). The graph's **data layer** is built —
+[§ The home graph](#the-home-graph) — and nothing renders it yet. The
 OS that used to be the site's framing is now a separate, frozen project in
 `os/`, documented in [os/architecture.md](os/architecture.md).
 
@@ -21,7 +22,7 @@ app/
   os/page.tsx      /os — a route only; everything behind it lives in os/
   layout.tsx sitemap.ts robots.ts
 components/        entry.tsx (article, listing), mdx.tsx (typography)
-lib/               content.ts (the pipeline), memo.ts, site.ts
+lib/               content.ts (the pipeline), graph/ (the home graph), memo.ts, site.ts
 os/                the OS: kernel/ wm/ apps/ registry/ hooks/, OsShell.tsx, vfsTree.ts
 content/           the source of truth for both
 ```
@@ -66,6 +67,7 @@ Directory per entry, so a writeup can carry assets:
 ```
 content/
   home/whoami.md                      → /about, and `whoami` in the OS
+  home/graph.json                     → the home page's graph, and /home/graph.json in the OS
   home/about.md · readme.md · now.md  → the OS's /home
   projects/<slug>/index.mdx           → /projects/<slug>
   papers/<slug>/index.mdx             → /papers/<slug>
@@ -82,7 +84,14 @@ whatever real content happens to hold ([D-038](decisions.md)).
 
 Frontmatter: `title`, `summary`, `date` (all required — a missing one throws
 with the file path rather than shipping a blank `<title>`), plus optional `tags`
-and `draft`. Other fields are kept in the file but not read.
+and `draft`. Every field, named or not, is also on `entry.frontmatter` — YAML
+dates turned back into `YYYY-MM-DD` — and `entry.sourcePath` is the file
+relative to the repo, so a consumer that reads its own fields (the graph reads
+`orgs`, `fields`, `tools`, `related`) can name the file when one is wrong.
+
+A published entry whose summary still starts with `DRAFT` is listed by
+`scripts/warn-placeholder-summaries.mjs` during `prebuild` — a warning, not a
+failure.
 
 One read on disk serves every consumer, which is the whole point of
 [D-010](decisions.md):
@@ -122,6 +131,71 @@ the URL of their mirrored copy; the OS mounts every one at `/home`.
 
 ---
 
+## The home graph
+
+The home page's knowledge graph, built from content ([D-039](decisions.md)).
+**Data layer only so far** — nothing renders it yet.
+
+```mermaid
+flowchart LR
+    MDX[("entry frontmatter<br/>orgs · fields · tools · related")]
+    JSON[("content/home/graph.json<br/>nodes · links · entry angles")]
+    LIB["lib/content.ts<br/>allEntries() · getHomeFile()"]
+    LOAD["lib/graph/load.ts<br/>server-only"]
+    MODEL["lib/graph/model.ts<br/>validate · build · resolve angles"]
+    DATA{{"GraphData<br/>plain JSON"}}
+    LAYOUT["lib/graph/layout.ts<br/>polar geometry"]
+    INTERACT["lib/graph/interact.ts<br/>highlight · timeline · keyboard"]
+
+    MDX --> LIB
+    JSON --> LIB
+    LIB --> LOAD --> MODEL --> DATA
+    MODEL -. "angles" .-> LAYOUT
+    INTERACT -. "reads" .-> DATA
+```
+
+| Module | Pure? | Does |
+|---|---|---|
+| `lib/graph/model.ts` | yes | types; `buildGraph(spec, entries, options)` — parses and validates `graph.json`, resolves every entry's references, builds nodes and edges, dates them for the timeline, fills in missing angles |
+| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `circularMean`, `widestGapMidpoint`, `minSeparation`, `labelAnchor`, `edgePath`; `MIN_SEPARATION` per ring |
+| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `nextNode` (keyboard moves) |
+| `lib/graph/load.ts` | no | `loadGraph()` — reads `graph.json` and every entry, memoised like the content loader |
+
+The pure three are what the client component will import; `purity.test.ts`
+fails if any of them imports `node:*`, React, Next, `lib/content`, the OS or
+`load.ts`. Type-only imports are allowed, since they are erased.
+
+**Shape.** `GraphData` is `{ nodes, edges, years }` — plain objects, which is
+how it will cross from the server component to the client, exactly as `/os`
+receives its filesystem ([D-011](decisions.md)).
+
+| Node kind | Ring | Id | From |
+|---|---|---|---|
+| `me` | 0 | `me` | `SITE_NAME`, linking to `/about` |
+| `org`, `field` | 1 | `org:iris-hep` | `graph.json` — always shown |
+| `entry` | 2 | `entry:papers/hq` | published entries |
+| `tool` | 3 | `tool:python` | `graph.json` — hidden when nothing published uses it |
+
+Edges are undirected, one per pair, with id `a|b` sorted: me to every inner
+node, entries to what their frontmatter names and to their `related` entries,
+and `graph.json`'s `links`. A node's `year` is its entry's date, or `since`, or
+its earliest connected published entry, or null — always shown.
+
+**Validation** ([D-040](decisions.md)) throws naming the file: an unknown id, the
+wrong kind, an unresolvable or ambiguous `related`, a self-reference, a
+`graph.json` key naming no entry, and any malformed or unknown key in
+`graph.json`. References to drafts are dropped instead. Drafts are validated
+too.
+
+**Layout** ([D-041](decisions.md)): hand-set angles win; a missing one takes the
+circular mean of its neighbours on the ring inside, else the widest empty arc,
+in id order. `load.test.ts` holds the real graph to a minimum separation per
+ring in every timeline year.
+
+The real graph, as of this commit: 33 nodes, 49 edges, 2023–2026.
+
+---
+
 ## Routes
 
 `app/(site)/` holds the site with its own chrome — header, nav, footer, and a
@@ -152,7 +226,10 @@ cannot be left out.
 
 `pnpm test` runs everything under `lib/` and `os/` in bare node — no jsdom, no
 browser. For the site: the content pipeline against fixtures and against real
-content (`lib/content.test.ts`), and the OS boundary (`lib/boundary.test.ts`).
+content (`lib/content.test.ts`), the OS boundary (`lib/boundary.test.ts`), and
+the graph — its rules on fixtures (`model`, `layout`, `interact`), the real
+content against those rules and the separation limits (`load`), and the purity
+of the modules the client will import (`purity`).
 `pnpm verify:content` checks in real Chrome that a published entry renders with
 JavaScript disabled and that the OS reads the same bytes.
 
@@ -160,7 +237,11 @@ JavaScript disabled and that the OS reads the same bytes.
 
 ## Known gaps
 
-- **The home page is a list, not the graph.** That is the work in progress.
+- **The home page is a list, not the graph.** The graph's data is built and
+  tested; nothing renders it until Phase 3. Until then a bad reference fails
+  `pnpm test` but not `pnpm build`, because no route calls `loadGraph()`.
+- **`stat` in the OS does not show the graph fields.** `cat` does. On the
+  [OS backlog](os/backlog.md).
 - **The chrome still frames the site as an OS.** The header name
   `personal-os`, the `/os` nav item, the home page's `boot →` button, its
   "This site is a mock operating system" paragraph, and the footer line.

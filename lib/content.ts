@@ -48,6 +48,24 @@ export interface Entry {
   assets: Array<{ name: string; src: string }>
   href: string
   vfsPath: string
+  /**
+   * Every frontmatter field, with YAML dates turned into `YYYY-MM-DD` strings.
+   * Fields this module does not know about — `venue`, the graph's `orgs` and
+   * `tools` — are read by whoever needs them, from here.
+   */
+  frontmatter: Record<string, unknown>
+  /** The entry's file relative to the repo, for error messages that name it. */
+  sourcePath: string
+}
+
+/** YAML turns an unquoted `2026-09-15` into a Date; everything else wants the day. */
+function normalise(data: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key,
+      value instanceof Date ? value.toISOString().slice(0, 10) : value,
+    ])
+  )
 }
 
 function isDirectory(p: string): boolean {
@@ -104,6 +122,8 @@ function readEntry(collection: Collection, slug: string): Entry {
     assets,
     href: `/${collection}/${slug}`,
     vfsPath: `/${collection}/${slug}/${ENTRY_FILE}`,
+    frontmatter: normalise(data),
+    sourcePath: where,
   }
 }
 

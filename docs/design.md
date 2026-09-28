@@ -43,7 +43,9 @@ would change the OS waits in [os/backlog.md](os/backlog.md).
 Intent; details in the [plan](plans/2026-09-27-graph-home.md#design-the-graph).
 
 - **Rings at fixed, hand-set angles** — no force simulation, so the layout reads
-  as designed and nothing moves when the pointer does. Inner ring: organisations
+  as designed and nothing moves when the pointer does. **▸ Decided**
+  ([D-041](decisions.md)): angles live in `graph.json`, a deterministic fallback
+  places anything unset, and a test keeps every ring legible in every year. Inner ring: organisations
   (IRIS-HEP, CERN/CMS, Fermilab/US-CMS, Gettysburg College) and fields (physics,
   computer science; more as work arrives). Middle ring: published entries. Outer
   ring: tools and languages.
@@ -56,19 +58,22 @@ Intent; details in the [plan](plans/2026-09-27-graph-home.md#design-the-graph).
 - **A timeline grows the graph year by year**, defaulting to the whole of it.
 - **Drawn in SVG with React**, no graph library.
 
-## 4. Data
+## 4. Data — ▸ Built
 
-Intent; details in the plan.
+([D-039](decisions.md), [D-040](decisions.md); as built in
+[architecture.md § The home graph](architecture.md#the-home-graph); how to use
+it in [authoring.md § Joining the graph](authoring.md#joining-the-graph).)
 
 - Entries join the graph through optional frontmatter: `orgs`, `fields`,
-  `tools`, `related`. Typed references — an unknown id fails the build with the
-  file path.
+  `tools`, `related`. Typed references — an unknown id fails with the file
+  path. References to drafts are dropped, not errors.
 - Everything that is not an entry — organisations, fields, tools, their angles
   — lives in one file, `content/home/graph.json`, which the OS also shows at
   `/home/graph.json`.
 - Only published entries are nodes, as with the sitemap.
-- The graph is built on the server by pure functions and handed to a client
-  component as plain data, the same shape as `/os` receiving its filesystem.
+- The graph is built on the server by pure functions and will be handed to a
+  client component as plain data, the same shape as `/os` receiving its
+  filesystem.
 
 ## 5. Phone and accessibility
 

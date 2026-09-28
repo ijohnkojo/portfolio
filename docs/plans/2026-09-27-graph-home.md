@@ -1,19 +1,41 @@
 # The Graph Home — the site becomes a knowledge graph; the OS becomes a project
 
 > **Status:** drafted 2026-09-27 · revised the same day after the reframe
-> below · **approved 2026-09-27** · Phase 1 shipped 2026-09-27. Worked on
+> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27. Worked on
 > `graph-home`, which was fast-forwarded into `main` after Phase 1; later
 > phases commit to `main` directly.
 >
 > - [x] 0. Audit and plan
 > - [x] 1. Separate the OS — moved into `os/`, docs split, draft tests on
 >       fixtures, `personal-os` entry published (D-037, D-038)
-> - [ ] 2. Graph data layer — frontmatter fields, `graph.json`, `lib/graph/`,
->       validation, tests
+> - [x] 2. Graph data layer — frontmatter fields, `graph.json`, `lib/graph/`,
+>       validation, tests (D-039, D-040, D-041)
 > - [ ] 3. The graph on `/` — rings, highlighting, inspector, keyboard, the
 >       `(reading)` route group
 > - [ ] 4. Timeline scrubber, and the listings below the graph
 > - [ ] 5. Phone layout, reduced motion, accessibility pass
+>
+> **Phase 2 deviations:**
+>
+> 1. **The placeholder-summary warning is a `prebuild` script**
+>    (`scripts/warn-placeholder-summaries.mjs`), not code in `lib/content.ts`
+>    as planned: `next build` renders in seven worker processes, and a warning
+>    in the loader printed once per worker.
+> 2. **"Fails the build" becomes true in Phase 3.** No route calls
+>    `loadGraph()` yet, so until the home page renders the graph a bad
+>    reference fails `pnpm test` (via `load.test.ts`), not `pnpm build`.
+> 3. **Drafts are validated too.** The plan said references *to* drafts are
+>    dropped; it did not say whether a draft's *own* references are checked.
+>    They are, so a typo is caught while writing (D-040).
+> 4. **`links` holds one pair**, Fermilab–CERN/CMS — the only relation between
+>    non-entry nodes that is a plain fact. Organisations and fields connect
+>    through entries instead.
+> 5. **Organisation `href`s are their public homepages** (iris-hep.org,
+>    fnal.gov, cms.cern, gettysburg.edu) — worth a glance. Tools have none.
+> 6. **`MIN_SEPARATION` (24° / 18° / 10°) is provisional**, set before
+>    anything is drawn. Phase 3 tunes it against the real rendering.
+> 7. **`roundAngle` had a float bug**, caught by its own test: normalising
+>    after rounding turned 12.3 into 12.300000000000011.
 >
 > **Phase 1 deviations:**
 >

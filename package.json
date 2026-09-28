@@ -12,7 +12,7 @@
     "verify": "node scripts/verify-wm.mjs",
     "check:diagrams": "node scripts/check-diagrams.mjs",
     "predev": "node scripts/sync-content-assets.mjs",
-    "prebuild": "node scripts/sync-content-assets.mjs",
+    "prebuild": "node scripts/sync-content-assets.mjs && node scripts/warn-placeholder-summaries.mjs",
     "verify:content": "node scripts/verify-content.mjs",
     "verify:terminal": "node scripts/verify-terminal.mjs",
     "verify:viewer": "node scripts/verify-viewer.mjs",

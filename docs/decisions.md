@@ -1116,3 +1116,108 @@ acceptable.
 
 **Revisit when** a pipeline behaviour depends on something the fixture cannot
 express — an asset, a presentation's venue, a `content/home` file.
+
+---
+
+## D-039 · 2026-09-27 · active
+### The graph is derived from content: typed frontmatter references, plus one data file
+
+The home page's knowledge graph has no data of its own beyond one file. Entries
+join it through optional frontmatter — `orgs`, `fields`, `tools` (ids of nodes)
+and `related` (other entries' slugs). Everything that is not an entry —
+organisations, fields, tools, their angles, and the few entry-level settings
+that are layout rather than facts — lives in `content/home/graph.json`.
+`lib/graph/model.ts` builds the graph from both, purely; `lib/graph/load.ts`
+reads them off disk.
+
+**Why.** [D-010](#d-010--2026-08-12--active)'s rule: content is the source of
+truth, and a second copy drifts. Declaring "hq used Redis" in hq's own
+frontmatter keeps the fact beside the writeup it describes, and `cat` shows it.
+
+**Typed fields, not `tags`.** Several tags already name the same things
+(`physics`, `iris-hep`, `python`). Deriving edges from tags was the obvious
+alternative, and was rejected: tags are free-form, so a typo there would
+silently drop an edge rather than fail, and `talk`, `cli` and `hackathon` would
+become nodes. Separate fields also let the build check kind — `orgs: [python]`
+is a mistake it can name.
+
+**Angles in `graph.json`, not in frontmatter.** An angle is presentation, not a
+fact about the work; in frontmatter it would sit next to the title in `cat`.
+Keeping all layout in one file makes the whole design legible in one
+`cat /home/graph.json`. The centre node is not in the file at all — its label is
+`SITE_NAME`, so the owner's name has one copy.
+
+**This answers [D-036](#d-036--2026-09-15--active)'s trigger**, which fired
+here: `graph.json` is a second `content/home` file the web reads. The trigger
+asked whether `getHomeFile()` had grown into `readEntry()`'s job and should
+merge with it. It has not: `graph.json` is data with no frontmatter, parsed with
+`JSON.parse`, and validated by the graph rather than by the content loader. D-036's
+other cost — nothing in `content/home` says which files the web reads — is now
+paid down by a table in `docs/authoring.md`.
+
+**Cost.** Tags and the typed fields overlap visibly, and an entry can say
+`tags: [python]` and `tools: [python]` both. And one more file in `content/home`
+that the OS shows as-is, so its shape is public — which is also the point.
+
+**Revisit when** a node needs data too rich for one JSON file — per-node prose,
+images — at which point non-entry nodes want to be directories like entries.
+
+---
+
+## D-040 · 2026-09-27 · active
+### Unknown references fail the build; references to drafts are dropped
+
+`buildGraph` throws, naming the file in `requireString`'s style, for any
+reference that cannot be resolved: an unknown id, an id of the wrong kind, a
+`related` slug that matches no entry or matches two, an entry related to
+itself, a `graph.json` key naming no entry, and any malformed `graph.json`
+(unknown keys included, so `angel` for `angle` fails rather than being ignored).
+
+A reference to a **draft** is not an error: the edge is dropped, a tool used
+only by drafts is hidden, and a draft is never a node. **Drafts are still
+validated**, though — every entry's references are checked, published or not.
+
+**Why.** An unresolvable reference is a typo, and a typo that silently drops an
+edge is invisible: the graph just looks slightly emptier. A draft, on the other
+hand, is hidden on purpose, and publishing another entry must not fail because
+it relates to work in progress. Validating drafts anyway means a typo is caught
+while the author is writing, not on the day they flip the flag.
+
+**Cost.** An edge vanishes silently when its target is un-published — intended,
+and invisible. And a draft with a bad reference blocks the build even though no
+visitor would see it.
+
+**Revisit when** drafts need to reference nodes that do not exist yet — at
+that point validating drafts is friction rather than help.
+
+---
+
+## D-041 · 2026-09-27 · active
+### Fixed polar layout: hand-set angles, a deterministic fallback, and legibility as a test
+
+Every node sits on a ring by kind — organisations and fields inside, entries in
+the middle, tools outside — at an angle in degrees clockwise from 12 o'clock.
+Angles are hand-set in `graph.json`. A node without one gets the circular mean
+of its neighbours on the ring inside it (entries lean on organisations and
+fields, tools on entries), or failing that the middle of the widest empty arc
+on its own ring, placed in id order. No force simulation and no graph library.
+
+`lib/graph/load.test.ts` asserts that no two visible nodes on a ring sit closer
+than `MIN_SEPARATION` (24° inner, 18° middle, 10° outer), **in every year of the
+timeline**.
+
+**Why.** A simulated layout moves: on load, on hover when something is pinned,
+and between visits when the data changes. A designed layout does not, and a
+portfolio's front page should look designed. It also makes the layout a pure
+function of the content, so it is testable in bare node and identical on the
+server and the client. The fallback exists only so that publishing a new entry
+does not *require* editing `graph.json`; the test is what stops the fallback
+from quietly producing a pile-up.
+
+**Cost.** Crowding is fixed by hand, never by the machine: a new entry near a
+busy region fails the separation test until someone chooses its angle. The
+separation thresholds are provisional until the graph is drawn (Phase 3 of
+[the plan](plans/2026-09-27-graph-home.md)).
+
+**Revisit when** the outer ring outgrows its circle — at roughly 36 tools
+10° apart there is no room left, and tools would need grouping or a fourth ring.

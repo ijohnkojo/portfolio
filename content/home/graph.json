@@ -1,0 +1,43 @@
+{
+  "$comment": "The home page's knowledge graph: every node that is not an entry, and the layout. Angles are degrees clockwise from 12 o'clock. Entries join through their own frontmatter (orgs, fields, tools, related). See docs/authoring.md.",
+  "nodes": [
+    { "id": "iris-hep", "kind": "org", "label": "IRIS-HEP", "angle": 40, "href": "https://iris-hep.org" },
+    { "id": "gettysburg", "kind": "org", "label": "Gettysburg College", "angle": 100, "since": 2024, "href": "https://www.gettysburg.edu" },
+    { "id": "cs", "kind": "field", "label": "Computer science", "angle": 165 },
+    { "id": "physics", "kind": "field", "label": "Physics", "angle": 255 },
+    { "id": "fermilab", "kind": "org", "label": "Fermilab / US-CMS", "angle": 305, "href": "https://www.fnal.gov" },
+    { "id": "cern-cms", "kind": "org", "label": "CERN / CMS", "angle": 345, "href": "https://cms.cern" },
+
+    { "id": "bun", "kind": "tool", "label": "Bun", "angle": 0 },
+    { "id": "grpc", "kind": "tool", "label": "gRPC", "angle": 15 },
+    { "id": "redis", "kind": "tool", "label": "Redis", "angle": 32 },
+    { "id": "dask", "kind": "tool", "label": "Dask", "angle": 50 },
+    { "id": "python", "kind": "tool", "label": "Python", "angle": 75 },
+    { "id": "gemini", "kind": "tool", "label": "Gemini", "angle": 105 },
+    { "id": "vscode", "kind": "tool", "label": "VS Code", "angle": 122 },
+    { "id": "typescript", "kind": "tool", "label": "TypeScript", "angle": 142 },
+    { "id": "react", "kind": "tool", "label": "React", "angle": 160 },
+    { "id": "nextjs", "kind": "tool", "label": "Next.js", "angle": 177 },
+    { "id": "rich", "kind": "tool", "label": "Rich", "angle": 200 },
+    { "id": "textual", "kind": "tool", "label": "Textual", "angle": 217 },
+    { "id": "arduino", "kind": "tool", "label": "Arduino", "angle": 250 },
+    { "id": "cpp", "kind": "tool", "label": "C++", "angle": 267 },
+    { "id": "root", "kind": "tool", "label": "ROOT", "angle": 290 },
+    { "id": "jupyter", "kind": "tool", "label": "Jupyter", "angle": 305 },
+    { "id": "numpy", "kind": "tool", "label": "NumPy", "angle": 320 },
+    { "id": "scipy", "kind": "tool", "label": "SciPy", "angle": 335 },
+    { "id": "matplotlib", "kind": "tool", "label": "Matplotlib", "angle": 350 }
+  ],
+  "links": [
+    ["fermilab", "cern-cms"]
+  ],
+  "entries": {
+    "papers/hq": { "angle": 20 },
+    "presentations/hq-agc-demo-day": { "angle": 70 },
+    "projects/academic-explainer": { "angle": 125 },
+    "projects/personal-os": { "angle": 170, "opens": { "href": "/os", "label": "Launch the OS" } },
+    "projects/treeviz": { "angle": 215 },
+    "projects/nanoglide": { "angle": 265 },
+    "papers/hscp-mass-reconstruction": { "angle": 315 }
+  }
+}

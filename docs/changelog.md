@@ -1171,3 +1171,66 @@ makes that structural before any graph code exists.
 - **The site chrome** still frames the site as an OS; the `/os` nav item and
   `boot →` button go in Phase 3, the rest gets `PLACEHOLDER` comments there.
 - **`review.md` was marked stale, not re-run.**
+
+---
+
+## 2026-09-27 — The graph's data layer (Phase 2 of 5)
+
+Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md)
+
+### Built
+
+- **Typed references in frontmatter.** All seven entries now name what they
+  connect to — `orgs`, `fields`, `tools`, `related` — from the node table
+  confirmed in the plan. Prose untouched.
+- **`content/home/graph.json`** — six inner-ring nodes (IRIS-HEP, Gettysburg
+  College, CERN/CMS, Fermilab/US-CMS, Physics, Computer science), nineteen
+  tools, one link, and a hand-set angle for every node and entry. The OS entry
+  `opens` `/os`. It is a real file: `cat /home/graph.json` works in the OS with
+  no OS change. Math and Quantum wait until there is work to attach to them.
+- **`lib/graph/`** — `model.ts` (validate and build), `layout.ts` (clock-angle
+  geometry), `interact.ts` (highlight, timeline, keyboard moves), all pure;
+  `load.ts` reads the disk. The real graph: 33 nodes, 49 edges, 2023–2026.
+- **`Entry.frontmatter` and `Entry.sourcePath`** in `lib/content.ts`, so a
+  consumer can read its own fields and name the file when one is wrong.
+- **A build warning for placeholder summaries** —
+  `scripts/warn-placeholder-summaries.mjs`, run from `prebuild`. It lists all
+  seven entries today.
+- **Plans are tracked again.** A `.gitignore` change had excluded
+  `docs/plans/`, so the graph-home plan never reached the repo while the docs
+  linked to it. `.claude/` stays ignored.
+
+### Decided
+
+- **D-039** — the graph is derived from content; typed fields rather than tags;
+  angles in `graph.json` rather than frontmatter. **Answers D-036's trigger**,
+  which fired here: `graph.json` is a second `content/home` file the web reads,
+  but it is data without frontmatter, so `getHomeFile()` and `readEntry()` stay
+  separate. `authoring.md` now has the table D-036 asked for — which
+  `content/home` file each surface reads.
+- **D-040** — unknown references fail naming the file; references to drafts
+  are dropped; drafts are validated anyway.
+- **D-041** — fixed polar layout with a deterministic fallback, and legibility
+  as a test: minimum separation per ring, in every timeline year.
+
+### Verified
+
+- **560 unit tests** (+80): 44 on the model's rules, fixtures only; 14 on
+  geometry; 12 on interaction; 6 on the real graph; 4 on purity. The purity
+  test was checked the other way too — a temporary `node:fs` import in
+  `interact.ts` failed it.
+- `pnpm build` clean apart from the intended placeholder warning; `eslint`
+  clean; 18/18 diagrams parse.
+- **All 148 OS browser checks still pass** with `graph.json` in `/home` and the
+  new frontmatter in every file the OS shows.
+- `Revisit when`: **D-036 fired and is answered in D-039.** D-011's payload
+  grows by one small JSON file and a few frontmatter lines per entry — not the
+  discomfort its trigger names.
+
+### Deliberately left out
+
+- **Anything visible.** The graph is data until Phase 3 draws it; until then a
+  bad reference fails `pnpm test` but not `pnpm build`.
+- **`stat` showing the new fields** — an OS change, on its backlog.
+- **Summaries for non-entry nodes.** `summary` exists in `graph.json` and is
+  empty everywhere: that is prose, and yours.

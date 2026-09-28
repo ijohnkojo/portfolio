@@ -66,6 +66,10 @@ draft: false
 | `draft` | no | `true` hides it from the web but keeps it in the OS |
 | `venue` | no | for `presentations` — the event |
 | `location` | no | for `presentations` — where it was |
+| `orgs` | no | ids of organisations in `content/home/graph.json` — see [Joining the graph](#joining-the-graph) |
+| `fields` | no | ids of fields of study, same file |
+| `tools` | no | ids of tools and languages, same file |
+| `related` | no | other entries, by slug — or `collection/slug` when a slug exists in two collections |
 
 Any other field you add stays in the file, so `cat` in the OS shows it and it
 costs nothing to add. It is **not** shown by `stat`, which prints only the named
@@ -74,6 +78,10 @@ fields above — making `stat` show every field is on the
 
 `title`, `summary`, and `date` are enforced: a missing one **fails the build**
 with the file path, rather than shipping a blank `<title>`.
+
+**A summary starting with `DRAFT` is a placeholder**, and `pnpm build` lists
+every published entry that still has one. It is a warning, not a failure — the
+build continues — until launch.
 
 **Keep a colon out of the `title`.** YAML would force you to quote it, and
 `lib/content.test.ts` asserts that the raw file contains `title: <the title>`
@@ -115,6 +123,74 @@ and all. `stat` prints its title, summary, date, tags and draft flag. `grep` sea
 `public/content/` by a prebuild step ([D-012](decisions.md)) and appears in the
 VFS as a node carrying a `src` rather than inline bytes. That is how a PDF stays
 out of the page payload.
+
+---
+
+## Joining the graph
+
+The home page is a knowledge graph of the work, and an entry joins it by
+naming what it connects to ([D-039](decisions.md)):
+
+```yaml
+orgs: [iris-hep]
+fields: [physics, cs]
+tools: [typescript, python, redis]
+related: [hq-agc-demo-day]
+```
+
+Each id in `orgs`, `fields` and `tools` must exist in
+`content/home/graph.json` with the matching `kind`; `related` names other
+entries. Anything that does not resolve **fails `pnpm test` naming the file**,
+and fails the build once the home page renders the graph. A reference to a
+*draft* is fine — the edge simply is not drawn until the draft is published
+([D-040](decisions.md)). Drafts are validated too, so a typo is caught while
+you are still writing.
+
+Only published entries are nodes. A tool that only drafts use is hidden.
+
+### `content/home/graph.json`
+
+Everything in the graph that is not an entry, plus the layout:
+
+```json
+{
+  "nodes": [
+    { "id": "iris-hep", "kind": "org", "label": "IRIS-HEP", "angle": 40, "href": "https://iris-hep.org" },
+    { "id": "gettysburg", "kind": "org", "label": "Gettysburg College", "angle": 100, "since": 2024 },
+    { "id": "python", "kind": "tool", "label": "Python", "angle": 75 }
+  ],
+  "links": [["fermilab", "cern-cms"]],
+  "entries": {
+    "papers/hq": { "angle": 20 },
+    "projects/personal-os": { "angle": 170, "opens": { "href": "/os", "label": "Launch the OS" } }
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `nodes[].id` | lowercase kebab-case, unique — what frontmatter refers to |
+| `nodes[].kind` | `org` or `field` (inner ring), `tool` (outer ring) |
+| `nodes[].label` | what the graph shows |
+| `angle` | degrees **clockwise from 12 o'clock**, like a clock face. Optional — see below |
+| `since` | the year a node joins the timeline, when no entry dates it well. Otherwise it joins with its earliest published entry |
+| `href` | optional; a site path or an `https://` URL |
+| `summary` | optional; the inspector's text for a non-entry node |
+| `links` | edges between two non-entry nodes |
+| `entries` | per entry, keyed `collection/slug`: an `angle`, and `opens` — the node becomes a link to `href` instead of opening the inspector. Used once, for the OS |
+
+Unknown keys fail too, so a misspelt `angel` is caught rather than ignored.
+
+**Angles.** Rings do not move and nothing is simulated ([D-041](decisions.md)).
+Set an angle by hand wherever you care where a node sits. A node without one is
+placed at the average angle of what it connects to on the ring inside it, or in
+the widest gap on its ring. `pnpm test` fails if two nodes on a ring end up
+too close in any year of the timeline — the message names the ring, the year,
+and every angle on it, and the fix is to hand-set one.
+
+**Adding a new tool** is one line in `nodes`, then its id in an entry's
+`tools`. A new entry needs no `graph.json` change at all unless the fallback
+angle crowds a neighbour.
 
 ---
 
@@ -186,15 +262,25 @@ is not**, and neither is a stray `{` or `}` in prose or inside a comment: any
 `{…}` is parsed as a JavaScript expression, and a malformed one fails the build
 with `Could not parse expression with acorn` rather than pointing at the line.
 
-**`content/home/`** is not a collection — it is loose content. `about.md` is
-what the OS's About app shows; `readme.md` is a guide to the filesystem for anyone
-exploring with the shell; `whoami.md` is the bio, and is the one file rendered
-in two places at once — the `whoami` command and the `/about` route
-([D-036](decisions.md)). Text files there are inlined so `cat` works; anything
-else gets a `src` like an entry asset.
+**`content/home/`** is not a collection — it is loose content. Every text file
+in it is also in the OS at `/home`, inlined so `cat` works; anything else gets
+a `src` like an entry asset. Which surface reads what:
 
-Files under `content/home/` that have a web route are **compiled as MDX**, so
-the comment rule above applies to them too — even though they are `.md`.
+| File | The site | The OS |
+|---|---|---|
+| `whoami.md` | `/about` ([D-036](decisions.md)) | `whoami`, `cat` |
+| `graph.json` | `/`, the graph ([D-039](decisions.md)) | `cat`, the viewer |
+| `about.md` | — | the About app |
+| `readme.md` | — | `cat` — a guide to the filesystem |
+| `now.md` | — | `cat` |
+
+A file the site reads is read by name, in exactly one place; adding a file here
+does not put it on the web.
+
+Markdown files under `content/home/` that have a web route are **compiled as
+MDX**, so the comment rule above applies to them too — even though they are
+`.md`. `graph.json` is parsed as JSON, and JSON has no comments: use the
+`$comment` key.
 
 ---
 

@@ -62,11 +62,15 @@ and carry a banner saying so.
 ## Current state
 
 **The site is being rebuilt around a knowledge graph** —
-[plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md). Phase 1 is
-done: the OS moved into `os/` and became a frozen project with its own docs
-(D-037), the content tests stopped depending on what is published (D-038), and
-the OS got a project entry of its own, `projects/personal-os`. The graph itself
-is Phases 2–5, not yet built.
+[plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md).
+
+- **Phase 1 done:** the OS moved into `os/` and became a frozen project with
+  its own docs (D-037); the content tests stopped depending on what is
+  published (D-038); the OS got a project entry, `projects/personal-os`.
+- **Phase 2 done:** the graph's data layer — typed frontmatter references,
+  `content/home/graph.json`, and pure, tested modules in `lib/graph/` (D-039 …
+  D-041). Nothing renders it yet.
+- **Next:** Phase 3 draws it on `/`.
 
 **Content:** seven entries, all published since `516e366` — but every summary
 still reads `DRAFT — replace this.` That is prose, not code, and it is the

@@ -52,7 +52,9 @@ Docs are updated **in the same commit** as the change, never afterwards.
    may import from the site only what `lib/boundary.test.ts` allows. D-037.
 2. **Logic lives in `lib/` as plain TypeScript and runs in bare node** — no
    DOM, no React. `components/` holds rendering. Pure logic that a client
-   component needs must not import `lib/content.ts`, which reads the disk.
+   component needs must not import `lib/content.ts`, which reads the disk:
+   `lib/graph/model.ts`, `layout.ts` and `interact.ts` are pure, `load.ts` is
+   the one that reads, and `lib/graph/purity.test.ts` holds that line.
 
 ### The OS — frozen
 
