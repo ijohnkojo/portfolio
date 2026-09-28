@@ -20,7 +20,10 @@
 > seeing it): the ring circles are no longer drawn, and the centre became a
 > large amber disc with "MICHAEL" inside and a soft glow — the site's one
 > accent, `--accent` in `globals.css` (D-045). The label-collision test now
-> keeps every label off the disc and its glow.
+> keeps every label off the disc and its glow. Then **straight edges** replaced
+> the design section's quadratic curves (D-046), with a new test that no edge
+> runs through a node it does not connect; three angles moved to satisfy it
+> (CERN/CMS 345 → 335, Gettysburg College 100 → 115, Python 88 → 70).
 >
 > **Phase 3 deviations:**
 >

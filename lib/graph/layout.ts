@@ -209,27 +209,3 @@ export const DESKTOP: Geometry = {
 export function nodePoint(angle: number, ring: Ring, geometry: Geometry): Point {
   return polar(angle, geometry.radii[ring], { x: geometry.width / 2, y: geometry.height / 2 })
 }
-
-/**
- * How far an edge bows toward the centre, from how far apart its ends are
- * round the circle: nodes at nearly the same angle get a straight line, nodes
- * on opposite sides the full bend. A fixed bend hooks a short edge between
- * neighbouring angles into a loop.
- */
-export function edgeBend(angleA: number, angleB: number, max = 0.35): number {
-  return max * Math.min(1, angularDistance(angleA, angleB) / 90)
-}
-
-const r1 = (n: number) => Math.round(n * 10) / 10
-
-/**
- * An edge as an SVG path: a quadratic curve whose control point is the
- * chord's midpoint pulled toward the centre by `bend` (0 is a straight line,
- * 1 passes through the centre). Bending inward keeps long edges off the
- * labels on the outside of the rings.
- */
-export function edgePath(a: Point, b: Point, centre: Point, bend = 0.35): string {
-  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-  const c = { x: mid.x + (centre.x - mid.x) * bend, y: mid.y + (centre.y - mid.y) * bend }
-  return `M ${r1(a.x)} ${r1(a.y)} Q ${r1(c.x)} ${r1(c.y)} ${r1(b.x)} ${r1(b.y)}`
-}

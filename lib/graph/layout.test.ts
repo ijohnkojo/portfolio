@@ -3,11 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   angularDistance,
   circularMean,
-  edgeBend,
   labelBox,
   overlaps,
   scaleGeometry,
-  edgePath,
   DESKTOP,
   labelSide,
   minSeparation,
@@ -122,27 +120,6 @@ describe('nodePoint', () => {
   it('keeps the centre disc well clear of the inner ring', () => {
     // At least its own radius of daylight between the disc and an inner mark.
     expect(DESKTOP.radii[1] - 6.5 - DESKTOP.centreRadius).toBeGreaterThanOrEqual(DESKTOP.centreRadius)
-  })
-})
-
-describe('edgePath', () => {
-  const c = { x: 0, y: 0 }
-
-  it('is a straight line at zero bend', () => {
-    expect(edgePath({ x: 10, y: 0 }, { x: 0, y: 10 }, c, 0)).toBe('M 10 0 Q 5 5 0 10')
-  })
-
-  it('pulls the control point toward the centre', () => {
-    expect(edgePath({ x: 10, y: 0 }, { x: 0, y: 10 }, c, 0.5)).toBe('M 10 0 Q 2.5 2.5 0 10')
-  })
-})
-
-describe('edgeBend', () => {
-  it('is straight for nodes at the same angle, full for nodes a quarter-turn or more apart', () => {
-    expect(edgeBend(70, 70)).toBe(0)
-    expect(edgeBend(0, 90)).toBe(0.35)
-    expect(edgeBend(0, 180)).toBe(0.35)
-    expect(edgeBend(350, 35)).toBeCloseTo(0.175)
   })
 })
 

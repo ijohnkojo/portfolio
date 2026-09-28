@@ -1340,3 +1340,17 @@ Asked for after Phase 3, with the reference site as the model.
   faded centre is a clean muted amber.
 - All 148 OS browser checks pass — `globals.css` is shared with the OS.
   `pnpm build` and `eslint` clean.
+
+### Then: straight edges
+
+- **Edges are straight lines**, node to node, drawn as SVG `<line>`s. The
+  curve helpers (`edgePath`, `edgeBend`) and their tests are gone.
+- **No edge may run through a node it does not connect** — a new test,
+  because straight lines can: HSCP → Python ran through CERN/CMS, and the
+  demo-day talk → Computer science through Gettysburg College, drawing
+  relations that are not there. The centre is exempt (D-046).
+- **Three angles moved** to satisfy it, found by searching nearby angles for a
+  layout that keeps every rule green: CERN/CMS 345 → 335, Gettysburg College
+  100 → 115, Python 88 → 70.
+- **577 unit tests** (−3 for the curve helpers, +1 for the edge rule); all 148
+  OS browser checks pass; build and lint clean.

@@ -1,4 +1,4 @@
-import { edgeBend, edgePath, nodePoint, type Geometry, type Point } from '@/lib/graph/layout'
+import { nodePoint, type Geometry, type Point } from '@/lib/graph/layout'
 import type { GraphData, GraphNode } from '@/lib/graph/model'
 
 /** What a highlight leaves at full strength; everything else fades. */
@@ -38,8 +38,6 @@ export function GraphCanvas({
   selected: string | null
   visible: Set<string>
 }) {
-  const centre = { x: geometry.width / 2, y: geometry.height / 2 }
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]))
   const at = new Map(graph.nodes.map((n) => [n.id, nodePoint(n.angle, n.ring, geometry)]))
   const opacity = (on: boolean, id?: string) => (lit && !on ? (id === 'me' ? FADED_CENTRE : FADED) : 1)
   const me = graph.nodes.find((n) => n.kind === 'me')
@@ -51,17 +49,20 @@ export function GraphCanvas({
       aria-hidden="true"
       focusable="false"
     >
-      <g fill="none" stroke="currentColor">
+      {/* Straight lines, node to node. Any that cross the middle pass under the centre disc. */}
+      <g stroke="currentColor">
         {graph.edges
           .filter((e) => visible.has(e.source) && visible.has(e.target))
           .map((e) => {
             const on = lit?.edges.has(e.id) ?? false
-            const spoke = e.source === 'me' || e.target === 'me'
-            const bend = spoke ? 0 : edgeBend(byId.get(e.source)!.angle, byId.get(e.target)!.angle)
+            const [a, b] = [at.get(e.source)!, at.get(e.target)!]
             return (
-              <path
+              <line
                 key={e.id}
-                d={edgePath(at.get(e.source)!, at.get(e.target)!, centre, bend)}
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
                 strokeWidth={on ? 1.5 : 1}
                 className={`${FADE} ${on ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-700'}`}
                 style={{ opacity: opacity(on) }}

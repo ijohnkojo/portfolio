@@ -160,7 +160,7 @@ flowchart LR
 | Module | Pure? | Does |
 |---|---|---|
 | `lib/graph/model.ts` | yes | types; `buildGraph(spec, entries, options)` — parses and validates `graph.json`, resolves every entry's references, builds nodes and edges, dates them for the timeline, fills in missing angles |
-| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`, `edgeBend`, `edgePath`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP` (with `centreRadius`), `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
+| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP` (with `centreRadius`), `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
 | `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups) |
 | `lib/graph/load.ts` | no | `loadGraph()` — reads `graph.json` and every entry, memoised like the content loader |
 
@@ -194,10 +194,11 @@ too.
 circular mean of its neighbours on the ring inside, else the widest empty arc,
 in id order. An entry with a long title can take a short `label` in
 `graph.json`; its full title stays in the inspector. `load.test.ts` holds the
-real graph to two legibility rules in every timeline year: a minimum angle
-between nodes on a ring, and no label overlapping another label, another
-node's mark, or the centre disc and its glow, checked at full size and at 80%
-([D-042](decisions.md)).
+real graph to three legibility rules: a minimum angle between nodes on a ring
+and no label overlapping another label, another node's mark, or the centre disc
+and its glow — both in every timeline year, the labels at full size and at 80%
+([D-042](decisions.md)) — and no straight edge passing through a node that is
+not one of its ends, the centre excepted ([D-046](decisions.md)).
 
 The real graph, as of this commit: 33 nodes, 49 edges, 2023–2026.
 
@@ -242,8 +243,9 @@ flowchart LR
 
 The active node, its neighbours and the edges from it stay at full strength;
 everything else goes to opacity 0.18, with a 150ms transition that
-`motion-reduce` turns off. Edges bow toward the centre in proportion to how far
-apart their ends are (`edgeBend`), so a short edge stays straight.
+`motion-reduce` turns off. Edges are straight lines, node to node
+([D-046](decisions.md)); one that crosses the middle passes under the centre
+disc.
 
 **Keyboard.** One tab stop — a roving `tabindex` — then `←`/`→` round a ring,
 `↑`/`↓` across rings, `Home` to the centre, `Enter` to select, `Escape` to clear.

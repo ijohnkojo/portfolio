@@ -63,6 +63,9 @@ the timeline is Phase 4 of the [plan](plans/2026-09-27-graph-home.md).
   boots the OS, and its mark and arrow say so before anyone clicks
   (**▸ Decided**, [D-044](decisions.md)).
 - **A timeline grows the graph year by year**, defaulting to the whole of it.
+- **Straight edges**, node to node, and none may run through a node it does
+  not connect — that would draw a relation that is not there. **▸ Decided**
+  ([D-046](decisions.md)).
 - **Drawn in SVG with React**, no graph library — under a layer of real HTML
   controls that carry the labels and the interaction (**▸ Decided**,
   [D-042](decisions.md)). Labels are checked for collisions by a test, at two

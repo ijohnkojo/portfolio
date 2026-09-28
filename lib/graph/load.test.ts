@@ -103,4 +103,29 @@ describe('the real graph', () => {
     }
     expect([...clashes].sort()).toEqual([])
   })
+
+  // Edges are straight lines, so an edge can run through a node it has nothing
+  // to do with — HSCP to Python once passed dead through CERN/CMS, reading as
+  // HSCP → CERN → Python. Every edge must clear every other node's mark. The
+  // centre is exempt: an edge between nodes on opposite sides cannot avoid it,
+  // and since everything connects to the centre, passing under it misleads no one.
+  it('draws no edge through a node that is not one of its ends', () => {
+    const CLEARANCE = 12 // frame units, from the node's centre
+    const at = new Map(graph.nodes.map((n) => [n.id, nodePoint(n.angle, n.ring, DESKTOP)]))
+    const through: string[] = []
+    for (const e of graph.edges) {
+      const a = at.get(e.source)!
+      const b = at.get(e.target)!
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      for (const n of graph.nodes) {
+        if (n.id === e.source || n.id === e.target || n.id === 'me') continue
+        const p = at.get(n.id)!
+        const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)))
+        const d = Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y)
+        if (d < CLEARANCE) through.push(`${e.id} passes ${d.toFixed(1)} from ${n.id}`)
+      }
+    }
+    expect(through).toEqual([])
+  })
 })

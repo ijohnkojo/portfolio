@@ -1360,3 +1360,36 @@ a phone.
 
 **Revisit when** a second element wants the accent, or the phone layout
 (Phase 5) makes the disc too small for the name.
+
+---
+
+## D-046 · 2026-09-28 · active
+### Edges are straight lines, and none may pass through a node that is not one of its ends
+
+Each edge is an SVG `<line>` from node to node. `load.test.ts` asserts that no
+edge passes within 12 frame units of any node other than its two ends — the
+centre excepted.
+
+**Why.** Asked for in the design pass: straight edges read as a diagram, where
+curves bowing toward the centre read as decoration. But a straight line has a
+failure a curve mostly dodges — it can run dead through an unrelated node, and
+then it lies: HSCP → Python passed 0.7 units from CERN/CMS and read as
+HSCP → CERN → Python; the demo-day talk → Computer science passed through
+Gettysburg College. So the rule is a test, like label collisions
+([D-042](#d-042--2026-09-27--active)). Clearing the four offending edges took
+three angle changes, found by a small search over nearby angles that kept every
+other legibility rule green: CERN/CMS 345 → 335, Gettysburg College 100 → 115,
+Python 88 → 70.
+
+**The centre is exempt.** An edge between nodes on nearly opposite sides cannot
+avoid it — two do (hq → Computer science, the talk → Physics) — and since every
+inner node connects to the centre anyway, an edge passing under the disc
+implies nothing false. The disc's solid backing hides the crossing.
+
+**Cost.** One more constraint on hand-set angles: moving a node can now fail the
+tests because of an edge, not just a label. The failure names the edge, the
+node and the distance, and the fix is still a few degrees.
+
+**Revisit when** the graph grows dense enough that no angles satisfy every
+rule at once — then edges want routing (or bundling), which is a different
+kind of drawing.
