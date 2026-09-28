@@ -60,6 +60,6 @@ scripts/*.png
 # generated: mirrored from content/ by scripts/sync-content-assets.mjs
 /public/content/
 
-#claude plans and stuff
+# Claude Code's local settings and scratch. Plans are NOT ignored: they are
+# committed to docs/plans/ so the reasoning stays with the repo (AGENTS.md).
 .claude
-docs/plans
