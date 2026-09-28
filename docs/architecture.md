@@ -260,19 +260,20 @@ a pointer. With nothing selected it is a legend of the marks. The OS node is a
 link rather than a button: clicking it boots the OS ([D-044](decisions.md)).
 
 **No prefetch of `/os`.** Every site link to `/os` sets `prefetch={false}` —
-the graph's OS node, the inspector's button, the footer, and the writeup
-footers. `/os` is static, so a prefetch would pull the entire VFS. The one
-exception is the `personal-os` page's own "Launch the OS" link, where booting is
-the likely next step.
+the graph's OS node, the inspector's button, and the writeup footers. `/os`
+is static, so a prefetch would pull the entire VFS. The one exception is the
+`personal-os` page's own "Launch the OS" link, where booting is the likely next
+step.
 
 ---
 
 ## Routes
 
 `app/(site)/` holds the site with its own chrome — header, nav and footer, each
-at reading width. `/about` and the collections sit in the nested
-`app/(site)/(reading)/` group, whose layout is the `max-w-3xl` column; the home
-page sits outside it and sets its own widths, so the graph can be wider than
+at reading width. The header's home link reads `home`; the chrome has no link
+to `/os`, which is reached from its node and its project page. `/about` and
+the collections sit in the nested `app/(site)/(reading)/` group, whose layout
+is the `max-w-3xl` column; the home page sits outside it and sets its own widths, so the graph can be wider than
 the text ([D-043](decisions.md)). `/os` sits outside `(site)` altogether because
 it is full-viewport and brings its own.
 
@@ -311,10 +312,6 @@ JavaScript disabled and that the OS reads the same bytes.
 
 ## Known gaps
 
-- **The chrome still frames the site as an OS.** The header name
-  `personal-os`, the home page's "This site is a mock operating system"
-  paragraph, and the footer line carry `PLACEHOLDER` comments; the `/os` nav
-  item and the `boot →` button are gone.
 - **The graph circle sits left of the page's centre line** beside the inspector
   on wide screens: the graph and the panel are centred together.
 - **`stat` in the OS does not show the graph fields.** `cat` does. On the

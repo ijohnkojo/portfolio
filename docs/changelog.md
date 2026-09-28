@@ -1354,3 +1354,33 @@ Asked for after Phase 3, with the reference site as the model.
   100 → 115, Python 88 → 70.
 - **577 unit tests** (−3 for the curve helpers, +1 for the edge rule); all 148
   OS browser checks pass; build and lint clean.
+
+---
+
+## 2026-09-28 — The chrome stops calling the site an OS
+
+Before Phase 4, asked for after seeing the page: the home page is not the OS
+any more, so the chrome should stop saying it is.
+
+### Built
+
+- **The header's home link reads `home`**, not `personal-os`. That name is
+  the OS project's title now (D-037).
+- **The "This site is a mock operating system" paragraph is gone** from the
+  home page.
+- **The footer's "built as an operating system — the shell is at /os" line is
+  gone.** The chrome no longer links to `/os` anywhere; the OS is reached from
+  its node and its project page, like any other project.
+- The root layout's comment about "personal-os branding" went with it.
+
+### Verified
+
+- `pnpm test`, `pnpm lint`, `pnpm build` clean; all 148 OS browser checks
+  pass (they boot `/os` by URL, not through the chrome).
+
+### Deliberately left out
+
+- **The intro sentence and `SITE_DESCRIPTION`** keep their `PLACEHOLDER`
+  comments — they are copy still to be written, not OS references.
+- Inside the OS, `personal-os` still names the boot banner and the taskbar:
+  the OS is frozen, and that is its own name.

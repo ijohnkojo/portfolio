@@ -713,6 +713,12 @@ Each gets a `PLACEHOLDER` comment saying what changed. `SITE_DESCRIPTION`
 already has one. The `/os` nav item and the `boot →` button are removed, not
 placeholdered ([answer 5](#answered-2026-09-27)).
 
+> **Resolved 2026-09-28, before Phase 4:** the header's name became `home`;
+> the "mock operating system" paragraph and the footer's OS line were
+> removed, so the chrome no longer links to `/os`; the root layout's comment
+> lost its `personal-os` sentence. The intro paragraph and `SITE_DESCRIPTION`
+> keep their `PLACEHOLDER`s — those are copy still to write.
+
 ## What was taken from the reference
 
 Ideas only, from its README (the live site renders client-side and yielded

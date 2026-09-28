@@ -16,9 +16,7 @@ const geistMono = Geist_Mono({
 
 /**
  * The default title is the person, not the project: someone searching a name
- * should land here, and a browser tab should say whose site this is. The
- * "personal-os" branding stays in the page chrome, where it is a name for the
- * thing rather than an answer to "who is this".
+ * should land here, and a browser tab should say whose site this is.
  */
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

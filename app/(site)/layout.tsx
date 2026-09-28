@@ -15,13 +15,12 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
     <div className="flex min-h-dvh w-full flex-col">
       <header className="mx-auto flex w-full max-w-3xl items-center gap-6 px-6 py-8 font-mono text-sm">
         {/*
-          PLACEHOLDER — the site's name in its own header. `personal-os` named
-          the old framing, when the site *was* the OS; the OS is now one project
-          on the graph (D-037), and this is also that project's title. Replace
-          it with whatever the site should be called.
+          `home`, not a brand: the site is the person's work, and the page
+          heading already says whose. `personal-os` is the OS project's title
+          now, not the site's (D-037).
         */}
         <Link href="/" className="font-medium tracking-tight">
-          personal-os
+          home
         </Link>
         <nav className="flex items-center gap-4 text-neutral-500">
           <Link href="/about" className="hover:text-current">
@@ -57,19 +56,6 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
           >
             github
           </a>
-          {/*
-            PLACEHOLDER — this line describes the old framing: the site as an
-            operating system. The OS is now one project, reached from its node on
-            the graph and its page at /projects/personal-os. Rewrite or remove.
-            While it stays, its link is the last one to /os in the chrome, and
-            prefetch is off so it does not pull the whole OS on every page.
-          */}
-          <span className="text-neutral-400 dark:text-neutral-600">
-            built as an operating system — the shell is at{' '}
-            <Link href="/os" prefetch={false} className="underline underline-offset-2">
-              /os
-            </Link>
-          </span>
         </div>
       </footer>
     </div>

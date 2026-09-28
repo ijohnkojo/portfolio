@@ -41,17 +41,6 @@ export default function Home() {
           Physics and computer science at Gettysburg College. I work on
           software for experimental particle physics.
         </p>
-        {/*
-          PLACEHOLDER — this paragraph describes the old framing, when the site
-          *was* a mock operating system. The site is now this graph of the work,
-          with the OS as one project on it (D-037). Rewrite or remove. The
-          second sentence still holds: everything is also a real URL.
-        */}
-        <p className="max-w-[60ch] leading-7 text-neutral-700 dark:text-neutral-300">
-          This site is a mock operating system. Everything below is also a real
-          URL, server-rendered — the OS is one way to read it, not the only
-          one.
-        </p>
         <Link
           href="/about"
           className="inline-block font-mono text-sm text-neutral-500 underline underline-offset-4 hover:text-current"
