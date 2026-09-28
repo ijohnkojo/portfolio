@@ -53,7 +53,7 @@ export function EntryArticle({ entry }: { entry: Entry }) {
       <footer className="mt-16 border-t border-neutral-200 pt-6 dark:border-neutral-800">
         <p className="font-mono text-xs text-neutral-500">
           Also readable inside the OS at{' '}
-          <Link href="/os" className="underline underline-offset-2">
+          <Link href="/os" prefetch={false} className="underline underline-offset-2">
             {entry.vfsPath}
           </Link>
         </p>
@@ -83,7 +83,7 @@ export function HomeArticle({ file }: { file: HomeFile }) {
       <footer className="mt-16 border-t border-neutral-200 pt-6 dark:border-neutral-800">
         <p className="font-mono text-xs text-neutral-500">
           The same file inside the OS at{' '}
-          <Link href="/os" className="underline underline-offset-2">
+          <Link href="/os" prefetch={false} className="underline underline-offset-2">
             {file.vfsPath}
           </Link>
         </p>

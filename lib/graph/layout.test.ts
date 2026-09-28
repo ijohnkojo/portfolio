@@ -3,9 +3,15 @@ import { describe, expect, it } from 'vitest'
 import {
   angularDistance,
   circularMean,
+  edgeBend,
+  labelBox,
+  overlaps,
+  scaleGeometry,
   edgePath,
-  labelAnchor,
+  DESKTOP,
+  labelSide,
   minSeparation,
+  nodePoint,
   normaliseAngle,
   polar,
   roundAngle,
@@ -87,13 +93,30 @@ describe('polar', () => {
   })
 })
 
-describe('labelAnchor', () => {
-  it('reads away from the centre, centred at top and bottom', () => {
-    expect(labelAnchor(0)).toBe('middle')
-    expect(labelAnchor(180)).toBe('middle')
-    expect(labelAnchor(90)).toBe('start')
-    expect(labelAnchor(270)).toBe('end')
-    expect(labelAnchor(355)).toBe('middle')
+describe('labelSide', () => {
+  it('reads away from the centre, above and below near 12 and 6 o’clock', () => {
+    expect(labelSide(0, 1)).toBe('above')
+    expect(labelSide(350, 3)).toBe('above')
+    expect(labelSide(180, 2)).toBe('below')
+    expect(labelSide(90, 2)).toBe('right')
+    expect(labelSide(270, 2)).toBe('left')
+  })
+
+  it('puts the centre’s label below it', () => {
+    expect(labelSide(0, 0)).toBe('below')
+  })
+})
+
+describe('nodePoint', () => {
+  it('puts the centre at the middle of the frame, and rings at their radii', () => {
+    expect(nodePoint(0, 0, DESKTOP)).toEqual({ x: DESKTOP.width / 2, y: DESKTOP.height / 2 })
+    const p = nodePoint(90, 3, DESKTOP)
+    close(p.x, DESKTOP.width / 2 + DESKTOP.radii[3])
+    close(p.y, DESKTOP.height / 2)
+  })
+
+  it('leaves room inside the frame for every ring', () => {
+    expect(DESKTOP.radii[3] * 2).toBeLessThan(Math.min(DESKTOP.width, DESKTOP.height))
   })
 })
 
@@ -106,5 +129,54 @@ describe('edgePath', () => {
 
   it('pulls the control point toward the centre', () => {
     expect(edgePath({ x: 10, y: 0 }, { x: 0, y: 10 }, c, 0.5)).toBe('M 10 0 Q 2.5 2.5 0 10')
+  })
+})
+
+describe('edgeBend', () => {
+  it('is straight for nodes at the same angle, full for nodes a quarter-turn or more apart', () => {
+    expect(edgeBend(70, 70)).toBe(0)
+    expect(edgeBend(0, 90)).toBe(0.35)
+    expect(edgeBend(0, 180)).toBe(0.35)
+    expect(edgeBend(350, 35)).toBeCloseTo(0.175)
+  })
+})
+
+describe('labelBox', () => {
+  const at = { x: 100, y: 100 }
+
+  it('sits beyond the hit square, on the given side', () => {
+    const right = labelBox('abcd', at, 'right', 2)
+    expect(right.left).toBe(116)
+    expect(right.right).toBeCloseTo(116 + 4 * 12 * 0.55)
+    const left = labelBox('abcd', at, 'left', 2)
+    expect(left.right).toBe(84)
+    expect(labelBox('abcd', at, 'above', 2).bottom).toBe(84)
+    expect(labelBox('abcd', at, 'below', 2).top).toBe(116)
+  })
+
+  it('never grows past the truncation width', () => {
+    const b = labelBox('x'.repeat(200), at, 'right', 2)
+    expect(b.right - b.left).toBe(176)
+  })
+})
+
+describe('overlaps', () => {
+  const a = { left: 0, top: 0, right: 10, bottom: 10 }
+
+  it('is true for intersecting boxes and false for separate ones', () => {
+    expect(overlaps(a, { left: 5, top: 5, right: 15, bottom: 15 })).toBe(true)
+    expect(overlaps(a, { left: 11, top: 0, right: 20, bottom: 10 })).toBe(false)
+  })
+
+  it('treats padding as required clearance', () => {
+    expect(overlaps(a, { left: 11, top: 0, right: 20, bottom: 10 }, 2)).toBe(true)
+  })
+})
+
+describe('scaleGeometry', () => {
+  it('scales the frame and every radius together', () => {
+    const g = scaleGeometry(DESKTOP, 0.5)
+    expect(g.width).toBe(DESKTOP.width / 2)
+    expect(g.radii[3]).toBe(DESKTOP.radii[3] / 2)
   })
 })

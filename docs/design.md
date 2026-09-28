@@ -38,9 +38,10 @@ booted by clicking it. It lives in `os/` as a separate project, frozen while the
 site is rebuilt; the site never imports it ([D-037](decisions.md)). Work that
 would change the OS waits in [os/backlog.md](os/backlog.md).
 
-## 3. The graph
+## 3. The graph — ▸ Built, except the timeline
 
-Intent; details in the [plan](plans/2026-09-27-graph-home.md#design-the-graph).
+As built in [architecture.md § The home graph](architecture.md#the-home-graph);
+the timeline is Phase 4 of the [plan](plans/2026-09-27-graph-home.md).
 
 - **Rings at fixed, hand-set angles** — no force simulation, so the layout reads
   as designed and nothing moves when the pointer does. **▸ Decided**
@@ -50,13 +51,21 @@ Intent; details in the [plan](plans/2026-09-27-graph-home.md#design-the-graph).
   computer science; more as work arrives). Middle ring: published entries. Outer
   ring: tools and languages.
 - **Hover traces.** A node, its direct neighbours and the edges to them stay at
-  full strength; everything else fades to about a fifth.
+  full strength; everything else fades to about a fifth. Keyboard focus traces
+  the same way.
 - **Click inspects.** The node stays selected and an inspector opens: summary,
   tags, a link to its page, and its connections as buttons, so the panel is a
   second way to walk the graph. The OS node is the one exception — clicking it
-  boots the OS.
+  boots the OS, and its mark and arrow say so before anyone clicks
+  (**▸ Decided**, [D-044](decisions.md)).
 - **A timeline grows the graph year by year**, defaulting to the whole of it.
-- **Drawn in SVG with React**, no graph library.
+- **Drawn in SVG with React**, no graph library — under a layer of real HTML
+  controls that carry the labels and the interaction (**▸ Decided**,
+  [D-042](decisions.md)). Labels are checked for collisions by a test, at two
+  sizes, in every year.
+- **Wider than the text around it.** The home page sits outside the reading
+  column (**▸ Decided**, [D-043](decisions.md)); the listings under the graph
+  return to it.
 
 ## 4. Data — ▸ Built
 
@@ -80,7 +89,8 @@ it in [authoring.md § Joining the graph](authoring.md#joining-the-graph).)
 - **A real phone layout** — a compact graph and a bottom-sheet inspector — not
   the desktop one shrunk.
 - **Every control is a real `<button>` or `<a>`**, and the graph is navigable
-  from the keyboard.
+  from the keyboard — one tab stop, arrow keys between nodes. **▸ Built**
+  ([D-042](decisions.md)); a full accessibility pass is Phase 5.
 - **Motion respects `prefers-reduced-motion`.**
 
 ## 6. Out of scope for now

@@ -69,8 +69,11 @@ and carry a banner saying so.
   published (D-038); the OS got a project entry, `projects/personal-os`.
 - **Phase 2 done:** the graph's data layer — typed frontmatter references,
   `content/home/graph.json`, and pure, tested modules in `lib/graph/` (D-039 …
-  D-041). Nothing renders it yet.
-- **Next:** Phase 3 draws it on `/`.
+  D-041).
+- **Phase 3 done:** the graph is drawn on `/` — rings, hover tracing, the
+  inspector, keyboard navigation — and the reading pages moved into a
+  `(reading)` route group (D-042 … D-044).
+- **Next:** Phase 4, the timeline.
 
 **Content:** seven entries, all published since `516e366` — but every summary
 still reads `DRAFT — replace this.` That is prose, not code, and it is the

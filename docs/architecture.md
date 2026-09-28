@@ -7,8 +7,10 @@ file is right and the design doc needs a patch.
 **Status, 2026-09-27:** the site is a set of server-rendered pages built from
 `content/` — a home page listing the work, `/about`, and a listing and detail
 route per collection. It is being rebuilt around a knowledge graph of the work
-([plan](plans/2026-09-27-graph-home.md)). The graph's **data layer** is built —
-[§ The home graph](#the-home-graph) — and nothing renders it yet. The
+([plan](plans/2026-09-27-graph-home.md)). The graph is built and drawn on `/`
+— [§ The home graph](#the-home-graph) — with hover tracing, an inspector and
+keyboard navigation; the timeline, the phone layout and the accessibility pass
+are still to come. The
 OS that used to be the site's framing is now a separate, frozen project in
 `os/`, documented in [os/architecture.md](os/architecture.md).
 
@@ -18,10 +20,11 @@ OS that used to be the site's framing is now a separate, frozen project in
 
 ```
 app/
-  (site)/          the site's routes and chrome
+  (site)/          the site's chrome, and the home page
+    (reading)/     /about and the collections, at reading width (D-043)
   os/page.tsx      /os — a route only; everything behind it lives in os/
   layout.tsx sitemap.ts robots.ts
-components/        entry.tsx (article, listing), mdx.tsx (typography)
+components/        entry.tsx (article, listing), mdx.tsx (typography), graph/ (the home graph)
 lib/               content.ts (the pipeline), graph/ (the home graph), memo.ts, site.ts
 os/                the OS: kernel/ wm/ apps/ registry/ hooks/, OsShell.tsx, vfsTree.ts
 content/           the source of truth for both
@@ -133,8 +136,8 @@ the URL of their mirrored copy; the OS mounts every one at `/home`.
 
 ## The home graph
 
-The home page's knowledge graph, built from content ([D-039](decisions.md)).
-**Data layer only so far** — nothing renders it yet.
+The home page's knowledge graph, built from content ([D-039](decisions.md))
+and drawn on `/`.
 
 ```mermaid
 flowchart LR
@@ -157,16 +160,16 @@ flowchart LR
 | Module | Pure? | Does |
 |---|---|---|
 | `lib/graph/model.ts` | yes | types; `buildGraph(spec, entries, options)` — parses and validates `graph.json`, resolves every entry's references, builds nodes and edges, dates them for the timeline, fills in missing angles |
-| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `circularMean`, `widestGapMidpoint`, `minSeparation`, `labelAnchor`, `edgePath`; `MIN_SEPARATION` per ring |
-| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `nextNode` (keyboard moves) |
+| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`, `edgeBend`, `edgePath`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP`, `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
+| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups) |
 | `lib/graph/load.ts` | no | `loadGraph()` — reads `graph.json` and every entry, memoised like the content loader |
 
-The pure three are what the client component will import; `purity.test.ts`
+The pure three are what the client component imports; `purity.test.ts`
 fails if any of them imports `node:*`, React, Next, `lib/content`, the OS or
 `load.ts`. Type-only imports are allowed, since they are erased.
 
 **Shape.** `GraphData` is `{ nodes, edges, years }` — plain objects, which is
-how it will cross from the server component to the client, exactly as `/os`
+how it crosses from the server component to the client, exactly as `/os`
 receives its filesystem ([D-011](decisions.md)).
 
 | Node kind | Ring | Id | From |
@@ -189,22 +192,83 @@ too.
 
 **Layout** ([D-041](decisions.md)): hand-set angles win; a missing one takes the
 circular mean of its neighbours on the ring inside, else the widest empty arc,
-in id order. `load.test.ts` holds the real graph to a minimum separation per
-ring in every timeline year.
+in id order. An entry with a long title can take a short `label` in
+`graph.json`; its full title stays in the inspector. `load.test.ts` holds the
+real graph to two legibility rules in every timeline year: a minimum angle
+between nodes on a ring, and no label overlapping another label or another
+node's mark, checked at full size and at 80% ([D-042](decisions.md)).
 
 The real graph, as of this commit: 33 nodes, 49 edges, 2023–2026.
+
+### Drawing it
+
+```
+app/(site)/page.tsx                 server — loadGraph(), then <KnowledgeGraph graph={…} />
+components/graph/KnowledgeGraph.tsx 'use client' — interaction state only
+components/graph/GraphCanvas.tsx    the SVG: rings, edges, marks. aria-hidden, no pointer events
+components/graph/NodeLayer.tsx      one <button> per node (the OS: a link), over its mark
+components/graph/Inspector.tsx      the panel: legend when empty, the node and its connections when not
+```
+
+The page builds the graph during its static render, so a bad reference in any
+entry **fails `pnpm build`**, naming the file. `/` is still fully static.
+
+**Two layers, one coordinate function** ([D-042](decisions.md)). The SVG draws;
+the HTML layer above it is what you touch. Both place nodes with `nodePoint` in
+the `DESKTOP` frame (800 × 660, rings at 110 / 200 / 290), and the box keeps
+that aspect ratio, so a control sits exactly over its mark. Each control is an
+invisible 20px square over the mark plus the label, on the side `labelSide`
+picks — outward, or above and below near 12 and 6 o'clock.
+
+**What lights up** is one rule, in `KnowledgeGraph`:
+
+```mermaid
+flowchart LR
+    H{"hovering<br/>a node?"} -- yes --> HN["that node"]
+    H -- no --> F{"focus inside<br/>the graph?"}
+    F -- yes --> FN["the focused node"]
+    F -- no --> S{"a node<br/>selected?"}
+    S -- yes --> SN["the selection"]
+    S -- no --> NONE["nothing — all at full strength"]
+```
+
+The active node, its neighbours and the edges from it stay at full strength;
+everything else goes to opacity 0.18, with a 150ms transition that
+`motion-reduce` turns off. Edges bow toward the centre in proportion to how far
+apart their ends are (`edgeBend`), so a short edge stays straight.
+
+**Keyboard.** One tab stop — a roving `tabindex` — then `←`/`→` round a ring,
+`↑`/`↓` across rings, `Home` to the centre, `Enter` to select, `Escape` to clear.
+Moves come from the pure `nextNode`. Instructions are in a visually hidden
+paragraph the group points to with `aria-describedby`, and each control's
+accessible name adds its kind and year ("TreeViz, Project, 2025").
+
+**The inspector** shows, for a selected node: its kind and date, title, summary,
+tags, a link to its page (or an organisation's site), and its connections
+grouped by kind as buttons that select them — a way to walk the graph without
+a pointer. With nothing selected it is a legend of the marks. The OS node is a
+link rather than a button: clicking it boots the OS ([D-044](decisions.md)).
+
+**No prefetch of `/os`.** Every site link to `/os` sets `prefetch={false}` —
+the graph's OS node, the inspector's button, the footer, and the writeup
+footers. `/os` is static, so a prefetch would pull the entire VFS. The one
+exception is the `personal-os` page's own "Launch the OS" link, where booting is
+the likely next step.
 
 ---
 
 ## Routes
 
-`app/(site)/` holds the site with its own chrome — header, nav, footer, and a
-`max-w-3xl` reading width. `/os` sits outside that route group because it is
-full-viewport and brings its own.
+`app/(site)/` holds the site with its own chrome — header, nav and footer, each
+at reading width. `/about` and the collections sit in the nested
+`app/(site)/(reading)/` group, whose layout is the `max-w-3xl` column; the home
+page sits outside it and sets its own widths, so the graph can be wider than
+the text ([D-043](decisions.md)). `/os` sits outside `(site)` altogether because
+it is full-viewport and brings its own.
 
 | Route | Renders |
 |---|---|
-| `/` | name, a short introduction, and the three collections through `EntryList` |
+| `/` | name and introduction; the graph ([§ The home graph](#the-home-graph)); then the three collections through `EntryList`, server-rendered, which do not depend on the graph or on JavaScript |
 | `/about` | `HomeArticle` over `content/home/whoami.md` |
 | `/projects` · `/papers` · `/presentations` | `EntryList` for the collection |
 | `/<collection>/<slug>` | `EntryArticle` — `generateStaticParams` from `listEntries`, `generateMetadata` from frontmatter, `notFound()` otherwise |
@@ -237,19 +301,16 @@ JavaScript disabled and that the OS reads the same bytes.
 
 ## Known gaps
 
-- **The home page is a list, not the graph.** The graph's data is built and
-  tested; nothing renders it until Phase 3. Until then a bad reference fails
-  `pnpm test` but not `pnpm build`, because no route calls `loadGraph()`.
+- **The chrome still frames the site as an OS.** The header name
+  `personal-os`, the home page's "This site is a mock operating system"
+  paragraph, and the footer line carry `PLACEHOLDER` comments; the `/os` nav
+  item and the `boot →` button are gone.
+- **The graph circle sits left of the page's centre line** beside the inspector
+  on wide screens: the graph and the panel are centred together.
 - **`stat` in the OS does not show the graph fields.** `cat` does. On the
   [OS backlog](os/backlog.md).
-- **The chrome still frames the site as an OS.** The header name
-  `personal-os`, the `/os` nav item, the home page's `boot →` button, its
-  "This site is a mock operating system" paragraph, and the footer line.
-- **Every visible link to `/os` prefetches the whole OS in production.** `/os`
-  is static, so `<Link>` fetches the full route and its data — the entire VFS
-  tree ([D-011](decisions.md)) — as soon as a link to it scrolls into view. The
-  header, footer and `boot →` link do that on every page today.
 - **Published summaries are placeholders.** All seven published entries still
   read `DRAFT — replace this.`
-- **No phone layout and no accessibility work** beyond what plain
-  server-rendered HTML gives for free.
+- **No timeline yet** — the graph shows every year at once. Phase 4.
+- **No phone layout.** Below `lg` the inspector drops under the graph; on a
+  phone the drawing is too small for its labels. Phase 5.

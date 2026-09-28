@@ -1,13 +1,25 @@
 import Link from 'next/link'
 
 /**
- * Chrome for the crawlable half of the site. `/os` sits outside this route
- * group deliberately — the OS is full-viewport and brings its own furniture.
+ * Chrome for the site. `/os` sits outside this route group deliberately — the
+ * OS is full-viewport and brings its own furniture.
+ *
+ * The width is set per region rather than once for the page: the header and
+ * footer keep the reading width everywhere, pages in `(reading)/` get the same
+ * column, and the home page sets its own so the graph can be wider than the
+ * text around it (D-043). Everything is centred, so the wider graph still
+ * lines up with the header above it.
  */
 export default function SiteLayout({ children }: LayoutProps<'/'>) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-6">
-      <header className="flex items-center gap-6 py-8 font-mono text-sm">
+    <div className="flex min-h-dvh w-full flex-col">
+      <header className="mx-auto flex w-full max-w-3xl items-center gap-6 px-6 py-8 font-mono text-sm">
+        {/*
+          PLACEHOLDER — the site's name in its own header. `personal-os` named
+          the old framing, when the site *was* the OS; the OS is now one project
+          on the graph (D-037), and this is also that project's title. Replace
+          it with whatever the site should be called.
+        */}
         <Link href="/" className="font-medium tracking-tight">
           personal-os
         </Link>
@@ -24,35 +36,41 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
           <Link href="/presentations" className="hover:text-current">
             talks
           </Link>
-          <Link href="/os" className="hover:text-current">
-            /os
-          </Link>
         </nav>
       </header>
 
       <main className="flex-1 py-8">{children}</main>
 
-      <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-neutral-200 py-8 font-mono text-xs text-neutral-500 dark:border-neutral-800">
-        <a
-          href="mailto:ijohnkojo@gmail.com"
-          className="underline underline-offset-2 hover:text-current"
-        >
-          ijohnkojo@gmail.com
-        </a>
-        <a
-          href="https://github.com/ijohnkojo"
-          target="_blank"
-          rel="noreferrer noopener"
-          className="underline underline-offset-2 hover:text-current"
-        >
-          github
-        </a>
-        <span className="text-neutral-400 dark:text-neutral-600">
-          built as an operating system — the shell is at{' '}
-          <Link href="/os" className="underline underline-offset-2">
-            /os
-          </Link>
-        </span>
+      <footer className="mx-auto w-full max-w-3xl px-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-neutral-200 py-8 font-mono text-xs text-neutral-500 dark:border-neutral-800">
+          <a
+            href="mailto:ijohnkojo@gmail.com"
+            className="underline underline-offset-2 hover:text-current"
+          >
+            ijohnkojo@gmail.com
+          </a>
+          <a
+            href="https://github.com/ijohnkojo"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="underline underline-offset-2 hover:text-current"
+          >
+            github
+          </a>
+          {/*
+            PLACEHOLDER — this line describes the old framing: the site as an
+            operating system. The OS is now one project, reached from its node on
+            the graph and its page at /projects/personal-os. Rewrite or remove.
+            While it stays, its link is the last one to /os in the chrome, and
+            prefetch is off so it does not pull the whole OS on every page.
+          */}
+          <span className="text-neutral-400 dark:text-neutral-600">
+            built as an operating system — the shell is at{' '}
+            <Link href="/os" prefetch={false} className="underline underline-offset-2">
+              /os
+            </Link>
+          </span>
+        </div>
       </footer>
     </div>
   )

@@ -113,3 +113,38 @@ export function nextNode(index: GraphIndex, current: string, move: NavMove, visi
   }
   return current
 }
+
+/** What a node is, in a word — the inspector's eyebrow and part of its accessible name. */
+export function kindLabel(node: GraphNode): string {
+  if (node.kind === 'entry') {
+    return { projects: 'Project', papers: 'Paper', presentations: 'Talk' }[node.collection ?? 'projects']
+  }
+  return { me: 'Me', org: 'Organisation', field: 'Field', tool: 'Tool' }[node.kind]
+}
+
+export interface ConnectionGroup {
+  title: string
+  nodes: GraphNode[]
+}
+
+const GROUPS: Array<{ title: string; kinds: GraphNode['kind'][] }> = [
+  { title: 'Organisations', kinds: ['org'] },
+  { title: 'Fields', kinds: ['field'] },
+  { title: 'Work', kinds: ['entry'] },
+  { title: 'Tools', kinds: ['tool'] },
+]
+
+/**
+ * A node's connections as the inspector lists them: grouped by kind, sorted by
+ * label, hidden nodes left out. The centre is left out too — every inner node
+ * connects to it, so listing it says nothing.
+ */
+export function connections(index: GraphIndex, id: string, visible?: Set<string>): ConnectionGroup[] {
+  const around = [...(index.adjacent.get(id) ?? [])]
+    .filter((n) => n !== 'me' && (!visible || visible.has(n)))
+    .map((n) => index.byId.get(n)!)
+  return GROUPS.map(({ title, kinds }) => ({
+    title,
+    nodes: around.filter((n) => kinds.includes(n.kind)).sort((a, b) => a.label.localeCompare(b.label)),
+  })).filter((g) => g.nodes.length > 0)
+}

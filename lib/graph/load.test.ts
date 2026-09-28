@@ -8,7 +8,17 @@ import { describe, expect, it } from 'vitest'
 import { allEntries, getHomeFile, listAllPublished, listHomeFiles } from '@/lib/content'
 
 import { visibleAt } from './interact'
-import { MIN_SEPARATION, minSeparation } from './layout'
+import {
+  DESKTOP,
+  labelBox,
+  labelSide,
+  MIN_SEPARATION,
+  minSeparation,
+  nodePoint,
+  overlaps,
+  scaleGeometry,
+  type Box,
+} from './layout'
 import { GRAPH_FILE, loadGraph } from './load'
 
 const graph = loadGraph()
@@ -55,5 +65,41 @@ describe('the real graph', () => {
         )
       }
     }
+  })
+
+  // A label runs outward, so it can collide with a node on the next ring out
+  // or with another ring's label — something ring spacing alone cannot see.
+  // Checked at full size and at 80%, about where the graph sits beside the
+  // inspector at 1024px wide. Labels stay the same pixel size as the drawing
+  // shrinks, which is why the smaller scale is the harder test.
+  it.each([1, 0.8])('keeps labels clear of each other and of other marks at %s scale', (scale) => {
+    const geometry = scaleGeometry(DESKTOP, scale)
+    const mark = 7 * scale
+    const { first, last } = graph.years!
+    const clashes = new Set<string>()
+
+    for (let year = first; year <= last; year++) {
+      const shown = graph.nodes.filter((n) => visibleAt(graph, year).nodes.has(n.id))
+      const placed = shown.map((n) => {
+        const at = nodePoint(n.angle, n.ring, geometry)
+        const text = n.opens ? `${n.label} ↗` : n.label
+        return { id: n.id, at, box: labelBox(text, at, labelSide(n.angle, n.ring), n.ring) }
+      })
+      const markBox = (p: (typeof placed)[number]): Box => ({
+        left: p.at.x - mark,
+        right: p.at.x + mark,
+        top: p.at.y - mark,
+        bottom: p.at.y + mark,
+      })
+
+      for (const a of placed) {
+        for (const b of placed) {
+          if (a.id === b.id) continue
+          if (a.id < b.id && overlaps(a.box, b.box, 2)) clashes.add(`${a.id} label × ${b.id} label`)
+          if (overlaps(a.box, markBox(b), 1)) clashes.add(`${a.id} label × ${b.id} mark`)
+        }
+      }
+    }
+    expect([...clashes].sort()).toEqual([])
   })
 })

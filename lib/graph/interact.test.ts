@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { highlight, indexGraph, neighbours, nextNode, visibleAt } from './interact'
+import { connections, highlight, indexGraph, kindLabel, neighbours, nextNode, visibleAt } from './interact'
 import type { GraphData, GraphNode } from './model'
 
 /*
@@ -13,7 +13,7 @@ import type { GraphData, GraphNode } from './model'
  */
 const node = (id: string, ring: GraphNode['ring'], angle: number, year: number | null = null): GraphNode => ({
   id,
-  kind: ring === 0 ? 'me' : ring === 1 ? 'org' : ring === 2 ? 'entry' : 'tool',
+  kind: (id === 'me' ? 'me' : id.split(':')[0]) as GraphNode['kind'],
   ring,
   label: id,
   angle,
@@ -118,5 +118,37 @@ describe('nextNode — keyboard moves', () => {
     expect(nextNode(index, 'entry:e1', 'next', in2024)).toBe('entry:e1') // e2, e3 not yet
     const noEntries = new Set(['me', 'org:a', 'field:b', 'tool:t'])
     expect(nextNode(index, 'tool:t', 'inward', noEntries)).toBe('org:a')
+  })
+})
+
+describe('kindLabel', () => {
+  it('names entries by collection and everything else by kind', () => {
+    expect(kindLabel({ ...node('entry:x', 2, 0), collection: 'papers' })).toBe('Paper')
+    expect(kindLabel({ ...node('entry:y', 2, 0), collection: 'presentations' })).toBe('Talk')
+    expect(kindLabel(node('org:a', 1, 0))).toBe('Organisation')
+    expect(kindLabel(node('tool:t', 3, 0))).toBe('Tool')
+  })
+})
+
+describe('connections', () => {
+  it('groups by kind in a fixed order, sorted by label', () => {
+    expect(connections(index, 'entry:e1').map((g) => [g.title, g.nodes.map((n) => n.id)])).toEqual([
+      ['Organisations', ['org:a']],
+      ['Work', ['entry:e2']],
+      ['Tools', ['tool:t']],
+    ])
+  })
+
+  it('leaves out the centre, which every inner node connects to', () => {
+    expect(connections(index, 'org:a').flatMap((g) => g.nodes.map((n) => n.id))).toEqual(['entry:e1'])
+  })
+
+  it('lists the inner ring for the centre itself', () => {
+    expect(connections(index, 'me').map((g) => g.title)).toEqual(['Organisations', 'Fields'])
+  })
+
+  it('leaves out what the timeline hides', () => {
+    const in2024 = visibleAt(graph, 2024).nodes
+    expect(connections(index, 'entry:e1', in2024).some((g) => g.title === 'Work')).toBe(false)
   })
 })

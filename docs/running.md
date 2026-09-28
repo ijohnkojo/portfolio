@@ -51,3 +51,14 @@ pnpm verify:content
 For the default port, set `BASE_URL=http://localhost:3000` (and
 `OS_URL=http://localhost:3000/os` for `pnpm verify`). They must run against
 `pnpm dev`, not `pnpm start` — some assertions read development-only logging.
+
+## If the build fails on generated types
+
+After routes move, a `.next/dev/types/` left by an earlier dev session still
+names the old paths, and `pnpm build`'s type check fails on it with
+`Cannot find module '…/app/(site)/…/page.js'`. It is generated — delete it, or
+run `pnpm dev` once to regenerate it ([D-043](decisions.md)).
+
+```bash
+rm -rf .next/dev/types
+```

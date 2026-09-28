@@ -25,7 +25,10 @@ export interface GraphNode {
   id: string
   kind: NodeKind
   ring: Ring
+  /** What the graph shows — for an entry, its title unless graph.json shortens it. */
   label: string
+  /** An entry's full title, for the inspector. */
+  title?: string
   /** Degrees clockwise from 12 o'clock — hand-set, or derived (D-041). */
   angle: number
   /** The year the node joins the timeline; null means always there. */
@@ -92,6 +95,8 @@ interface SpecNode {
 
 interface SpecEntry {
   angle?: number
+  /** A shorter name for the graph when the title is too long for a ring. */
+  label?: string
   opens?: { href: string; label: string }
 }
 
@@ -194,7 +199,7 @@ function parseSpec(raw: unknown, where: string): Spec {
     for (const [key, value] of Object.entries(raw.entries)) {
       const what = `entries['${key}']`
       if (!isObject(value)) fail(where, `${what} must be an object`)
-      onlyKeys(value, ['angle', 'opens'], where, what)
+      onlyKeys(value, ['angle', 'label', 'opens'], where, what)
       let opens: SpecEntry['opens']
       if (value.opens !== undefined) {
         if (!isObject(value.opens)) fail(where, `${what}.opens must be { href, label }`)
@@ -204,7 +209,11 @@ function parseSpec(raw: unknown, where: string): Spec {
           label: checkText(value.opens.label, where, `${what}.opens.label`, true)!,
         }
       }
-      entries[key] = { angle: checkAngle(value.angle, where, what), opens }
+      entries[key] = {
+        angle: checkAngle(value.angle, where, what),
+        label: checkText(value.label, where, `${what}.label`, false),
+        opens,
+      }
     }
   }
 
@@ -325,7 +334,8 @@ export function buildGraph(rawSpec: unknown, entries: GraphEntry[], options: Bui
       id: entryNodeId(e),
       kind: 'entry',
       ring: 2,
-      label: e.title,
+      label: setting?.label ?? e.title,
+      title: e.title,
       angle: setting?.angle ?? NaN,
       year: yearOf(e.date),
       href: e.href,

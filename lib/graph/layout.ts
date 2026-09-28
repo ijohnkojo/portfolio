@@ -91,6 +91,72 @@ export function minSeparation(angles: number[]): number {
   return min
 }
 
+/**
+ * The side of the invisible square over each mark that makes the mark itself
+ * clickable, in CSS pixels. Labels start just beyond it.
+ */
+export const HIT = 20
+
+/** Label type per ring, in CSS pixels — matched by the classes in NodeLayer.tsx. */
+export const LABEL_FONT: Record<Ring, { size: number; em: number }> = {
+  0: { size: 14, em: 0.58 },
+  1: { size: 13, em: 0.55 },
+  2: { size: 12, em: 0.55 },
+  3: { size: 11, em: 0.6 }, // monospace
+}
+
+/** Labels truncate past this width (`max-w-[11rem]`). */
+export const LABEL_MAX_WIDTH = 176
+
+export interface Box {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+/**
+ * Roughly where a label's text will sit, in the same pixel frame as `at` —
+ * estimated from its length rather than measured, so it can be tested in
+ * bare node. Deliberately a little generous: an estimate that errs wide makes
+ * the collision test strict, which is the safe direction.
+ */
+export function labelBox(text: string, at: Point, side: LabelSide, ring: Ring): Box {
+  const { size, em } = LABEL_FONT[ring]
+  const w = Math.min(text.length * size * em, LABEL_MAX_WIDTH)
+  const h = size * 1.25
+  const gap = HIT / 2 + 6 // half the hit square, then `gap-1.5` before the text
+  switch (side) {
+    case 'right':
+      return { left: at.x + gap, right: at.x + gap + w, top: at.y - h / 2, bottom: at.y + h / 2 }
+    case 'left':
+      return { left: at.x - gap - w, right: at.x - gap, top: at.y - h / 2, bottom: at.y + h / 2 }
+    case 'above':
+      return { left: at.x - w / 2, right: at.x + w / 2, top: at.y - gap - h, bottom: at.y - gap }
+    case 'below':
+      return { left: at.x - w / 2, right: at.x + w / 2, top: at.y + gap, bottom: at.y + gap + h }
+  }
+}
+
+/** Whether two boxes overlap, with `pad` pixels of required clearance. */
+export function overlaps(a: Box, b: Box, pad = 0): boolean {
+  return a.left < b.right + pad && b.left < a.right + pad && a.top < b.bottom + pad && b.top < a.bottom + pad
+}
+
+/** A geometry shrunk or grown uniformly — as the graph is when its box narrows. */
+export function scaleGeometry(geometry: Geometry, scale: number): Geometry {
+  return {
+    width: geometry.width * scale,
+    height: geometry.height * scale,
+    radii: {
+      0: geometry.radii[0] * scale,
+      1: geometry.radii[1] * scale,
+      2: geometry.radii[2] * scale,
+      3: geometry.radii[3] * scale,
+    },
+  }
+}
+
 /** A point `radius` from `centre`, at a clock angle: 0 is up, 90 is right. */
 export function polar(angle: number, radius: number, centre: Point): Point {
   const rad = (angle * Math.PI) / 180
@@ -100,15 +166,54 @@ export function polar(angle: number, radius: number, centre: Point): Point {
   }
 }
 
+/** Where a node's label sits relative to its mark. */
+export type LabelSide = 'right' | 'left' | 'above' | 'below'
+
 /**
- * Which way a node's label runs, so it reads away from the centre: rightwards
- * on the right half, leftwards on the left, centred near the top and bottom
- * where either would crowd the neighbours.
+ * Labels read away from the centre: to the right on the right half, to the
+ * left on the left, and above or below near 12 and 6 o'clock, where a sideways
+ * label would run into its neighbours. The centre's label goes below it.
  */
-export function labelAnchor(angle: number): 'start' | 'middle' | 'end' {
+export function labelSide(angle: number, ring: Ring): LabelSide {
+  if (ring === 0) return 'below'
   const a = normaliseAngle(angle)
-  if (angularDistance(a, 0) < 15 || angularDistance(a, 180) < 15) return 'middle'
-  return a < 180 ? 'start' : 'end'
+  if (angularDistance(a, 0) < 20) return 'above'
+  if (angularDistance(a, 180) < 20) return 'below'
+  return a < 180 ? 'right' : 'left'
+}
+
+/**
+ * The drawing's frame, in SVG user units. The graph box keeps this aspect
+ * ratio, so the SVG and the HTML control layer on top of it — positioned in
+ * percentages of the same box — can never disagree about where a node is
+ * (D-042). Units are roughly CSS pixels at the desktop width, which is what
+ * the fixed-size HTML labels are measured against.
+ */
+export interface Geometry {
+  width: number
+  height: number
+  radii: Record<Ring, number>
+}
+
+export const DESKTOP: Geometry = {
+  width: 800,
+  height: 660,
+  radii: { 0: 0, 1: 110, 2: 200, 3: 290 },
+}
+
+/** Where a node sits in a geometry's frame. */
+export function nodePoint(angle: number, ring: Ring, geometry: Geometry): Point {
+  return polar(angle, geometry.radii[ring], { x: geometry.width / 2, y: geometry.height / 2 })
+}
+
+/**
+ * How far an edge bows toward the centre, from how far apart its ends are
+ * round the circle: nodes at nearly the same angle get a straight line, nodes
+ * on opposite sides the full bend. A fixed bend hooks a short edge between
+ * neighbouring angles into a loop.
+ */
+export function edgeBend(angleA: number, angleB: number, max = 0.35): number {
+  return max * Math.min(1, angularDistance(angleA, angleB) / 90)
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10

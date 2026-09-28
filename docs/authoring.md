@@ -177,7 +177,7 @@ Everything in the graph that is not an entry, plus the layout:
 | `href` | optional; a site path or an `https://` URL |
 | `summary` | optional; the inspector's text for a non-entry node |
 | `links` | edges between two non-entry nodes |
-| `entries` | per entry, keyed `collection/slug`: an `angle`, and `opens` — the node becomes a link to `href` instead of opening the inspector. Used once, for the OS |
+| `entries` | per entry, keyed `collection/slug`: an `angle`; a short `label` when the title is too long for the graph (the inspector still shows the full title); and `opens` — the node becomes a link to `href` instead of opening the inspector. Used once, for the OS |
 
 Unknown keys fail too, so a misspelt `angel` is caught rather than ignored.
 
@@ -187,6 +187,11 @@ placed at the average angle of what it connects to on the ring inside it, or in
 the widest gap on its ring. `pnpm test` fails if two nodes on a ring end up
 too close in any year of the timeline — the message names the ring, the year,
 and every angle on it, and the fix is to hand-set one.
+
+**Labels.** `pnpm test` also fails if a label would overlap another label or
+another node's mark — checked at full size and at 80%, in every year. The
+message names both nodes. The usual fixes are moving one of them a few degrees,
+or giving a long entry a short `label`.
 
 **Adding a new tool** is one line in `nodes`, then its id in an entry's
 `tools`. A new entry needs no `graph.json` change at all unless the fallback
@@ -237,8 +242,9 @@ Adding a collection takes four steps:
 
 1. `content/<name>/` with at least one entry
 2. add `'<name>'` to `COLLECTIONS` in [lib/content.ts](../lib/content.ts)
-3. copy `app/(site)/papers/` to `app/(site)/<name>/` — the listing page and the
-   `[slug]` route, both of which are thin wrappers; change the collection string
+3. copy `app/(site)/(reading)/papers/` to `app/(site)/(reading)/<name>/` — the
+   listing page and the `[slug]` route, both of which are thin wrappers; change
+   the collection string
 4. add it to the nav in `app/(site)/layout.tsx`
 
 Step 2 is easy to forget, so `pnpm test` fails if a directory under `content/`

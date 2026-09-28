@@ -1,7 +1,8 @@
 # The Graph Home — the site becomes a knowledge graph; the OS becomes a project
 
 > **Status:** drafted 2026-09-27 · revised the same day after the reframe
-> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27. Worked on
+> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27, Phase 3
+> on 2026-09-28. Worked on
 > `graph-home`, which was fast-forwarded into `main` after Phase 1; later
 > phases commit to `main` directly.
 >
@@ -10,10 +11,44 @@
 >       fixtures, `personal-os` entry published (D-037, D-038)
 > - [x] 2. Graph data layer — frontmatter fields, `graph.json`, `lib/graph/`,
 >       validation, tests (D-039, D-040, D-041)
-> - [ ] 3. The graph on `/` — rings, highlighting, inspector, keyboard, the
->       `(reading)` route group
+> - [x] 3. The graph on `/` — rings, highlighting, inspector, keyboard, the
+>       `(reading)` route group (D-042, D-043, D-044)
 > - [ ] 4. Timeline scrubber, and the listings below the graph
 > - [ ] 5. Phone layout, reduced motion, accessibility pass
+>
+> **Phase 3 deviations:**
+>
+> 1. **Marks stay in the SVG; the buttons carry an invisible hit square.** The
+>    plan had the HTML layer "carry the labels"; it now also puts a 20px
+>    transparent square over each mark, so the mark is clickable while the
+>    drawing stays in SVG.
+> 2. **A label-collision test** (`labelBox`, `overlaps`, in `load.test.ts`) was
+>    not planned. Labels are fixed-size HTML over a drawing that scales, and a
+>    screenshot at 1024px showed NanoGlide's label running into C++ — a clash
+>    between rings that D-041's angular spacing cannot see. It checks every
+>    year at full size and at 80%, and found a second clash (Gettysburg College
+>    over Python). Four tool angles moved as a result: Python 75 → 88,
+>    C++ 267 → 280, ROOT 290 → 292, Bun 0 → 4.
+> 3. **Short labels.** `graph.json` entries take an optional `label`, because
+>    two titles are too long for a ring: the demo-day talk shows as
+>    "hq · AGC Demo Day" and the extension as "The Professor". Both are built
+>    from words already in the content — the slug, and the extension's name —
+>    and are yours to change. The full title stays in the inspector.
+> 4. **`edgeBend`.** A fixed bend toward the centre hooked short edges between
+>    neighbouring angles into loops; the bend now scales with how far apart
+>    the ends are.
+> 5. **`labelAnchor` became `labelSide`**, which also says above or below, and
+>    `layout.ts` gained the drawing frame (`DESKTOP`, `nodePoint`).
+> 6. **The writeup footers' `/os` links** in `components/entry.tsx` also got
+>    `prefetch={false}` — they were pulling the whole OS on every writeup page.
+>    Measured in a production build: the home page and a writeup now fetch
+>    nothing from `/os`.
+> 7. **The circle is not on the page's centre line** at wide sizes: the graph
+>    and the inspector are centred together, so the circle sits left of centre.
+>    Centring the circle alone would need an empty mirror column, which shrinks
+>    the graph to about 460px at 1280 wide. Left as is; flagged.
+> 8. **Moving routes left stale generated types** in `.next/dev/types/`, which
+>    broke the build's type check until deleted. Documented in `running.md`.
 >
 > **Phase 2 deviations:**
 >

@@ -1221,3 +1221,108 @@ separation thresholds are provisional until the graph is drawn (Phase 3 of
 
 **Revisit when** the outer ring outgrows its circle — at roughly 36 tools
 10° apart there is no room left, and tools would need grouping or a fourth ring.
+
+---
+
+## D-042 · 2026-09-27 · active
+### The graph is an SVG drawing under a layer of real HTML controls, sharing one coordinate function
+
+`components/graph/GraphCanvas.tsx` draws rings, edges and node marks in an
+`aria-hidden` SVG with no pointer events. `NodeLayer.tsx` puts one real control
+per node on top — a `<button>` that selects it, or, for the OS, a link — each
+positioned in percentages of the same box, carrying the node's label and an
+invisible 20px square over its mark. Both place a node with
+`nodePoint(angle, ring, geometry)`, and the box keeps the geometry's aspect
+ratio, so the two layers cannot disagree about where anything is.
+
+The graph is **one tab stop**: a roving `tabindex` puts only the current node in
+the tab order, and the arrow keys move between nodes — `←`/`→` round a ring,
+`↑`/`↓` across rings, `Home` to the centre — through the pure `nextNode`.
+`Enter` selects, `Escape` clears. Hover, keyboard focus and selection share one
+rule: hover wins, then focus, then the selection.
+
+**Why.** There is no `<button>` inside SVG. SVG `<a>` exists, but organisations
+and tools *select* rather than navigate, and a clickable `<circle>` with
+`role="button"` is a div with extra steps: no native focus, no `Enter`/`Space`,
+no `:focus-visible`. HTML controls give all of that from the platform, and HTML
+text renders labels better than SVG `<text>` — it truncates with an ellipsis and
+takes a halo from `text-shadow`. The marks stay in SVG because they are drawing,
+not interaction. Thirty-three tab stops would make the graph a wall a keyboard
+user has to walk through; one stop and arrow keys is the ARIA composite-widget
+pattern, and the listings below remain the linear way through everything.
+
+**Legibility is tested, not eyeballed.** Labels are fixed-size HTML while the
+drawing scales with its box, so a layout that is clean at one width can collide
+at another. `labelBox` estimates each label's box from its text, font and side;
+`load.test.ts` asserts no label overlaps another label or another node's mark,
+in every timeline year, at full size and at 80% — the graph's size beside the
+inspector at 1024px. It found two collisions the eye had missed. This
+complements [D-041](#d-041--2026-09-27--active)'s angular spacing, which cannot
+see a label on one ring running into a node on the next.
+
+**Cost.** Two layers to keep in step, held together by one pure function and
+one aspect ratio. The label estimate is an estimate — a much wider font would
+need its constants (`LABEL_FONT`) retuned. Long titles need a short `label` in
+`graph.json`, which is one more thing to write when an entry's title is long.
+
+**Revisit when** the labels need to scale with the drawing (a much smaller
+graph), at which point SVG `<text>` with `vector-effect` becomes the better
+tool — Phase 5's phone layout is the first place this could come up.
+
+---
+
+## D-043 · 2026-09-27 · active
+### Reading width lives in a nested `(reading)` route group; the home page sets its own
+
+`app/(site)/layout.tsx` is now chrome only — header and footer, each in its own
+`max-w-3xl` box — and `<main>` is uncapped. `/about` and the three collections
+moved into `app/(site)/(reading)/`, whose layout applies the reading column.
+The home page, outside that group, gives the graph `max-w-6xl` and puts the
+listings back at `max-w-3xl`. URLs did not change.
+
+**Why.** The graph needs roughly twice a reading column's width, and every other
+page should keep reading width. Next's route-group docs name this exact use —
+opting some segments into a layout while keeping others out — and a nested
+group is not a root layout, so navigating between the home page and a writeup
+is still a client navigation, not a full reload.
+
+Rejected: a CSS breakout on the graph (`w-screen` with negative margins —
+`100vw` includes the scrollbar, so it scrolls sideways on classic-scrollbar
+systems); `max-w-3xl` repeated in every page (seven places that must each
+remember it); widening the whole site (reading pages at 72rem read worse).
+
+**Cost.** Seven route files moved, and anything naming their paths — docs, and
+Next's generated types — had to follow. A stale `.next/dev/types/` from a dev
+session before the move breaks `pnpm build`'s type check until it is deleted or
+`pnpm dev` regenerates it.
+
+---
+
+## D-044 · 2026-09-27 · active
+### One node opens instead of selecting: the OS
+
+A node whose `graph.json` entry has `opens: { href, label }` renders as a link,
+not a button: clicking it follows `href` instead of opening the inspector. It is
+used once — `projects/personal-os` boots the OS at `/os`. It gets an outer ring
+on its mark and a `↗` after its label, and its accessible name ends with
+"— Launch the OS". Selected by other means — from another node's connections in
+the inspector — it shows a "Launch the OS" button beside the link to its page.
+Every link to `/os` from the site uses `prefetch={false}`.
+
+**Why.** The brief: clicking the OS node boots the OS. It breaks the graph's
+one rule — click inspects — so the mark and the arrow are what make it fair:
+the node looks like it goes somewhere before it is clicked. Keeping `opens` as
+data rather than special-casing a slug in a component means the rule is
+visible in `cat /home/graph.json`. Prefetch is off because `/os` is a static
+route, and Next prefetches a static route's full data — the whole VFS, every
+entry's text ([D-011](#d-011--2026-08-12--active)) — whenever a link to it
+scrolls into view; measured in a production build, the home page and a writeup
+now fetch nothing from `/os`.
+
+**Cost.** One node behaves differently from thirty-two others, and on a phone a
+tap boots the OS with no preview. The entry's own page still prefetches `/os`
+through its "Launch the OS" link — deliberately, since that is where someone
+decides to boot it.
+
+**Revisit when** a second node wants to open something — then `opens` is a
+pattern, not an exception, and deserves a visual language of its own.

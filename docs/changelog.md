@@ -1234,3 +1234,73 @@ Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md)
 - **`stat` showing the new fields** — an OS change, on its backlog.
 - **Summaries for non-entry nodes.** `summary` exists in `graph.json` and is
   empty everywhere: that is prose, and yours.
+
+---
+
+## 2026-09-28 — The graph on the home page (Phase 3 of 5)
+
+Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md)
+
+### Built
+
+- **The graph on `/`.** `app/(site)/page.tsx` builds it on the server and hands
+  it to `components/graph/KnowledgeGraph.tsx`, the site's one client
+  component: an SVG drawing (`GraphCanvas`) under a layer of real controls
+  (`NodeLayer`), and an `Inspector` beside it. Shapes carry kind — filled and
+  hollow circles for organisations and fields; circle, square and diamond for
+  projects, papers and talks; small dots for tools.
+- **Hover traces, click inspects.** The active node, its neighbours and the
+  edges to them stay at full strength; the rest fades to 0.18. The inspector
+  shows kind, date, title, summary, tags, a link to the page, and the node's
+  connections as buttons. Empty, it is a legend.
+- **Keyboard.** One tab stop; arrows round and across rings; `Home`, `Enter`,
+  `Escape`. Focus traces like hover.
+- **The OS node boots the OS.** It is a link with an outer ring and `↗`; in the
+  inspector, "Launch the OS" (D-044).
+- **`(reading)` route group.** `/about` and the collections moved into it and
+  keep the reading column; the home page sets its own widths (D-043).
+- **Chrome.** The `/os` nav item and the `boot →` button are gone. The header
+  name, the "mock operating system" paragraph and the footer line carry
+  `PLACEHOLDER` comments. Every site link to `/os` has prefetch off.
+- **Label legibility as a test**, and a few layout fixes it forced: short
+  labels for two long titles, four tool angles, edges that bend by how far
+  apart their ends are.
+
+### Decided
+
+- **D-042** — SVG drawing under real HTML controls, one coordinate function,
+  one tab stop; label collisions tested at two sizes in every year.
+- **D-043** — reading width in a nested `(reading)` route group.
+- **D-044** — one node opens instead of selecting: the OS; no prefetch of
+  `/os`.
+
+### Verified
+
+- **578 unit tests** (+18: geometry and labels, inspector grouping, short
+  labels, and label collisions on the real graph at 100% and 80%).
+- **A bad reference fails `pnpm build`** now that the page builds the graph:
+  a deliberate `pythn` in TreeViz's `tools` stopped the build with
+  `content/projects/treeviz/index.mdx: 'tools' references unknown node 'pythn'`.
+  Reverted.
+- **In a browser** (Playwright, system Chrome): hover and selection states
+  screenshotted in light and dark; the keyboard walk — one tab stop, arrows,
+  `Home`, `Enter`, `Escape`, `Tab` out — driven and checked; no horizontal
+  overflow at 1024px; with JavaScript off, all 33 node controls, 49 edges and
+  7 listing links are in the server HTML; no console errors.
+- **In a production build**, the home page and a writeup make no request to
+  `/os`; the `personal-os` page does, through its own launch link, as intended.
+- The reading pages' column is unchanged (text at the same x and width).
+- **All 148 OS browser checks pass.** `pnpm build` and `eslint` clean; 19/19
+  diagrams parse.
+- `Revisit when`: D-041's "thresholds are provisional" — the separation
+  thresholds held against the real drawing; the new label test is the stronger
+  guard. D-009 (Playwright not a dependency): the site now has interactive
+  surface worth an E2E check, but there is still no CI; Phase 5 adds
+  `verify-graph.mjs` in the existing style rather than a dependency.
+
+### Deliberately left out
+
+- **The timeline** (Phase 4) and **the phone layout** (Phase 5).
+- **Rewriting the placeholder copy** — yours.
+- **Centring the circle on the page** — it sits left of centre beside the
+  inspector; flagged in the plan.

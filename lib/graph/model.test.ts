@@ -196,6 +196,26 @@ describe('buildGraph — angles', () => {
   })
 })
 
+describe('buildGraph — short labels', () => {
+  it('shows a shorter label on the graph and keeps the full title', () => {
+    const g = buildGraph(
+      spec({ entries: { 'projects/long': { label: 'Short' } } }),
+      [entry('long', { title: 'A very long title — with a subtitle' })],
+      options
+    )
+    expect(g.nodes.find((n) => n.id === 'entry:projects/long')).toMatchObject({
+      label: 'Short',
+      title: 'A very long title — with a subtitle',
+    })
+  })
+
+  it('rejects an empty one', () => {
+    expect(() => buildGraph(spec({ entries: { 'projects/a': { label: ' ' } } }), [entry('a')], options)).toThrow(
+      "entries['projects/a'].label must be a non-empty string"
+    )
+  })
+})
+
 describe('buildGraph — opens', () => {
   it('gives an entry a link to follow instead of an inspector', () => {
     const g = buildGraph(
