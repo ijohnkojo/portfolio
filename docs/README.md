@@ -85,9 +85,11 @@ and carry a banner saying so.
 - **Next:** the content — every summary is still a placeholder — and a fresh
   run of [review.md](review.md).
 
-**Content:** seven entries, all published since `516e366` — but every summary
-still reads `DRAFT — replace this.` That is prose, not code, and it is the
-largest gap between what is built and what a visitor sees.
+**Content:** seven published entries — hq is a project (`projects/hq`), the
+IRIS-HEP summer work — plus one draft, `papers/hq`, holding the place for the
+paper still to be written. Every published summary still reads `DRAFT —
+replace this.` That is prose, not code, and it is the largest gap between what
+is built and what a visitor sees.
 
 [review.md](review.md) was last run on 2026-08-12 and predates the split; it
 is stale. Re-run it.

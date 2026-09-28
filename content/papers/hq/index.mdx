@@ -1,143 +1,29 @@
 ---
-title: hq (hep-queue)
-summary: DRAFT — replace this. One sentence, for a stranger. What hq is and what you did to it.
-date: 2026-08-30
+title: hq (hep-queue) paper
+summary: DRAFT — replace this. One sentence, for a stranger, once the paper exists.
+date: 2026-09-28
 tags: [physics, distributed-systems, iris-hep]
 orgs: [iris-hep]
 fields: [physics, cs]
-tools: [typescript, bun, python, redis, grpc, dask]
-related: [hq-agc-demo-day]
-draft: false
+related: [projects/hq]
+draft: true
 ---
 
 {/*
-  FACTS, NOT PROSE. Write over each section; delete these blocks as you go.
-  Everything below is verified against ~/irishep/hq (22 commits, 2026-06-08 to
-  2026-08-28) or your own slides. Commit hashes are there so you can check me.
+  A PLACEHOLDER FOR THE PAPER YOU STILL HAVE TO WRITE — nothing here is claimed.
 
-  DO NOT CLAIM — in the repo, not yours: peakRSS tracking, per-task subprocess
-  isolation, Redis Streams / consumer groups / fault recovery, heartbeat
-  telemetry. Your own decks list several as roadmap items.
+  The summer's work is the project, /projects/hq; this entry is the paper
+  about it. It stays a draft, so it is hidden from the site (no page, no
+  listing, no node on the graph) but visible in the OS at /papers/hq.
 
-  `both-sides` commits are yours (old username). Only one, a merge: 5807a4d.
+  When it is written:
+  - retitle it (colon-free), set `date` to when it came out, write the
+    summary, and set `draft: false`;
+  - it then joins the graph as a paper, linked to the project by `related`;
+  - give it a hand-set angle under `entries` in content/home/graph.json, near
+    the project's (20), and run `pnpm test` — it names anything that collides.
 */}
 
-## Overview
-
-{/*
-  - hq = pull-based task queue for HEP analysis. Prototyped by Peter Fackeldey.
-    Alternative to dask-distributed for large task graphs.
-  - IRIS-HEP fellowship, Summer 2026. Ended 2026-08-30.
-  - Mentors: Peter Fackeldey (Princeton), Oksana Shadura (UNL).
-  - Target: coffea-casa deployment, ahead of HL-LHC.
-  - Stack: Bun/TypeScript server, Python client+worker (uv), Redis (Dragonfly
-    drop-in).
-  - North star from your slides: `hq.map()` in place of Dask on coffea-casa.
-*/}
-
-## What I contributed
-
-{/*
-  TLS / deployability
-  - 8daa669 (Jun 21) client/ and worker/ split into separate directories +
-    TLS started
-  - c1fd11d (Jun 22) HTTPS option
-  - f60b3af (Jun 25) certs discovered via env vars, not hardcoded paths
-  - worth saying why the split mattered: separately installable, different
-    deps, facility puts them on different machines
-
-  Executor
-  - 15ca208 (Jul 22) HQExecutor — context manager: own queue, spawns workers,
-    submit/map, waits for terminal state, cleans up
-  - 1d2a5d1 (Jul 10) per-client unique IDs; queue names UUID7 so two runs on
-    one server don't collide
-
-  Results path
-  - 9811e59 (Jul 22) workers write pickles to shared FS at
-    HQ_RESULT_DIR/{queue}/{id}.pkl; client gathers return values
-  - before this: status-only. You could tell a task finished, not what it
-    returned. Blocker for merging histograms.
-
-  AGC — the big one, and missing from every previous draft
-  - 27894e1 (Aug 13) "workers runnign agc". CMS Open Data ttbar AGC pipeline
-    on hq. coffea_hq_runner_smoke.py, coffea_hq_ship_smoke.py,
-    agc_hq_vs_futures.py (benchmark vs Python futures), cabinetry configs,
-    histograms + prefit figures
-  - f8f388a (Aug 24) pipeline split out to its own repo: agc-hq
-
-  Docs + tooling
-  - 1e00a74 (Aug 13) "I have been able to put together a working documentation
-    for the codebase"
-  - 0cd0abe (Aug 13) testrun.sh — Redis + Bun TLS + workers + client in one
-    command
-  - 897bced / 3bbc576 (Aug 24-28) docs moved out to hq_docs repo
-
-  histserv — 0185dd0 (Aug 28), src/hq/histserv.py, 126 lines
-  - gRPC remote histogram transport. Instead of returning whole pickled
-    histograms through the shared-FS result path, tasks stream pre-binned
-    fills to a histserv server; client snapshots the merged result at the end.
-  - API: init_remote_hists(templates, address) → make_buffered() →
-    flush_buffered(buffered, unique_id=chunk_id) → snapshot_hists()
-  - THE INTERESTING BIT, and it's yours: flush is ONE IDEMPOTENT RPC PER HIST,
-    keyed on chunk_id. Your demo-day slide 5 worried that requeue-on-timeout
-    gives at-least-once delivery, so side effects must be idempotent. This is
-    you actually building for that. Worth connecting explicitly — it's the
-    strongest single thing in the entry and nobody would spot it from outside.
-*/}
-
-## What I did not do
-
-{/*
-  - per-task software environments, peakRSS tracking, Redis Streams work,
-    heartbeat telemetry — upstream, not you
-  - keep this section. It makes everything above it credible.
-*/}
-
-## The parts that did not go smoothly
-
-{/*
-  Real detail, from your own commit log. Use what you want — this is the stuff
-  that makes a writeup read like a person wrote it.
-
-  - a9114c0 (Jun 8) you renamed typescript/ → hq_server. Then f60b3af (Jun 25)
-    renamed it BACK. Two and a half weeks. Why? (merge pain against upstream?)
-  - 7ac0e1f (Jun 25) "fixed circular import issue again in util.ts" — "again".
-    It came back. 6 lines in util.ts.
-  - f6a6204 (Jul 10) "removed the noise" — net -39 lines across client.py,
-    util.py, worker.py, example/simple/worker.py. You deleted more than you
-    added. What was the noise?
-  - cbb3c31 / 4250d80 (Jul 22) had to stop tracking generated example
-    artifacts after they were already committed.
-
-  Also: ~/irishep/hq still has an uncommitted README.md change in the working
-  tree.
-*/}
-
-## Tradeoffs
-
-{/*
-  From the upstream README + your slides. These are design facts, not yours,
-  but the entry is better for naming them:
-  - pickup latency bounded by poll interval, ~1s
-  - no locality-aware scheduling — worker takes next task, not nearest
-  - worker dies holding a claimed task → ~30s heartbeat timeout, marked lost,
-    NOT requeued. Ownership IS tracked (workers:running:{workerId}); nothing
-    acts on it. You proposed requeue-on-timeout.
-  - in exchange: cheap networking, workers join/leave freely (suits
-    opportunistic HTCondor slots), durable stop-and-resume
-*/}
-
-## Status
-
-{/*
-  - fellowship ended 2026-08-30
-  - as of Sept 2026: still on it, but evenings, classes are back
-*/}
+## Abstract
 
 ## Links
-
-- [Fork](https://github.com/ijohnkojo/hq)
-- [Upstream (pfackeldey/hq)](https://github.com/pfackeldey/hq)
-- [agc-hq — the AGC ttbar pipeline](https://github.com/ijohnkojo/agc-hq)
-- [hq_docs — architecture and operations](https://github.com/ijohnkojo/hq_docs)
-- [The AGC Demo Day talk](/presentations/hq-agc-demo-day)

@@ -32,7 +32,7 @@
     ["fermilab", "cern-cms"]
   ],
   "entries": {
-    "papers/hq": { "angle": 20 },
+    "projects/hq": { "angle": 20 },
     "presentations/hq-agc-demo-day": { "angle": 70, "label": "hq · AGC Demo Day" },
     "projects/academic-explainer": { "angle": 125, "label": "The Professor" },
     "projects/personal-os": { "angle": 170, "opens": { "href": "/os", "label": "Launch the OS" } },

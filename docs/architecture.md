@@ -176,7 +176,7 @@ receives its filesystem ([D-011](decisions.md)).
 |---|---|---|---|
 | `me` | 0 | `me` | `SITE_NAME`, linking to `/about` |
 | `org`, `field` | 1 | `org:iris-hep` | `graph.json` — always shown |
-| `entry` | 2 | `entry:papers/hq` | published entries |
+| `entry` | 2 | `entry:projects/hq` | published entries |
 | `tool` | 3 | `tool:python` | `graph.json` — hidden when nothing published uses it |
 
 Edges are undirected, one per pair, with id `a|b` sorted: me to every inner

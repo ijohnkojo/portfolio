@@ -21,7 +21,7 @@ import { circularMean, roundAngle, widestGapMidpoint, type Ring } from './layout
 export type NodeKind = 'me' | 'org' | 'field' | 'entry' | 'tool'
 
 export interface GraphNode {
-  /** `me`, or kind-prefixed: `org:iris-hep`, `entry:papers/hq`, `tool:python`. */
+  /** `me`, or kind-prefixed: `org:iris-hep`, `entry:projects/hq`, `tool:python`. */
   id: string
   kind: NodeKind
   ring: Ring

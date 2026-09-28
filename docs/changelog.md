@@ -1584,3 +1584,40 @@ the last phase.
 - **Phones under 360px** — the inner ring collides at 320; not checked.
 - **Measured label collisions** — the tests estimate label widths; the browser
   check does not compare boxes.
+
+---
+
+## 2026-09-28 — hq is a project; its paper is a draft
+
+Asked for: hq was the IRIS-HEP summer project, so it belongs with the projects
+— on the graph and on `/projects` — while the paper about it is still to be
+written.
+
+### Built
+
+- **`content/papers/hq` moved to `content/projects/hq`** (`git mv`, the
+  writeup unchanged). It is a project node on the graph — a circle, not a
+  square — at the same angle, and is listed on `/projects` at `/projects/hq`.
+- **A new draft, `content/papers/hq`**, holds the place for the paper: no
+  claims, a checklist for publishing it, `related: [projects/hq]`. Drafts are
+  hidden from the site (so `/papers/hq` is a 404 for now) and kept in the OS,
+  so the OS readme's `stat /papers/hq/index.mdx` still works.
+- **References by `collection/slug`**: with `hq` in two collections a bare
+  `related: [hq]` is ambiguous and fails the build by design, so the talk now
+  says `projects/hq`, as does graph.json's key. The talk's links point at
+  `/projects/hq`.
+- Example ids in `architecture.md`, `authoring.md` and a code comment follow.
+
+### Verified
+
+- 594 unit tests (the graph's label and edge rules hold with hq as a project);
+  `pnpm build` lists `/projects/hq` and no `/papers/hq`; `eslint` clean.
+- Served: `/projects` lists hq, `/projects/hq` 200, `/papers/hq` 404,
+  `/papers` lists HSCP only, the graph names hq "Project", the talk links to
+  `/projects/hq`.
+- All 148 OS browser checks and all 35 graph checks pass.
+
+### Deliberately left out
+
+- **A redirect from `/papers/hq`** — that URL is the paper's once it is
+  published.

@@ -161,7 +161,7 @@ Everything in the graph that is not an entry, plus the layout:
   ],
   "links": [["fermilab", "cern-cms"]],
   "entries": {
-    "papers/hq": { "angle": 20 },
+    "projects/hq": { "angle": 20 },
     "projects/personal-os": { "angle": 170, "opens": { "href": "/os", "label": "Launch the OS" } }
   }
 }
