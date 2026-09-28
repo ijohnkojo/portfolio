@@ -150,6 +150,18 @@ export function kindLabel(node: GraphNode): string {
   return { me: 'Me', org: 'Organisation', field: 'Field', tool: 'Tool' }[node.kind]
 }
 
+/**
+ * All the work on the graph, newest first — what the inspector lists for the
+ * centre. The centre is not connected to entries (its edges go to the inner
+ * ring), so this is every visible entry rather than a set of neighbours.
+ * Ties on date go by label.
+ */
+export function allWork(index: GraphIndex, visible?: Set<string>): GraphNode[] {
+  return [...index.byId.values()]
+    .filter((n) => n.kind === 'entry' && (!visible || visible.has(n.id)))
+    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '') || a.label.localeCompare(b.label))
+}
+
 export interface ConnectionGroup {
   title: string
   nodes: GraphNode[]

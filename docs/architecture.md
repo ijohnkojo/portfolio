@@ -161,7 +161,7 @@ flowchart LR
 |---|---|---|
 | `lib/graph/model.ts` | yes | types; `buildGraph(spec, entries, options)` — parses and validates `graph.json`, resolves every entry's references, builds nodes and edges, dates them for the timeline, fills in missing angles |
 | `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP` (with `centreRadius`), `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
-| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `timelineYears` (every year of the span), `joinedIn(year)` (what that year adds), `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups) |
+| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `timelineYears` (every year of the span), `joinedIn(year)` (what that year adds), `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups), `allWork` (every entry, newest first) |
 | `lib/graph/load.ts` | no | `loadGraph()` — reads `graph.json` and every entry, memoised like the content loader |
 
 The pure three are what the client component imports; `purity.test.ts`
@@ -209,7 +209,9 @@ app/(site)/page.tsx                 server — loadGraph(), then <KnowledgeGraph
 components/graph/KnowledgeGraph.tsx 'use client' — interaction state only
 components/graph/GraphCanvas.tsx    the SVG: edges and marks. aria-hidden, no pointer events
 components/graph/NodeLayer.tsx      one <button> per node (the OS: a link), over its mark
-components/graph/Inspector.tsx      the panel: legend when empty, the node and its connections when not
+components/graph/Inspector.tsx      the panel: the selected node, or the centre with all the work when nothing is
+components/graph/Legend.tsx         how to read the marks — above the inspector, beside the intro; no state
+components/graph/columns.ts         GRAPH_COLUMNS, the two-column template the legend row and graph row share
 components/graph/Timeline.tsx       under the drawing: Replay, the year slider, what is shown
 ```
 
@@ -239,9 +241,11 @@ flowchart LR
     F -- yes --> FN["the focused node"]
     F -- no --> S{"a node<br/>selected?"}
     S -- yes --> SN["the selection"]
-    S -- no --> NONE["nothing — all at full strength"]
+    S -- no --> ME["the centre — me"]
 ```
 
+With nothing hovered, focused or selected, the centre is the active node, so
+the graph opens tracing me and my inner ring ([D-048](decisions.md)).
 The active node, its neighbours and the edges from it stay at full strength;
 everything else goes to opacity 0.18, with a 150ms transition that
 `motion-reduce` turns off. Edges are straight lines, node to node
@@ -257,7 +261,10 @@ accessible name adds its kind and year ("TreeViz, Project, 2025").
 **The inspector** shows, for a selected node: its kind and date, title, summary,
 tags, a link to its page (or an organisation's site), and its connections
 grouped by kind as buttons that select them — a way to walk the graph without
-a pointer. With nothing selected it is a legend of the marks. The OS node is a
+a pointer. With nothing selected it shows the centre: the intro (`SITE_INTRO`),
+"About me", the organisations and fields, and all the visible work, newest
+first (`allWork`) — with no ×, since there is nothing to clear. The legend is a
+separate box above it ([D-048](decisions.md)). The OS node is a
 link rather than a button: clicking it boots the OS ([D-044](decisions.md)).
 
 **Clearing the selection** takes the inspector's ×, `Escape`, clicking the
@@ -289,11 +296,14 @@ step.
 ## Routes
 
 `app/(site)/` holds the site with its own chrome — header, nav and footer, each
-at reading width. The header's home link reads `home`; the chrome has no link
+in the home page's wide frame (`max-w-[82rem]`), so the name sits in one place
+on every page ([D-048](decisions.md)). The header's home link reads `home`; the chrome has no link
 to `/os`, which is reached from its node and its project page. `/about` and
 the collections sit in the nested `app/(site)/(reading)/` group, whose layout
-is the `max-w-3xl` column; the home page sits outside it and sets its own widths, so the graph can be wider than
-the text ([D-043](decisions.md)). `/os` sits outside `(site)` altogether because
+is the `max-w-3xl` column, centred; the home page sits outside it and uses the
+whole frame: intro and legend in one row, graph and inspector in the next,
+both on `GRAPH_COLUMNS`, then the listings at reading width on the left
+([D-043](decisions.md), [D-048](decisions.md)). `/os` sits outside `(site)` altogether because
 it is full-viewport and brings its own.
 
 | Route | Renders |
@@ -331,8 +341,6 @@ JavaScript disabled and that the OS reads the same bytes.
 
 ## Known gaps
 
-- **The graph circle sits left of the page's centre line** beside the inspector
-  on wide screens: the graph and the panel are centred together.
 - **`stat` in the OS does not show the graph fields.** `cat` does. On the
   [OS backlog](os/backlog.md).
 - **Published summaries are placeholders.** All seven published entries still

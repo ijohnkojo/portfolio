@@ -17,3 +17,15 @@ export const SITE_NAME = 'Michael Noamesi'
  */
 export const SITE_DESCRIPTION =
   'Michael Noamesi — physics and computer science at Gettysburg College.'
+
+/**
+ * PLACEHOLDER — rewrite in your own words. Deliberately flat and factual rather
+ * than polished, so there is nothing here worth keeping by accident. Two or
+ * three sentences is the right length.
+ *
+ * The home page's introduction, and what the graph's inspector says about the
+ * centre when nothing else is selected — one sentence in two places, so it
+ * lives here.
+ */
+export const SITE_INTRO =
+  'Physics and computer science at Gettysburg College. I work on software for experimental particle physics.'

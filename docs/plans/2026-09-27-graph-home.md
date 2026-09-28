@@ -25,6 +25,13 @@
 > runs through a node it does not connect; three angles moved to satisfy it
 > (CERN/CMS 345 → 335, Gettysburg College 100 → 115, Python 88 → 70).
 >
+> **Layout pass after Phase 4, 2026-09-28** (not in the plan; asked for with
+> an annotated screenshot): one wide frame, a bigger graph, the legend beside
+> the intro, and an inspector that shows the centre by default and lights its
+> neighbourhood — [2026-09-28-home-layout.md](2026-09-28-home-layout.md)
+> (D-048). It also settles Phase 3 deviation 7: the circle no longer needs to
+> be on the page's centre line, since the page is now laid out from the left.
+>
 > **Phase 4 deviations:**
 >
 > 1. **The listings needed no change.** Phase 3 already put them under the

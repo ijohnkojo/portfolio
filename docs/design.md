@@ -60,7 +60,11 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
 - **Click inspects.** The node stays selected and an inspector opens: summary,
   tags, a link to its page, and its connections as buttons, so the panel is a
   second way to walk the graph. The inspector's ×, `Escape`, or a click on any
-  blank space lets go of it. **▸ Built** The OS node is the one exception — clicking it
+  blank space lets go of it. **▸ Built**
+- **With nothing selected, the graph and the panel show me** — the centre's
+  neighbourhood traced, and the panel with the intro, my organisations and
+  fields, and all the work. The legend has its own box above the panel.
+  **▸ Built** ([D-048](decisions.md)). The OS node is the one exception — clicking it
   boots the OS, and its mark and arrow say so before anyone clicks
   (**▸ Decided**, [D-044](decisions.md)).
 - **A timeline grows the graph year by year**, defaulting to the whole of it:
@@ -76,8 +80,10 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
   [D-042](decisions.md)). Labels are checked for collisions by a test, at two
   sizes, in every year.
 - **Wider than the text around it.** The home page sits outside the reading
-  column (**▸ Decided**, [D-043](decisions.md)); the listings under the graph
-  return to it.
+  column (**▸ Decided**, [D-043](decisions.md)) in one wide frame shared with
+  the header: intro and graph start at its left edge, legend and panel share
+  its right column, and the listings keep reading width under the graph
+  (**▸ Built**, [D-048](decisions.md)).
 
 ## 4. Data — ▸ Built
 

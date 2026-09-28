@@ -12,6 +12,7 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 
 import {
+  allWork,
   connections,
   highlight,
   indexGraph,
@@ -26,6 +27,7 @@ import type { GraphData } from '@/lib/graph/model'
 
 import { GraphCanvas } from './GraphCanvas'
 import { Inspector } from './Inspector'
+import { GRAPH_COLUMNS } from './columns'
 import { NodeLayer } from './NodeLayer'
 import { Timeline } from './Timeline'
 
@@ -116,8 +118,9 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   const instructionsId = useId()
   const titleId = useId()
 
-  // Hover wins, then keyboard focus, then the selection — so pointing at
-  // something always shows it, and letting go returns to what was chosen.
+  // Hover wins, then keyboard focus, then the selection, then the centre — so
+  // pointing at something always shows it, letting go returns to what was
+  // chosen, and with nothing chosen the graph and the inspector show me.
   //
   // A node the timeline has hidden cannot be hovered, hold the tab stop or be
   // selected; each falls back as if it had been let go. The selection comes
@@ -125,9 +128,9 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   const shownHover = hovered !== null && visible.has(hovered) ? hovered : null
   const shownSelected = selected !== null && visible.has(selected) ? selected : null
   const tabStop = visible.has(focused) ? focused : 'me'
-  const active = shownHover ?? (focusWithin ? tabStop : null) ?? shownSelected
-  const lit = active ? highlight(index, active) : null
-  const selectedNode = shownSelected ? (index.byId.get(shownSelected) ?? null) : null
+  const active = shownHover ?? (focusWithin ? tabStop : null) ?? shownSelected ?? 'me'
+  const lit = highlight(index, active)
+  const inspected = index.byId.get(shownSelected ?? 'me')!
 
   function moveFocus(id: string) {
     setFocused(id)
@@ -146,7 +149,7 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+    <div className={GRAPH_COLUMNS}>
       <div className="min-w-0">
         <div
           className="relative w-full"
@@ -214,8 +217,10 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
       </div>
 
       <Inspector
-        node={selectedNode}
-        groups={shownSelected ? connections(index, shownSelected, visible) : []}
+        node={inspected}
+        selection={shownSelected !== null}
+        groups={connections(index, inspected.id, visible)}
+        work={inspected.kind === 'me' ? allWork(index, visible) : null}
         titleId={titleId}
         onSelect={(id) => {
           setSelected(id)

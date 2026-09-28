@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  allWork,
   connections,
   highlight,
   indexGraph,
@@ -193,5 +194,28 @@ describe('connections', () => {
   it('leaves out what the timeline hides', () => {
     const in2024 = visibleAt(graph, 2024).nodes
     expect(connections(index, 'entry:e1', in2024).some((g) => g.title === 'Work')).toBe(false)
+  })
+})
+
+describe('allWork', () => {
+  const dated = indexGraph({
+    ...graph,
+    nodes: [
+      node('me', 0, 0),
+      { ...node('entry:old', 2, 10, 2023), date: '2023-12-26' },
+      { ...node('entry:b', 2, 20, 2026), date: '2026-08-30' },
+      { ...node('entry:a', 2, 30, 2026), date: '2026-08-30' },
+      { ...node('entry:mid', 2, 40, 2025), date: '2025-10-13' },
+      node('tool:t', 3, 20, 2024),
+    ],
+    edges: [],
+  })
+
+  it('is every entry, newest first, ties by label — and nothing else', () => {
+    expect(allWork(dated).map((n) => n.id)).toEqual(['entry:a', 'entry:b', 'entry:mid', 'entry:old'])
+  })
+
+  it('leaves out what the timeline hides', () => {
+    expect(allWork(dated, new Set(['me', 'entry:old'])).map((n) => n.id)).toEqual(['entry:old'])
   })
 })

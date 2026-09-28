@@ -9,7 +9,7 @@
  */
 import { allEntries, getHomeFile } from '@/lib/content'
 import { memo } from '@/lib/memo'
-import { SITE_NAME } from '@/lib/site'
+import { SITE_INTRO, SITE_NAME } from '@/lib/site'
 
 import { buildGraph, type GraphData } from './model'
 
@@ -28,7 +28,7 @@ export const loadGraph = memo((): GraphData => {
   }
 
   return buildGraph(spec, allEntries(), {
-    centre: { label: SITE_NAME, href: '/about' },
+    centre: { label: SITE_NAME, href: '/about', summary: SITE_INTRO },
     specPath: SPEC_PATH,
   })
 })

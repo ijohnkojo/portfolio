@@ -75,6 +75,9 @@ and carry a banner saying so.
   `(reading)` route group (D-042 … D-044).
 - **Phase 4 done:** the timeline — a year slider and Replay under the graph;
   the no-JS page and the listings always show everything (D-047).
+- **Layout pass:** one wide frame, the legend beside the intro, and an
+  inspector that shows the centre by default (D-048,
+  [plans/2026-09-28-home-layout.md](plans/2026-09-28-home-layout.md)).
 - **Next:** Phase 5, the phone layout, reduced motion and the accessibility
   pass.
 

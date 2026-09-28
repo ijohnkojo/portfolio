@@ -5,15 +5,15 @@ import Link from 'next/link'
  * OS is full-viewport and brings its own furniture.
  *
  * The width is set per region rather than once for the page: the header and
- * footer keep the reading width everywhere, pages in `(reading)/` get the same
- * column, and the home page sets its own so the graph can be wider than the
- * text around it (D-043). Everything is centred, so the wider graph still
- * lines up with the header above it.
+ * footer span the home page's wide frame everywhere, so the name sits at the
+ * same place on every page and lines up with the home page's intro and graph
+ * (D-048); pages in `(reading)/` centre their text in the reading column
+ * inside it (D-043).
  */
 export default function SiteLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="flex min-h-dvh w-full flex-col">
-      <header className="mx-auto flex w-full max-w-3xl items-center gap-6 px-6 py-8 font-mono text-sm">
+      <header className="mx-auto flex w-full max-w-[82rem] items-center gap-6 px-6 py-8 font-mono text-sm">
         {/*
           `home`, not a brand: the site is the person's work, and the page
           heading already says whose. `personal-os` is the OS project's title
@@ -40,7 +40,7 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
 
       <main className="flex-1 py-8">{children}</main>
 
-      <footer className="mx-auto w-full max-w-3xl px-6">
+      <footer className="mx-auto w-full max-w-[82rem] px-6">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-neutral-200 py-8 font-mono text-xs text-neutral-500 dark:border-neutral-800">
           <a
             href="mailto:ijohnkojo@gmail.com"

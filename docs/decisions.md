@@ -1428,3 +1428,40 @@ so a year cannot be linked to; that was already out of scope.
 is the natural next step, and would make the server render a year other than
 the last), or when a year's additions are too many for a fade to read as
 growth.
+
+---
+
+## D-048 · 2026-09-28 · active
+### The home page is one wide frame, and with nothing selected it shows the centre
+
+The home page, header and footer share one `max-w-[82rem]` frame. On the home
+page the intro and the graph start at its left edge; the legend and the
+inspector share its right-hand column (`GRAPH_COLUMNS`: 18rem below `xl`,
+22.5rem from it); the listings keep reading width, left-aligned. Reading pages
+keep their centred `max-w-3xl` column under the wide header. This amends
+[D-043](#d-043--2026-09-27--active), which put the header and footer at reading
+width.
+
+The legend is its own box, always shown. The inspector is never empty: with
+nothing selected it shows the centre — `SITE_INTRO`, a link to `/about`, the
+organisations and fields, and all visible work newest first — and the centre is
+the active node, so the graph opens tracing me and the inner ring.
+
+**Why.** Asked for with an annotated screenshot: the old layout left wide empty
+margins while the graph and text sat in narrower centred columns, and the
+legend vanished as soon as something was selected. Showing the centre by
+default answers "who is this" in the panel before anyone clicks, and lighting
+its neighbourhood makes the graph's structure — me, then what I belong to —
+the first thing it says. The panel narrows below 1280px because at 1024px a
+22.5rem panel would shrink the graph below the 80% its label-collision test
+checks ([D-042](#d-042--2026-09-27--active)).
+
+**Cost.** The page opens with most of the graph faded — the work and tools are
+at 18% until something is hovered. The header no longer lines up with the
+text on reading pages. The intro sentence now appears twice on the home page,
+in the intro and in the panel (one constant, so they cannot drift).
+
+**Revisit when** the faded default hides what visitors come for — if people
+do not find the work, the default should light the whole graph, or trace the
+newest entry instead — or when the phone layout (Phase 5) needs the legend and
+the panel somewhere other than a column.

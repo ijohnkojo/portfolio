@@ -1460,3 +1460,51 @@ need the inspector's ×.
   slider, and another node keep (or move) it; clicking the selected node again
   still toggles it off. No page errors.
 - `pnpm test`, `pnpm lint`, `pnpm build` clean; all 148 OS browser checks pass.
+
+---
+
+## 2026-09-28 — The home page uses its empty space
+
+Asked for with an annotated screenshot after Phase 4; approved as an SVG mockup
+drawn from the real graph. Plan:
+[plans/2026-09-28-home-layout.md](plans/2026-09-28-home-layout.md).
+
+### Built
+
+- **One wide frame** (`max-w-[82rem]`) for the home page, header and footer.
+  The intro and the graph start at its left edge; the graph grows from 784px
+  to 864px at 1440 wide.
+- **The legend is its own box** beside the intro (`Legend.tsx`), always shown.
+- **The inspector is never empty.** With nothing selected it shows me: the
+  intro, "About me", organisations, fields, and all the work newest first
+  (`allWork`), each a button that selects it. No × until something is
+  selected.
+- **With nothing selected, the graph traces the centre** — me and the inner
+  ring at full strength — as if it were hovered.
+- **`SITE_INTRO`** in `lib/site.ts`: the intro sentence, read by the page and
+  by the graph's centre node, still a `PLACEHOLDER`.
+
+### Decided
+
+- **D-048** — the wide frame, the separate legend, the default view of the
+  centre. Amends D-043's reading-width header and footer.
+
+### Verified
+
+- **586 unit tests** (+3: `allWork` order and timeline filtering; the centre's
+  summary).
+- **In Chromium**, 1024 / 1280 / 1440 / 1920 wide: no horizontal overflow; the
+  graph is 648 / 832 / 864 / 864px, never below the 80% the label test checks;
+  the intro, graph and header share a left edge at 1440; the legend sits over
+  the inspector. Screenshotted light and dark, default and selected. The eight
+  click-to-clear cases still pass, now returning the panel to me. A reading
+  page keeps its centred column. No console errors.
+- `pnpm build` and `eslint` clean; all 148 OS browser checks pass.
+- `Revisit when`: D-042's "labels need to scale with the drawing" — did not
+  fire; the panel narrows below 1280px to keep the graph at 81% at 1024.
+  D-043's layout choice is amended by D-048 (header and footer only).
+
+### Deliberately left out
+
+- **The phone layout** — below `lg` the intro, legend, graph and panel stack
+  as before. Phase 5.

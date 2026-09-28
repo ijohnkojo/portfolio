@@ -1,9 +1,12 @@
 import Link from 'next/link'
 
 import { EntryList } from '@/components/entry'
+import { GRAPH_COLUMNS } from '@/components/graph/columns'
 import { KnowledgeGraph } from '@/components/graph/KnowledgeGraph'
+import { Legend } from '@/components/graph/Legend'
 import { listEntries } from '@/lib/content'
 import { loadGraph } from '@/lib/graph/load'
+import { SITE_INTRO, SITE_NAME } from '@/lib/site'
 
 /**
  * The front page: who this is, the work as a graph, and the work as a list.
@@ -14,8 +17,11 @@ import { loadGraph } from '@/lib/graph/load'
  * the scan-friendly, crawlable way to reach everything — they do not depend on
  * JavaScript or on anything the graph is doing.
  *
- * Widths are set per section: this page sits outside the `(reading)` group, so
- * the graph can be wider than the text around it (D-043).
+ * One wide frame, the same as the header's: the intro and the graph start at
+ * its left edge, and the legend and the inspector share its right-hand column
+ * (D-048). The listings keep the reading width, left-aligned in the frame.
+ * This page sits outside the `(reading)` group, so it can be wider than the
+ * text pages (D-043).
  */
 export default function Home() {
   const graph = loadGraph()
@@ -24,36 +30,35 @@ export default function Home() {
   const presentations = listEntries('presentations')
 
   return (
-    <div className="space-y-14">
+    <div className="mx-auto w-full max-w-[82rem] space-y-10 px-6">
       {/*
-        The ten-second answer: who, what, and a way in. Anyone who wants the
-        long version has /about; this section's job is to be readable by
-        someone who will not click anything.
+        The intro spans from the graph's left edge; the legend sits beside it,
+        over the inspector, in the same two columns as the graph below.
       */}
-      <section className="mx-auto w-full max-w-3xl space-y-4 px-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Michael Noamesi</h1>
+      <div className={`${GRAPH_COLUMNS} lg:items-start`}>
         {/*
-          PLACEHOLDER — rewrite in your own words. Deliberately flat and
-          factual rather than polished, so there is nothing here worth keeping
-          by accident. Two or three sentences is the right length.
+          The ten-second answer: who, what, and a way in. Anyone who wants the
+          long version has /about; this section's job is to be readable by
+          someone who will not click anything.
         */}
-        <p className="max-w-[60ch] leading-7 text-neutral-700 dark:text-neutral-300">
-          Physics and computer science at Gettysburg College. I work on
-          software for experimental particle physics.
-        </p>
-        <Link
-          href="/about"
-          className="inline-block font-mono text-sm text-neutral-500 underline underline-offset-4 hover:text-current"
-        >
-          about
-        </Link>
-      </section>
+        <section className="space-y-4">
+          <h1 className="text-2xl font-semibold tracking-tight">{SITE_NAME}</h1>
+          <p className="max-w-[60ch] leading-7 text-neutral-700 dark:text-neutral-300">{SITE_INTRO}</p>
+          <Link
+            href="/about"
+            className="inline-block font-mono text-sm text-neutral-500 underline underline-offset-4 hover:text-current"
+          >
+            about
+          </Link>
+        </section>
+        <Legend />
+      </div>
 
-      <section aria-label="The work, as a graph" className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+      <section aria-label="The work, as a graph">
         <KnowledgeGraph graph={graph} />
       </section>
 
-      <div className="mx-auto w-full max-w-3xl space-y-14 px-6">
+      <div className="max-w-3xl space-y-14 pt-4">
         <section>
           <h2 className="mb-2 font-mono text-xs tracking-widest text-neutral-500 uppercase">
             Projects

@@ -55,6 +55,12 @@ describe('buildGraph — nodes and edges', () => {
     expect(edgeIds(g)).toContain('me|org:lab')
   })
 
+  it('gives the centre a summary only when one is passed', () => {
+    expect(g.nodes.find((n) => n.id === 'me')).not.toHaveProperty('summary')
+    const withSummary = buildGraph(spec(), [], { ...options, centre: { ...options.centre, summary: 'Hello.' } })
+    expect(withSummary.nodes.find((n) => n.id === 'me')?.summary).toBe('Hello.')
+  })
+
   it('namespaces ids by kind and assigns rings by kind', () => {
     const ring = Object.fromEntries(g.nodes.map((n) => [n.id, n.ring]))
     expect(ring).toMatchObject({ 'org:lab': 1, 'field:physics': 1, 'entry:projects/alpha': 2, 'tool:python': 3 })

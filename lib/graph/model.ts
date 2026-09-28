@@ -72,7 +72,7 @@ export interface GraphEntry {
 
 export interface BuildOptions {
   /** The centre node: the site's owner. */
-  centre: { label: string; href: string }
+  centre: { label: string; href: string; summary?: string }
   /** The spec's path, for error messages. */
   specPath: string
 }
@@ -325,7 +325,16 @@ export function buildGraph(rawSpec: unknown, entries: GraphEntry[], options: Bui
 
   /* ---- nodes ---- */
   const nodes: GraphNode[] = [
-    { id: 'me', kind: 'me', ring: 0, label: options.centre.label, angle: 0, year: null, href: options.centre.href },
+    {
+      id: 'me',
+      kind: 'me',
+      ring: 0,
+      label: options.centre.label,
+      angle: 0,
+      year: null,
+      href: options.centre.href,
+      ...(options.centre.summary ? { summary: options.centre.summary } : {}),
+    },
   ]
 
   for (const e of published) {
