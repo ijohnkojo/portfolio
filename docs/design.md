@@ -59,7 +59,8 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
   the same way.
 - **Click inspects.** The node stays selected and an inspector opens: summary,
   tags, a link to its page, and its connections as buttons, so the panel is a
-  second way to walk the graph. The OS node is the one exception — clicking it
+  second way to walk the graph. The inspector's ×, `Escape`, or a click on any
+  blank space lets go of it. **▸ Built** The OS node is the one exception — clicking it
   boots the OS, and its mark and arrow say so before anyone clicks
   (**▸ Decided**, [D-044](decisions.md)).
 - **A timeline grows the graph year by year**, defaulting to the whole of it:

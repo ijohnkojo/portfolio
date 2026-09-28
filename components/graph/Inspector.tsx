@@ -29,6 +29,7 @@ export function Inspector({
 }) {
   return (
     <aside
+      data-graph-inspector
       aria-labelledby={titleId}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && node) onClear()

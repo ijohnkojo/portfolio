@@ -260,6 +260,12 @@ grouped by kind as buttons that select them — a way to walk the graph without
 a pointer. With nothing selected it is a legend of the marks. The OS node is a
 link rather than a button: clicking it boots the OS ([D-044](decisions.md)).
 
+**Clearing the selection** takes the inspector's ×, `Escape`, clicking the
+selected node again, or a click on blank space — anywhere on the page that is
+not a control (`a`, `button`, `input` …) or the inspector itself. The last is a
+document listener that `KnowledgeGraph` holds only while something is
+selected, and it ignores a click that ends a text selection.
+
 **The timeline** ([D-047](decisions.md)) sits under the drawing: a Replay
 button, a native range input over `timelineYears` (2023–2026 today), and how
 many of the nodes are shown. The year is state in `KnowledgeGraph`; the page

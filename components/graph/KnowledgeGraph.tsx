@@ -37,6 +37,12 @@ const MOVES: Record<string, NavMove> = {
   Home: 'centre',
 }
 
+/**
+ * What a click may land on without clearing the selection: anything that does
+ * something itself, and the inspector, which is about the selection.
+ */
+const KEEPS_SELECTION = 'a, button, input, select, textarea, label, summary, [data-graph-inspector]'
+
 /** How long Replay holds each year. */
 const REPLAY_STEP_MS = 900
 
@@ -90,6 +96,22 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
     }, REPLAY_STEP_MS)
     return () => clearTimeout(timer)
   }, [playing, time.year, years])
+
+  // A click on blank space — anywhere on the page that is not a control or
+  // the inspector — clears the selection, like the inspector's ×. Listening
+  // only while something is selected keeps the page free of it otherwise.
+  // A click that ends a text selection is left alone.
+  useEffect(() => {
+    if (selected === null) return
+    function onClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0) return
+      if (!(event.target instanceof Element) || event.target.closest(KEEPS_SELECTION)) return
+      if (window.getSelection()?.isCollapsed === false) return
+      setSelected(null)
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [selected])
 
   const instructionsId = useId()
   const titleId = useId()

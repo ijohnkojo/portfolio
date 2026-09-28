@@ -1437,3 +1437,26 @@ Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md), Phase 4.
 - **Reduced motion for Replay itself** and **announcing Replay to a screen
   reader** — Phase 5's pass (plan, Phase 4 deviations 6 and 7).
 - **A linkable year** (URL state) — out of scope; D-047's revisit trigger.
+
+---
+
+## 2026-09-28 — A click on blank space clears the selection
+
+Asked for after Phase 4, before Phase 5: letting go of a selection should not
+need the inspector's ×.
+
+### Built
+
+- **A click anywhere that is not a control or the inspector clears the
+  selection** — blank space in the drawing, the page margins, plain text. Links,
+  buttons, the slider, and anything inside the inspector keep it. A click that
+  ends a text selection is ignored, so selecting text to copy it does not lose
+  the node. The listener exists only while something is selected.
+
+### Verified
+
+- In Chromium, eight cases: blank space in the drawing, the page margin and the
+  heading clear it; text inside the inspector, a connection button, the
+  slider, and another node keep (or move) it; clicking the selected node again
+  still toggles it off. No page errors.
+- `pnpm test`, `pnpm lint`, `pnpm build` clean; all 148 OS browser checks pass.
