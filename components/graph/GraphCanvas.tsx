@@ -19,6 +19,12 @@ export const FADED_CENTRE = 0.35
 const FADE = 'transition-opacity duration-150 motion-reduce:transition-none'
 
 /**
+ * What the timeline just added fades in (`graph-enter` in globals.css), so a
+ * replay reads as the graph growing. Nothing moves — nodes appear in place.
+ */
+export const ENTER = 'graph-enter'
+
+/**
  * The drawing: edges and node marks. The rings are not drawn — the layout
  * implies them, and the lines read cleaner without them. Decoration only — `aria-hidden`,
  * and no pointer events — because every interactive thing is a real button in
@@ -31,12 +37,15 @@ export function GraphCanvas({
   lit,
   selected,
   visible,
+  entering,
 }: {
   graph: GraphData
   geometry: Geometry
   lit: Lit | null
   selected: string | null
   visible: Set<string>
+  /** What the timeline added in the step just taken. */
+  entering: Lit
 }) {
   const at = new Map(graph.nodes.map((n) => [n.id, nodePoint(n.angle, n.ring, geometry)]))
   const opacity = (on: boolean, id?: string) => (lit && !on ? (id === 'me' ? FADED_CENTRE : FADED) : 1)
@@ -64,7 +73,7 @@ export function GraphCanvas({
                 x2={b.x}
                 y2={b.y}
                 strokeWidth={on ? 1.5 : 1}
-                className={`${FADE} ${on ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-700'}`}
+                className={`${FADE} ${entering.edges.has(e.id) ? ENTER : ''} ${on ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-700'}`}
                 style={{ opacity: opacity(on) }}
               />
             )
@@ -87,7 +96,7 @@ export function GraphCanvas({
         {graph.nodes
           .filter((n) => visible.has(n.id))
           .map((n) => (
-            <g key={n.id} className={FADE} style={{ opacity: opacity(lit?.nodes.has(n.id) ?? false, n.id) }}>
+            <g key={n.id} className={`${FADE} ${entering.nodes.has(n.id) ? ENTER : ''}`} style={{ opacity: opacity(lit?.nodes.has(n.id) ?? false, n.id) }}>
               <Mark node={n} at={at.get(n.id)!} selected={n.id === selected} centreRadius={geometry.centreRadius} />
             </g>
           ))}

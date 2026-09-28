@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { connections, highlight, indexGraph, kindLabel, neighbours, nextNode, visibleAt } from './interact'
+import {
+  connections,
+  highlight,
+  indexGraph,
+  joinedIn,
+  kindLabel,
+  neighbours,
+  nextNode,
+  timelineYears,
+  visibleAt,
+} from './interact'
 import type { GraphData, GraphNode } from './model'
 
 /*
@@ -82,6 +92,39 @@ describe('visibleAt', () => {
     const v = visibleAt(graph, 2026)
     expect(v.nodes).toEqual(all)
     expect(v.edges.size).toBe(graph.edges.length)
+  })
+})
+
+describe('timelineYears', () => {
+  it('is every year of the span, oldest first', () => {
+    expect(timelineYears(graph)).toEqual([2024, 2025, 2026])
+  })
+
+  it('keeps a year in which nothing joins, so the scrubber moves evenly', () => {
+    expect(timelineYears({ ...graph, years: { first: 2020, last: 2023 } })).toEqual([2020, 2021, 2022, 2023])
+  })
+
+  it('is empty when nothing is dated', () => {
+    expect(timelineYears({ ...graph, years: null })).toEqual([])
+  })
+})
+
+describe('joinedIn', () => {
+  it('is what a year adds to the one before', () => {
+    const j = joinedIn(graph, 2026)
+    expect(j.nodes).toEqual(new Set(['entry:e2']))
+    // Both of e2's edges arrive with it — including the one to a 2024 node.
+    expect(j.edges).toEqual(new Set(['entry:e2|field:b', 'entry:e1|entry:e2']))
+  })
+
+  it('brings everything shown in the first year, undated nodes included', () => {
+    expect(joinedIn(graph, 2024).nodes).toEqual(visibleAt(graph, 2024).nodes)
+  })
+
+  it('adds up, year by year, to the whole graph', () => {
+    const nodes = new Set<string>()
+    for (const year of timelineYears(graph)) joinedIn(graph, year).nodes.forEach((id) => nodes.add(id))
+    expect(nodes).toEqual(all)
   })
 })
 

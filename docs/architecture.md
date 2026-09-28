@@ -4,12 +4,12 @@ What the site's code does right now. It is the companion to
 [design.md](design.md), which holds the intent. Where the two disagree, this
 file is right and the design doc needs a patch.
 
-**Status, 2026-09-27:** the site is a set of server-rendered pages built from
+**Status, 2026-09-28:** the site is a set of server-rendered pages built from
 `content/` — a home page listing the work, `/about`, and a listing and detail
 route per collection. It is being rebuilt around a knowledge graph of the work
 ([plan](plans/2026-09-27-graph-home.md)). The graph is built and drawn on `/`
-— [§ The home graph](#the-home-graph) — with hover tracing, an inspector and
-keyboard navigation; the timeline, the phone layout and the accessibility pass
+— [§ The home graph](#the-home-graph) — with hover tracing, an inspector,
+keyboard navigation and a timeline; the phone layout and the accessibility pass
 are still to come. The
 OS that used to be the site's framing is now a separate, frozen project in
 `os/`, documented in [os/architecture.md](os/architecture.md).
@@ -161,7 +161,7 @@ flowchart LR
 |---|---|---|
 | `lib/graph/model.ts` | yes | types; `buildGraph(spec, entries, options)` — parses and validates `graph.json`, resolves every entry's references, builds nodes and edges, dates them for the timeline, fills in missing angles |
 | `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP` (with `centreRadius`), `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
-| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups) |
+| `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `timelineYears` (every year of the span), `joinedIn(year)` (what that year adds), `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups) |
 | `lib/graph/load.ts` | no | `loadGraph()` — reads `graph.json` and every entry, memoised like the content loader |
 
 The pure three are what the client component imports; `purity.test.ts`
@@ -210,6 +210,7 @@ components/graph/KnowledgeGraph.tsx 'use client' — interaction state only
 components/graph/GraphCanvas.tsx    the SVG: edges and marks. aria-hidden, no pointer events
 components/graph/NodeLayer.tsx      one <button> per node (the OS: a link), over its mark
 components/graph/Inspector.tsx      the panel: legend when empty, the node and its connections when not
+components/graph/Timeline.tsx       under the drawing: Replay, the year slider, what is shown
 ```
 
 The page builds the graph during its static render, so a bad reference in any
@@ -258,6 +259,18 @@ tags, a link to its page (or an organisation's site), and its connections
 grouped by kind as buttons that select them — a way to walk the graph without
 a pointer. With nothing selected it is a legend of the marks. The OS node is a
 link rather than a button: clicking it boots the OS ([D-044](decisions.md)).
+
+**The timeline** ([D-047](decisions.md)) sits under the drawing: a Replay
+button, a native range input over `timelineYears` (2023–2026 today), and how
+many of the nodes are shown. The year is state in `KnowledgeGraph`; the page
+filters both layers through `visibleAt(year)`. It starts at the last year, so
+the server render and the page without JavaScript show the whole graph, and
+the controls are disabled until hydration. Replay jumps to the first year and
+steps forward every 900ms, stopping after the last; touching the slider stops
+it. What a forward step adds (`joinedIn`) fades in (`.graph-enter` in
+`globals.css`, off under reduced motion). A node the timeline hides stops being
+hovered, focused or selected until it returns; the selection is kept and comes
+back with it. The listings under the graph do not follow the timeline.
 
 **No prefetch of `/os`.** Every site link to `/os` sets `prefetch={false}` —
 the graph's OS node, the inspector's button, and the writeup footers. `/os`
@@ -318,6 +331,5 @@ JavaScript disabled and that the OS reads the same bytes.
   [OS backlog](os/backlog.md).
 - **Published summaries are placeholders.** All seven published entries still
   read `DRAFT — replace this.`
-- **No timeline yet** — the graph shows every year at once. Phase 4.
 - **No phone layout.** Below `lg` the inspector drops under the graph; on a
   phone the drawing is too small for its labels. Phase 5.

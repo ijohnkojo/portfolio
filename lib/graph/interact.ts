@@ -59,6 +59,34 @@ export function visibleAt(graph: GraphData, year: number): { nodes: Set<string>;
   return { nodes, edges }
 }
 
+/**
+ * Every year the timeline can stop at, oldest first — each year in the span,
+ * including any in which nothing joins, so the scrubber moves at an even pace.
+ * Empty when nothing in the graph is dated, which means no timeline.
+ */
+export function timelineYears(graph: GraphData): number[] {
+  if (!graph.years) return []
+  const { first, last } = graph.years
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i)
+}
+
+/**
+ * What joins the graph in exactly `year`: shown then, not the year before.
+ * An edge joins with the later of its two ends. The first year of the span
+ * brings everything visible in it, undated nodes included.
+ */
+export function joinedIn(graph: GraphData, year: number): { nodes: Set<string>; edges: Set<string> } {
+  const now = visibleAt(graph, year)
+  const before =
+    graph.years && year > graph.years.first
+      ? visibleAt(graph, year - 1)
+      : { nodes: new Set<string>(), edges: new Set<string>() }
+  return {
+    nodes: new Set([...now.nodes].filter((id) => !before.nodes.has(id))),
+    edges: new Set([...now.edges].filter((id) => !before.edges.has(id))),
+  }
+}
+
 /** Clockwise / anticlockwise round a ring, out / in across rings, or home. */
 export type NavMove = 'next' | 'previous' | 'outward' | 'inward' | 'centre'
 

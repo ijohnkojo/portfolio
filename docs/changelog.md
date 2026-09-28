@@ -1384,3 +1384,56 @@ any more, so the chrome should stop saying it is.
   comments — they are copy still to be written, not OS references.
 - Inside the OS, `personal-os` still names the boot banner and the taskbar:
   the OS is frozen, and that is its own name.
+
+---
+
+## 2026-09-28 — Phase 4: the timeline
+
+Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md), Phase 4.
+
+### Built
+
+- **A timeline under the graph**: a Replay button, a native range input over
+  2023–2026, and "up to 2025 · 23 of 33 nodes". Scrubbing filters both layers
+  through `visibleAt`; nodes appear and disappear in place.
+- **Replay** jumps to the first year and steps forward every 900ms, stopping
+  after the last; it becomes "stop" while running, and touching the slider
+  stops it.
+- **What a forward step adds fades in** (`.graph-enter`, opacity only, off
+  under reduced motion).
+- **Hidden nodes let go**: a hovered, focused or selected node the timeline
+  hides stops being any of those; the selection comes back with the node.
+- **`timelineYears` and `joinedIn`** in `lib/graph/interact.ts`, pure and
+  tested.
+- **The server render is the last year**, and the controls are disabled until
+  hydration, so the page without JavaScript shows the whole graph and no dead
+  slider. The listings under the graph do not follow the timeline.
+
+### Decided
+
+- **D-047** — the timeline is client state over a full server render; hidden
+  nodes let go; additions fade, nothing moves.
+
+### Verified
+
+- **583 unit tests** (+6: the years of the span, what each year adds, and that
+  the years add up to the whole graph). The existing every-year legibility
+  tests already cover each position of the slider.
+- **In Chromium:** the slider moves the graph (5 → 6 → 23 → 33 nodes for
+  2023–2026, edges 4 → 5 → 27 → 49); a selected 2026 node empties the
+  inspector at 2025 and comes back at 2026; Replay walks 2023 → 2026 and stops;
+  arrow keys move the slider; no horizontal overflow at 1280px; no console
+  errors. Screenshotted per year, light and dark.
+- **Server HTML**: all 33 node controls and 49 edges, the slider `disabled` at
+  "2026, everything".
+- `pnpm build` and `eslint` clean; all 148 OS browser checks pass
+  (`globals.css` is shared with the OS; the new class is unused there).
+- `Revisit when`: D-045's "a second element wants the accent" — did not fire;
+  the slider is deliberately neutral. D-041's "nothing moves" holds — the fade
+  is opacity only.
+
+### Deliberately left out
+
+- **Reduced motion for Replay itself** and **announcing Replay to a screen
+  reader** — Phase 5's pass (plan, Phase 4 deviations 6 and 7).
+- **A linkable year** (URL state) — out of scope; D-047's revisit trigger.

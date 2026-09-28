@@ -73,7 +73,10 @@ and carry a banner saying so.
 - **Phase 3 done:** the graph is drawn on `/` — rings, hover tracing, the
   inspector, keyboard navigation — and the reading pages moved into a
   `(reading)` route group (D-042 … D-044).
-- **Next:** Phase 4, the timeline.
+- **Phase 4 done:** the timeline — a year slider and Replay under the graph;
+  the no-JS page and the listings always show everything (D-047).
+- **Next:** Phase 5, the phone layout, reduced motion and the accessibility
+  pass.
 
 **Content:** seven entries, all published since `516e366` — but every summary
 still reads `DRAFT — replace this.` That is prose, not code, and it is the

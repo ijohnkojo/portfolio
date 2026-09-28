@@ -1,8 +1,8 @@
 # The Graph Home — the site becomes a knowledge graph; the OS becomes a project
 
 > **Status:** drafted 2026-09-27 · revised the same day after the reframe
-> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27, Phase 3
-> on 2026-09-28. Worked on
+> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27, Phases 3
+> and 4 on 2026-09-28. Worked on
 > `graph-home`, which was fast-forwarded into `main` after Phase 1; later
 > phases commit to `main` directly.
 >
@@ -13,7 +13,7 @@
 >       validation, tests (D-039, D-040, D-041)
 > - [x] 3. The graph on `/` — rings, highlighting, inspector, keyboard, the
 >       `(reading)` route group (D-042, D-043, D-044)
-> - [ ] 4. Timeline scrubber, and the listings below the graph
+> - [x] 4. Timeline scrubber, and the listings below the graph (D-047)
 > - [ ] 5. Phone layout, reduced motion, accessibility pass
 >
 > **Design pass after Phase 3, 2026-09-28** (not in the plan; asked for after
@@ -24,6 +24,31 @@
 > the design section's quadratic curves (D-046), with a new test that no edge
 > runs through a node it does not connect; three angles moved to satisfy it
 > (CERN/CMS 345 → 335, Gettysburg College 100 → 115, Python 88 → 70).
+>
+> **Phase 4 deviations:**
+>
+> 1. **The listings needed no change.** Phase 3 already put them under the
+>    graph through `EntryList`, server-rendered and independent of it; Phase 4
+>    only confirms they ignore the year.
+> 2. **Two pure functions were added**, `timelineYears` (every year of the
+>    span, so the slider moves evenly) and `joinedIn` (what a year adds, with
+>    the first year bringing everything shown in it).
+> 3. **What a forward step adds fades in** — opacity only, 450ms, off under
+>    reduced motion. Not in the plan; without it Replay flickered between
+>    states rather than growing. Nothing moves, so "no layout animation"
+>    still holds.
+> 4. **Hidden nodes let go** of hover, the tab stop and the selection, and the
+>    selection returns when the node does. The plan said hidden nodes are
+>    skipped by the keyboard, not what happens to a selection (D-047).
+> 5. **The controls are disabled until hydration**, so the no-JS page shows the
+>    full graph without a slider that does nothing.
+> 6. **Replay under reduced motion still steps** year by year — the fade is
+>    off, the stepping is not. Phase 5's `matchMedia` item decides whether it
+>    should jump straight to the end instead.
+> 7. **The year readout is not announced** (`aria-live="off"`): the slider's
+>    `aria-valuetext` already says the year, and a live region would say it
+>    twice while scrubbing. Replay is silent to a screen reader as a result —
+>    for Phase 5's accessibility pass.
 >
 > **Phase 3 deviations:**
 >

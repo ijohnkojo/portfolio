@@ -5,7 +5,7 @@ import { kindLabel } from '@/lib/graph/interact'
 import { HIT, labelSide, nodePoint, type Geometry, type LabelSide } from '@/lib/graph/layout'
 import type { GraphData, GraphNode } from '@/lib/graph/model'
 
-import { FADED, FADED_CENTRE, type Lit } from './GraphCanvas'
+import { ENTER, FADED, FADED_CENTRE, type Lit } from './GraphCanvas'
 
 /** Shift each control so its hit square, not its corner, sits on the node. */
 const TRANSFORM: Record<LabelSide, string> = {
@@ -50,6 +50,7 @@ export function NodeLayer({
   selected,
   focused,
   visible,
+  entering,
   describedBy,
   register,
   onHover,
@@ -63,6 +64,8 @@ export function NodeLayer({
   selected: string | null
   focused: string
   visible: Set<string>
+  /** Nodes the timeline added in the step just taken; they fade in. */
+  entering: Set<string>
   describedBy: string
   register: (id: string, el: HTMLElement | null) => void
   onHover: (id: string | null) => void
@@ -92,6 +95,7 @@ export function NodeLayer({
             'transition-opacity duration-150 motion-reduce:transition-none',
             FLEX[side],
             n.id === focused || n.id === selected ? 'z-10' : '',
+            entering.has(n.id) ? ENTER : '',
           ].join(' ')
 
           const style = {
@@ -138,6 +142,7 @@ export function NodeLayer({
                   'pointer-events-auto absolute flex items-center justify-center rounded-full outline-none',
                   'focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:focus-visible:ring-neutral-100',
                   'transition-opacity duration-150 motion-reduce:transition-none',
+                  entering.has(n.id) ? ENTER : '',
                 ].join(' ')}
                 style={{
                   left: `${((at.x - geometry.centreRadius) / geometry.width) * 100}%`,

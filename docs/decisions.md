@@ -1393,3 +1393,38 @@ node and the distance, and the fix is still a few degrees.
 **Revisit when** the graph grows dense enough that no angles satisfy every
 rule at once — then edges want routing (or bundling), which is a different
 kind of drawing.
+
+---
+
+## D-047 · 2026-09-28 · active
+### The timeline is client state over a full server render, and hidden nodes let go
+
+The year lives in `KnowledgeGraph` and nowhere else. The server renders the
+last year — the whole graph — and so does the page without JavaScript, with the
+timeline's controls disabled until hydration rather than present and dead. The
+listings under the graph never follow it. The scrubber stops at every year of
+the span, including a year in which nothing joins (`timelineYears`).
+
+A node the timeline hides stops being hovered, holding the tab stop, or
+selected — each falls back as if it had been let go (the tab stop to the
+centre, the inspector to its legend). The selection itself is kept, so moving
+the year forward again brings it back. What a forward step adds (`joinedIn`)
+fades in over 450ms, opacity only; nothing moves, and under reduced motion it
+simply appears. Moving back just removes.
+
+**Why.** The graph's crawlable, no-JS form must not depend on client state, so
+the default is the full graph and the lists are fixed (the plan's "listings
+don't follow the scrubber"). Keeping the selection rather than clearing it
+makes scrubbing non-destructive: a visitor can look at 2024 and come back to
+what they had open. The fade is what makes Replay read as the graph *growing*
+rather than flickering between states; limiting it to opacity keeps D-041's
+"nothing moves".
+
+**Cost.** Two kinds of state for one thing — what is selected, and what is
+shown as selected — derived on every render. The timeline is not in the URL,
+so a year cannot be linked to; that was already out of scope.
+
+**Revisit when** the timeline needs to be linkable or shared (URL-synced state
+is the natural next step, and would make the server render a year other than
+the last), or when a year's additions are too many for a fade to read as
+growth.

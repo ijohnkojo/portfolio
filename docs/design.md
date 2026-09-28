@@ -38,10 +38,10 @@ booted by clicking it. It lives in `os/` as a separate project, frozen while the
 site is rebuilt; the site never imports it ([D-037](decisions.md)). Work that
 would change the OS waits in [os/backlog.md](os/backlog.md).
 
-## 3. The graph — ▸ Built, except the timeline
+## 3. The graph — ▸ Built
 
 As built in [architecture.md § The home graph](architecture.md#the-home-graph);
-the timeline is Phase 4 of the [plan](plans/2026-09-27-graph-home.md).
+the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
 
 - **The centre is the one spot of colour** — a large amber disc with the first
   name inside it and a soft glow; everything else is neutral, and shape carries
@@ -62,7 +62,11 @@ the timeline is Phase 4 of the [plan](plans/2026-09-27-graph-home.md).
   second way to walk the graph. The OS node is the one exception — clicking it
   boots the OS, and its mark and arrow say so before anyone clicks
   (**▸ Decided**, [D-044](decisions.md)).
-- **A timeline grows the graph year by year**, defaulting to the whole of it.
+- **A timeline grows the graph year by year**, defaulting to the whole of it:
+  a slider over the years and a Replay that walks them, with what each year
+  adds fading in where it will stay. The page without JavaScript, and the
+  listings under the graph, always show everything. **▸ Built**
+  ([D-047](decisions.md)).
 - **Straight edges**, node to node, and none may run through a node it does
   not connect — that would draw a relation that is not there. **▸ Decided**
   ([D-046](decisions.md)).
