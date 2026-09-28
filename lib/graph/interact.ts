@@ -147,7 +147,7 @@ export function kindLabel(node: GraphNode): string {
   if (node.kind === 'entry') {
     return { projects: 'Project', papers: 'Paper', presentations: 'Talk' }[node.collection ?? 'projects']
   }
-  return { me: 'Me', org: 'Organisation', field: 'Field', tool: 'Tool' }[node.kind]
+  return { me: 'Me', org: 'Organization', field: 'Field', tool: 'Tool' }[node.kind]
 }
 
 /**
@@ -168,7 +168,7 @@ export interface ConnectionGroup {
 }
 
 const GROUPS: Array<{ title: string; kinds: GraphNode['kind'][] }> = [
-  { title: 'Organisations', kinds: ['org'] },
+  { title: 'Organizations', kinds: ['org'] },
   { title: 'Fields', kinds: ['field'] },
   { title: 'Work', kinds: ['entry'] },
   { title: 'Tools', kinds: ['tool'] },

@@ -169,7 +169,7 @@ describe('kindLabel', () => {
   it('names entries by collection and everything else by kind', () => {
     expect(kindLabel({ ...node('entry:x', 2, 0), collection: 'papers' })).toBe('Paper')
     expect(kindLabel({ ...node('entry:y', 2, 0), collection: 'presentations' })).toBe('Talk')
-    expect(kindLabel(node('org:a', 1, 0))).toBe('Organisation')
+    expect(kindLabel(node('org:a', 1, 0))).toBe('Organization')
     expect(kindLabel(node('tool:t', 3, 0))).toBe('Tool')
   })
 })
@@ -177,7 +177,7 @@ describe('kindLabel', () => {
 describe('connections', () => {
   it('groups by kind in a fixed order, sorted by label', () => {
     expect(connections(index, 'entry:e1').map((g) => [g.title, g.nodes.map((n) => n.id)])).toEqual([
-      ['Organisations', ['org:a']],
+      ['Organizations', ['org:a']],
       ['Work', ['entry:e2']],
       ['Tools', ['tool:t']],
     ])
@@ -188,7 +188,7 @@ describe('connections', () => {
   })
 
   it('lists the inner ring for the centre itself', () => {
-    expect(connections(index, 'me').map((g) => g.title)).toEqual(['Organisations', 'Fields'])
+    expect(connections(index, 'me').map((g) => g.title)).toEqual(['Organizations', 'Fields'])
   })
 
   it('leaves out what the timeline hides', () => {

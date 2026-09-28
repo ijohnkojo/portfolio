@@ -61,10 +61,12 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
   tags, a link to its page, and its connections as buttons, so the panel is a
   second way to walk the graph. The inspector's ×, `Escape`, or a click on any
   blank space lets go of it. **▸ Built**
-- **With nothing selected, the graph and the panel show me** — the centre's
-  neighbourhood traced, and the panel with the intro, my organisations and
-  fields, and all the work. The legend has its own box above the panel.
-  **▸ Built** ([D-048](decisions.md)). The OS node is the one exception — clicking it
+- **With nothing selected, the panel shows me** — the intro, my organizations
+  and fields, and all the work — while the whole graph stays at full
+  strength. The legend has its own box above the panel. **▸ Built**
+  ([D-048](decisions.md), [D-049](decisions.md)).
+- **Site copy spells it "organization"** — the legend, the kind label and the
+  panel's heading. **▸ Decided**, the owner's spelling. The OS node is the one exception — clicking it
   boots the OS, and its mark and arrow say so before anyone clicks
   (**▸ Decided**, [D-044](decisions.md)).
 - **A timeline grows the graph year by year**, defaulting to the whole of it:

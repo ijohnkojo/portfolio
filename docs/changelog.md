@@ -1480,7 +1480,7 @@ drawn from the real graph. Plan:
   (`allWork`), each a button that selects it. No × until something is
   selected.
 - **With nothing selected, the graph traces the centre** — me and the inner
-  ring at full strength — as if it were hovered.
+  ring at full strength — as if it were hovered. *Reverted in the next entry.*
 - **`SITE_INTRO`** in `lib/site.ts`: the intro sentence, read by the page and
   by the graph's centre node, still a `PLACEHOLDER`.
 
@@ -1508,3 +1508,31 @@ drawn from the real graph. Plan:
 
 - **The phone layout** — below `lg` the intro, legend, graph and panel stack
   as before. Phase 5.
+
+---
+
+## 2026-09-28 — The full graph is the resting state again; "organization"
+
+Asked for straight after the layout pass.
+
+### Built
+
+- **Nothing selected → nothing faded.** With the centre traced by default
+  there was no moment where the whole graph showed. The graph now opens, and
+  returns after ×, `Escape` or a click on blank space, at full strength. The
+  inspector still shows the centre by default.
+- **"Organization", not "Organisation"**, in the site's copy: the legend, a
+  node's kind label (and so its accessible name), and the panel's heading.
+  Code comments and docs prose are unchanged.
+
+### Decided
+
+- **D-049** — supersedes D-048's default trace; the panel's default stays.
+
+### Verified
+
+- **586 unit tests** (three expectations respelled). `pnpm lint`,
+  `pnpm build` clean; all 148 OS browser checks pass.
+- In Chromium: no node control faded by default; selecting TreeViz fades 28;
+  a click on blank space returns to none faded with the panel back on the
+  centre. The legend and the panel read "Organization(s)". No page errors.

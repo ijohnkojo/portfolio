@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
  */
 export function Legend() {
   const items: Array<[string, ReactNode]> = [
-    ['Organisation', <circle key="o" cx="8" cy="8" r="5" className="fill-neutral-800 dark:fill-neutral-200" />],
+    ['Organization', <circle key="o" cx="8" cy="8" r="5" className="fill-neutral-800 dark:fill-neutral-200" />],
     ['Field', <circle key="f" cx="8" cy="8" r="4.5" style={{ fill: 'var(--background)' }} strokeWidth="1.5" className="stroke-neutral-800 dark:stroke-neutral-200" />],
     ['Project', <circle key="p" cx="8" cy="8" r="4.5" className="fill-neutral-800 dark:fill-neutral-200" />],
     ['Paper', <rect key="r" x="3.5" y="3.5" width="9" height="9" className="fill-neutral-800 dark:fill-neutral-200" />],

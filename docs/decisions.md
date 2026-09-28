@@ -1465,3 +1465,24 @@ in the intro and in the panel (one constant, so they cannot drift).
 do not find the work, the default should light the whole graph, or trace the
 newest entry instead — or when the phone layout (Phase 5) needs the legend and
 the panel somewhere other than a column.
+
+---
+
+## D-049 · 2026-09-28 · active
+### With nothing selected, the whole graph is at full strength
+
+Supersedes the second half of [D-048](#d-048--2026-09-28--active)'s default
+view. The inspector still shows the centre when nothing is selected; the graph
+no longer traces it. Nothing is active until something is hovered, focused or
+selected, so the page opens — and returns, after ×, `Escape` or a click on
+blank space — with every node and edge at full strength.
+
+**Why.** With the centre traced by default there was no state in which the
+whole graph could be seen at once: every path led to a partly faded drawing.
+The full graph is what the page is for, so it is the resting state.
+
+**Cost.** The default panel describes the centre while the drawing does not
+point at it; the link between them is the panel's title, not the picture.
+
+**Revisit when** visitors need a cue for where to start — then a gentler cue
+than fading (a pulse on the centre, say), not the trace.

@@ -118,9 +118,10 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   const instructionsId = useId()
   const titleId = useId()
 
-  // Hover wins, then keyboard focus, then the selection, then the centre — so
-  // pointing at something always shows it, letting go returns to what was
-  // chosen, and with nothing chosen the graph and the inspector show me.
+  // Hover wins, then keyboard focus, then the selection — so pointing at
+  // something always shows it, and letting go returns to what was chosen. With
+  // nothing chosen the whole graph stays at full strength, and the inspector
+  // shows the centre (D-049).
   //
   // A node the timeline has hidden cannot be hovered, hold the tab stop or be
   // selected; each falls back as if it had been let go. The selection comes
@@ -128,8 +129,8 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   const shownHover = hovered !== null && visible.has(hovered) ? hovered : null
   const shownSelected = selected !== null && visible.has(selected) ? selected : null
   const tabStop = visible.has(focused) ? focused : 'me'
-  const active = shownHover ?? (focusWithin ? tabStop : null) ?? shownSelected ?? 'me'
-  const lit = highlight(index, active)
+  const active = shownHover ?? (focusWithin ? tabStop : null) ?? shownSelected
+  const lit = active ? highlight(index, active) : null
   const inspected = index.byId.get(shownSelected ?? 'me')!
 
   function moveFocus(id: string) {

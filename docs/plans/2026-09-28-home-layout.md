@@ -2,7 +2,8 @@
 
 > **Status:** proposed 2026-09-28 as an annotated mockup, **approved the same
 > day** with one addition (the default view of the centre lights up the graph),
-> and **shipped 2026-09-28** (D-048). Between Phases 4 and 5 of the
+> and **shipped 2026-09-28** (D-048). The addition was taken back out the same
+> day: nothing else ever showed the whole graph at full strength (D-049). Between Phases 4 and 5 of the
 > [graph-home plan](2026-09-27-graph-home.md); not one of its phases.
 
 > Read [../../AGENTS.md](../../AGENTS.md) and [../README.md](../README.md)
@@ -37,7 +38,7 @@ server render) at 1440px wide. The blue pins and notes are annotations.
 | Graph at 1440px | 784px | 864px (832px at 1280, 648px at 1024) |
 | Legend | the inspector's empty state | its own box beside the intro, always shown (`Legend.tsx`) |
 | Inspector | legend, or the selected node | the selected node, or **me**: the intro, "About me", organisations, fields, and all the work newest first |
-| Nothing selected | the graph at full strength | the graph traces the centre, as if it were hovered |
+| Nothing selected | the graph at full strength | unchanged — the graph at full strength (briefly the centre was traced; reverted, D-049) |
 
 ## Deviations from the mockup
 

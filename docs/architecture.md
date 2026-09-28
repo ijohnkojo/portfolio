@@ -241,11 +241,12 @@ flowchart LR
     F -- yes --> FN["the focused node"]
     F -- no --> S{"a node<br/>selected?"}
     S -- yes --> SN["the selection"]
-    S -- no --> ME["the centre — me"]
+    S -- no --> NONE["nothing — all at full strength"]
 ```
 
-With nothing hovered, focused or selected, the centre is the active node, so
-the graph opens tracing me and my inner ring ([D-048](decisions.md)).
+With nothing hovered, focused or selected, nothing is active and the whole
+graph is at full strength, while the inspector shows the centre
+([D-049](decisions.md)).
 The active node, its neighbours and the edges from it stay at full strength;
 everything else goes to opacity 0.18, with a 150ms transition that
 `motion-reduce` turns off. Edges are straight lines, node to node
