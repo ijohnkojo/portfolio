@@ -74,8 +74,8 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
   a slider over the years and a Replay that walks them, with what each year
   adds fading in where it will stay. The page without JavaScript, and the
   listings under the graph, always show everything. **▸ Built**
-  ([D-047](decisions.md)). Each time the page loads, it replays once by itself
-  (**▸ Built**, [D-052](decisions.md)).
+  ([D-047](decisions.md)). Each page load replays it once by itself — not
+  coming back to it from another page (**▸ Built**, [D-053](decisions.md)).
 - **Straight edges**, node to node, and none may run through a node it does
   not connect — that would draw a relation that is not there. **▸ Decided**
   ([D-046](decisions.md)).

@@ -1605,3 +1605,29 @@ It stays under WCAG 2.2.2's five seconds and has its stop button.
 
 **Revisit when** returning visitors find the wait in the way — then remember
 it per session (`sessionStorage`) rather than per browser.
+
+---
+
+## D-053 · 2026-09-28 · active
+### The timeline replays once a page load, not on every return to the graph
+
+Supersedes [D-052](#d-052--2026-09-28--active)'s "and on returning to `/`
+from another page". The replay runs the first time the graph comes into view
+in a document — arriving at the site, reloading, or opening the graph after
+arriving on another page — and not when a visitor comes back to it by the
+site's own links. A module-level flag in `KnowledgeGraph.tsx` carries that: it
+lives exactly as long as the document, and is set when a replay starts, not
+when one is planned, so a phone visitor who leaves before scrolling to the
+graph still gets it on coming back.
+
+**Why.** Asked for straight after D-052: moving to `/about` and back replayed
+the graph each time, which reads as the page resetting rather than as an
+opening.
+
+**Cost.** Module state outlives the component, which is unusual in this
+codebase; it is the one place the graph remembers anything across pages. If
+the router ever keeps the home page alive between navigations, the flag still
+holds — the replay decision is made once, not per mount.
+
+**Revisit when** the replay should also be skipped on a reload — then it moves
+to `sessionStorage`, D-052's own trigger.

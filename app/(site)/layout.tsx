@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { SiteNav } from '@/components/SiteNav'
 
 /**
  * Chrome for the site. `/os` sits outside this route group deliberately — the
@@ -18,25 +18,9 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
         {/*
           `home`, not a brand: the site is the person's work, and the page
           heading already says whose. `personal-os` is the OS project's title
-          now, not the site's (D-037).
+          now, not the site's (D-037). The current page's link is lit.
         */}
-        <Link href="/" className="font-medium tracking-tight">
-          home
-        </Link>
-        <nav className="flex items-center gap-4 text-neutral-500">
-          <Link href="/about" className="hover:text-current">
-            about
-          </Link>
-          <Link href="/projects" className="hover:text-current">
-            projects
-          </Link>
-          <Link href="/papers" className="hover:text-current">
-            papers
-          </Link>
-          <Link href="/presentations" className="hover:text-current">
-            talks
-          </Link>
-        </nav>
+        <SiteNav />
       </header>
 
       <main className="flex-1 py-8">{children}</main>

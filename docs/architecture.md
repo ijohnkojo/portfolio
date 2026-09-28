@@ -293,12 +293,14 @@ it. What a forward step adds (`joinedIn`) fades in (`.graph-enter` in
 hovered, focused or selected until it returns; the selection is kept and comes
 back with it. The listings under the graph do not follow the timeline.
 
-**Every load replays** ([D-052](decisions.md)): once the drawing is at least
-half on screen (an `IntersectionObserver`), the timeline replays from the first
-year to the last, then rests on the whole graph. It runs again on each load —
-and on coming back to `/` from another page, which mounts the graph afresh.
-Not under reduced motion, and not read out by the live region — only a replay
-the visitor starts is.
+**Each page load replays once** ([D-053](decisions.md)): once the drawing is at
+least half on screen (an `IntersectionObserver`), the timeline replays from the
+first year to the last, then rests on the whole graph. A module-level flag in
+`KnowledgeGraph.tsx` lives as long as the document, so coming back to `/` from
+another page of the site does not replay it, and a reload does — as does
+opening the graph for the first time after arriving on another page. Not under
+reduced motion, and not read out by the live region — only a replay the
+visitor starts is.
 
 ### Phone and accessibility
 
@@ -345,7 +347,10 @@ step.
 
 `app/(site)/` holds the site with its own chrome — header, nav and footer, each
 in the home page's wide frame (`max-w-[82rem]`), so the name sits in one place
-on every page ([D-048](decisions.md)). The header's home link reads `home`; the chrome has no link
+on every page ([D-048](decisions.md)). The header's links are `SiteNav`, a
+client component only because it reads the path; `navState` in `lib/nav.ts`
+decides which link is lit — the page's own, or its section's for a writeup —
+and that link carries `aria-current`. The header's home link reads `home`; the chrome has no link
 to `/os`, which is reached from its node and its project page. `/about` and
 the collections sit in the nested `app/(site)/(reading)/` group, whose layout
 is the `max-w-3xl` column, centred; the home page sits outside it and uses the

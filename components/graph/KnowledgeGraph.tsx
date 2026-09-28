@@ -60,6 +60,15 @@ const KEEPS_SELECTION = 'a, button, input, select, textarea, label, summary, [da
 /** How long Replay holds each year. */
 const REPLAY_STEP_MS = 900
 
+/**
+ * Whether the graph has replayed by itself since this page loaded (D-053).
+ * Module state, so it lives exactly as long as the document: navigating to
+ * another page of the site and back keeps it; a reload starts it over. Set
+ * when a replay actually starts, not when one is planned, so a phone visitor
+ * who leaves before scrolling to the graph still gets it on coming back.
+ */
+let replayedThisLoad = false
+
 /** Who started a replay: the visitor, with the button, or the page loading. */
 type Replay = 'visitor' | 'on-load' | null
 
@@ -147,20 +156,21 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
     return () => clearTimeout(timer)
   }, [playing, time.year, years])
 
-  // Every load: replay once, when the graph is at least half on screen — at
-  // load on a desktop, on scrolling down to it on a phone. The server render
-  // shows the whole graph, and so does the page after the replay (D-047,
-  // D-052).
+  // Once a page load: replay when the graph is at least half on screen — at
+  // load on a desktop, on scrolling down to it on a phone. Not again on coming
+  // back to `/` from another page; again on a reload. The server render shows
+  // the whole graph, and so does the page after the replay (D-047, D-053).
   useEffect(() => {
     const box = drawing.current
     if (!box) return
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!autoReplays(years.length, reducedMotion)) return
+    if (!autoReplays(years.length, reducedMotion, replayedThisLoad)) return
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return
         observer.disconnect()
+        replayedThisLoad = true
         setTime({ year: years[0], entering: true })
         setReplay('on-load')
       },

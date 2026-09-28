@@ -234,13 +234,14 @@ describe('labelledOnPhone', () => {
 })
 
 describe('autoReplays', () => {
-  it('replays on load, when there is a timeline to show', () => {
-    expect(autoReplays(4, false)).toBe(true)
+  it('replays once a page load, when there is a timeline to show', () => {
+    expect(autoReplays(4, false, false)).toBe(true)
   })
 
-  it('does not replay under reduced motion, or with one year or none', () => {
-    expect(autoReplays(4, true)).toBe(false)
-    expect(autoReplays(1, false)).toBe(false)
-    expect(autoReplays(0, false)).toBe(false)
+  it('does not replay twice in one load, under reduced motion, or with one year or none', () => {
+    expect(autoReplays(4, false, true)).toBe(false)
+    expect(autoReplays(4, true, false)).toBe(false)
+    expect(autoReplays(1, false, false)).toBe(false)
+    expect(autoReplays(0, false, false)).toBe(false)
   })
 })

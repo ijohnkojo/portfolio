@@ -65,7 +65,7 @@ async function boxes(page) {
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
 
 /**
- * The graph replays by itself on every load (D-052). Checks that want it at
+ * The graph replays by itself once a page load (D-053). Checks that want it at
  * rest load the page through `settled`, which waits for that replay to start,
  * finish, and fade in its last year. The replay gets checks of its own.
  */
@@ -227,6 +227,66 @@ await desktop.close()
     again.seen.includes(again.min) && again.seen.at(-1) === again.max,
     again.seen.join(' → ')
   )
+  await p.getByRole('button', { name: 'replay' }).waitFor({ timeout: 5000 })
+
+  // Within one load, coming back to the graph does not replay it.
+  const header = p.locator('header')
+  await header.getByRole('link', { name: 'about', exact: true }).click()
+  await p.waitForURL('**/about')
+  await header.getByRole('link', { name: 'home', exact: true }).click()
+  await p.waitForURL((u) => u.pathname === '/')
+  await slider.waitFor()
+  const back = new Set()
+  for (let i = 0; i < 8; i++) {
+    back.add(await slider.inputValue())
+    await p.waitForTimeout(200)
+  }
+  check(
+    'coming back to the graph from another page does not replay it',
+    back.size === 1 && back.has(again.max),
+    [...back].join(' → ')
+  )
+
+  // Arriving on another page first, the graph's first appearance is still an entry.
+  await p.goto(`${BASE}/about`, { waitUntil: 'networkidle' })
+  const entry = await watch(async () => {
+    await header.getByRole('link', { name: 'home', exact: true }).click()
+    await p.waitForURL((u) => u.pathname === '/')
+    await slider.waitFor()
+  })
+  check(
+    'arriving elsewhere and then opening the graph replays it',
+    entry.seen.includes(entry.min) && entry.seen.at(-1) === entry.max,
+    entry.seen.join(' → ')
+  )
+  await ctx.close()
+}
+
+/* --------------------------------------------------------------------- nav */
+
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+  const p = await ctx.newPage()
+  const expected = {
+    '/': 'home',
+    '/about': 'about',
+    '/projects': 'projects',
+    '/papers': 'papers',
+    '/presentations': 'talks',
+  }
+  const wrong = []
+  for (const [path, label] of Object.entries(expected)) {
+    await p.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' })
+    const current = await p.locator('header nav a[aria-current]').allInnerTexts()
+    if (current.length !== 1 || current[0] !== label) wrong.push(`${path}: ${current.join(', ') || 'none'}`)
+  }
+  // A writeup lights its section.
+  await p.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
+  const writeup = await p.locator('main a[href^="/projects/"]').first().getAttribute('href')
+  await p.goto(`${BASE}${writeup}`, { waitUntil: 'domcontentloaded' })
+  const section = await p.locator('header nav a[aria-current]').allInnerTexts()
+  if (section.join() !== 'projects') wrong.push(`${writeup}: ${section.join(', ') || 'none'}`)
+  check('the header lights the current page’s link, and only that one', wrong.length === 0, wrong.join('; '))
   await ctx.close()
 }
 

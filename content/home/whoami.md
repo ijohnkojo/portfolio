@@ -9,8 +9,9 @@
 
   1. This file renders in two places — `whoami` / `cat /home/whoami.md` in the
      shell, and /about on the web. So it has to read fine as PLAIN TEXT in a
-     terminal. Go easy on markdown; an indented block renders as a code block
-     in both, which is why the contact list below is indented.
+     terminal. Go easy on markdown. For lines that must keep their layout, like
+     the contact list below, use a ``` fence: MDX ignores indentation, so an
+     indented block runs its lines together into one paragraph on the web.
   2. It is compiled as MDX, so use JSX-style comments like this one. An HTML
      comment breaks the build, and so does a stray curly brace in prose.
   3. Short is better. Someone who wants more clicks into the work.
@@ -34,6 +35,8 @@
   reading? Write that, then stop.
 */}
 
-    email     ijohnkojo@gmail.com
-    github    github.com/ijohnkojo
-    now       cat /home/now.md
+```
+email     ijohnkojo@gmail.com
+github    github.com/ijohnkojo
+now       cat /home/now.md
+```

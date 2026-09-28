@@ -1679,3 +1679,36 @@ should always be how the page opens.
   replay 2023 → 2024 → 2025 → 2026, silently; the other checks wait for the
   replay to finish before looking at the graph at rest. Build, lint and all
   148 OS browser checks pass.
+
+---
+
+## 2026-09-28 — The header lights the current page; one replay per load
+
+Asked for with a screenshot of `/about`, where `home` was still the lit link.
+
+### Built
+
+- **The header lights the current page's link** — `home`, `about`,
+  `projects`, `papers` or `talks`; on a writeup, its section's. `SiteNav`
+  (client, reads the path) over `navState` in `lib/nav.ts` (pure, tested);
+  the lit link carries `aria-current`. Before, `home` was always the bright
+  one because it was styled as the site's name.
+- **The replay runs once a page load** — arriving, reloading, or first opening
+  the graph after arriving elsewhere — and not on coming back to `/` by the
+  site's links (D-053).
+- **`/about`'s contact list renders as three lines again.** It was an indented
+  block, which MDX does not treat as code, so the lines ran together into one
+  sentence; it is now a fenced block, and the note in `whoami.md` that said
+  indentation works is corrected. In the OS, `cat` now shows the fence lines.
+
+### Decided
+
+- **D-053** — supersedes D-052's replay on returning to the graph.
+
+### Verified
+
+- **600 unit tests** (+4: `navState`, and `autoReplays` once a load).
+- **`pnpm verify:graph` 47/47** (+3): coming back to the graph from `/about`
+  does not replay; arriving on `/about` and then opening the graph does; the
+  header lights exactly one link on each page and a writeup's section.
+- `/about` screenshotted: `about` lit, the contacts in a code block.
