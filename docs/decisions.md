@@ -1582,3 +1582,26 @@ visitor, with first visits checked on their own.
 fix is to stop it after a few cycles, or to pause it once the visitor
 interacts — or when the replay should play on every visit rather than the
 first.
+
+---
+
+## D-052 · 2026-09-28 · active
+### The timeline replays on every load, not only the first visit
+
+Supersedes the first-visit rule in [D-051](#d-051--2026-09-28--active). The
+replay starts whenever the graph comes into view after the page loads — on a
+reload, and on returning to `/` from another page — and nothing is stored in
+the visitor's browser. The rest of D-051 stands: the pulses, the replay waiting
+until the graph is half on screen, no announcement, nothing under reduced
+motion.
+
+**Why.** Asked for straight after D-051: the owner reloaded, saw nothing, and
+wanted the growth to be how the page always opens. It answers D-051's trigger
+("when the replay should play on every visit rather than the first").
+
+**Cost.** Every visit spends about four seconds before the whole graph is up,
+including for a returning visitor who knows it — who can stop it, or scrub.
+It stays under WCAG 2.2.2's five seconds and has its stop button.
+
+**Revisit when** returning visitors find the wait in the way — then remember
+it per session (`sessionStorage`) rather than per browser.

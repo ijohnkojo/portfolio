@@ -102,13 +102,13 @@ export function labelledOnPhone(node: GraphNode): boolean {
 }
 
 /**
- * Whether the timeline replays by itself when the graph first comes into view
- * (D-051): only when there is more than one year to show, only the first time
- * this visitor sees it, and never when they have asked for reduced motion —
- * a replay they did not start is motion they did not choose.
+ * Whether the timeline replays by itself when the graph comes into view on a
+ * page load (D-052): only when there is more than one year to show, and never
+ * when the visitor has asked for reduced motion — a replay they did not start
+ * is motion they did not choose.
  */
-export function autoReplays(yearCount: number, seenBefore: boolean, reducedMotion: boolean): boolean {
-  return yearCount > 1 && !seenBefore && !reducedMotion
+export function autoReplays(yearCount: number, reducedMotion: boolean): boolean {
+  return yearCount > 1 && !reducedMotion
 }
 
 /** Clockwise / anticlockwise round a ring, out / in across rings, or home. */

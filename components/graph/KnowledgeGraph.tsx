@@ -60,15 +60,8 @@ const KEEPS_SELECTION = 'a, button, input, select, textarea, label, summary, [da
 /** How long Replay holds each year. */
 const REPLAY_STEP_MS = 900
 
-/**
- * Set in the visitor's own browser once the graph has replayed by itself, so
- * it does so on the first visit only (D-051). A per-visitor convenience: if
- * storage is unavailable, the replay simply runs again next time.
- */
-const REPLAYED_KEY = 'home-graph:replayed'
-
-/** Who started a replay: the visitor, with the button, or the first visit. */
-type Replay = 'visitor' | 'first-visit' | null
+/** Who started a replay: the visitor, with the button, or the page loading. */
+type Replay = 'visitor' | 'on-load' | null
 
 const NOTHING = { nodes: new Set<string>(), edges: new Set<string>() }
 
@@ -154,28 +147,22 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
     return () => clearTimeout(timer)
   }, [playing, time.year, years])
 
-  // The first visit: replay once, when the graph is at least half on screen —
-  // at load on a desktop, on scrolling down to it on a phone. The server
-  // render and a returning visit show the whole graph (D-047, D-051).
+  // Every load: replay once, when the graph is at least half on screen — at
+  // load on a desktop, on scrolling down to it on a phone. The server render
+  // shows the whole graph, and so does the page after the replay (D-047,
+  // D-052).
   useEffect(() => {
     const box = drawing.current
     if (!box) return
-    let seen = false
-    try {
-      seen = window.localStorage.getItem(REPLAYED_KEY) !== null
-    } catch {}
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!autoReplays(years.length, seen, reducedMotion)) return
+    if (!autoReplays(years.length, reducedMotion)) return
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return
         observer.disconnect()
-        try {
-          window.localStorage.setItem(REPLAYED_KEY, '1')
-        } catch {}
         setTime({ year: years[0], entering: true })
-        setReplay('first-visit')
+        setReplay('on-load')
       },
       { threshold: 0.5 }
     )
@@ -223,8 +210,8 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   // What a screen reader hears when the graph changes without focus moving:
   // the selection, and each year of a replay the visitor started. The slider
   // announces its own value, so scrubbing by hand says nothing here — it
-  // would be said twice — and neither does the first visit's replay, which
-  // would otherwise talk over the page as it loads.
+  // would be said twice — and neither does the replay on load, which would
+  // otherwise talk over the page as it loads.
   const announcement = replay === 'visitor'
     ? `${time.year}: ${visible.size} of ${graph.nodes.length} nodes`
     : shownSelected

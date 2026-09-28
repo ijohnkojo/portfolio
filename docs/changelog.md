@@ -1655,3 +1655,27 @@ Asked for before the weekend.
   screenshots at both ends; on a 390 × 844 phone the replay starts at load
   (83% of the graph is on screen), and a reload does not replay.
 - `pnpm build`, `eslint`, all 148 OS browser checks.
+
+---
+
+## 2026-09-28 — The replay runs on every load
+
+Asked for after D-051: a reload showed the finished graph, and the replay
+should always be how the page opens.
+
+### Built
+
+- **The replay starts on every load** when the graph is half on screen, and on
+  coming back to `/` from another page. The `localStorage` flag is gone;
+  `autoReplays` no longer takes a "seen before" argument.
+
+### Decided
+
+- **D-052** — supersedes D-051's first-visit rule; answers its trigger.
+
+### Verified
+
+- 596 unit tests; `pnpm verify:graph` 44/44 — the load and the reload each
+  replay 2023 → 2024 → 2025 → 2026, silently; the other checks wait for the
+  replay to finish before looking at the graph at rest. Build, lint and all
+  148 OS browser checks pass.

@@ -293,12 +293,12 @@ it. What a forward step adds (`joinedIn`) fades in (`.graph-enter` in
 hovered, focused or selected until it returns; the selection is kept and comes
 back with it. The listings under the graph do not follow the timeline.
 
-**The first visit replays** ([D-051](decisions.md)): once the drawing is at
-least half on screen (an `IntersectionObserver`), the timeline replays from the
-first year, and `home-graph:replayed` is set in the visitor's `localStorage`
-so later visits open on the whole graph. Not under reduced motion, and not
-read out by the live region — only a replay the visitor starts is. Clear that
-key (or use a private window) to see it again.
+**Every load replays** ([D-052](decisions.md)): once the drawing is at least
+half on screen (an `IntersectionObserver`), the timeline replays from the first
+year to the last, then rests on the whole graph. It runs again on each load —
+and on coming back to `/` from another page, which mounts the graph afresh.
+Not under reduced motion, and not read out by the live region — only a replay
+the visitor starts is.
 
 ### Phone and accessibility
 

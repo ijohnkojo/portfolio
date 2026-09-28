@@ -65,20 +65,15 @@ async function boxes(page) {
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
 
 /**
- * The graph replays by itself on a first visit (D-051). Every check below that
- * wants the graph at rest runs as a returning visitor, by setting the flag the
- * page stores — `REPLAYED_KEY` in components/graph/KnowledgeGraph.tsx — before
- * it loads. The first visit gets checks of its own.
+ * The graph replays by itself on every load (D-052). Checks that want it at
+ * rest load the page through `settled`, which waits for that replay to start,
+ * finish, and fade in its last year. The replay gets checks of its own.
  */
-const REPLAYED_KEY = 'home-graph:replayed'
-async function returning(options) {
-  const ctx = await browser.newContext(options)
-  await ctx.addInitScript((key) => {
-    try {
-      localStorage.setItem(key, '1')
-    } catch {}
-  }, REPLAYED_KEY)
-  return ctx
+async function settled(page) {
+  await page.goto(BASE, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'stop' }).waitFor({ timeout: 3000 }).catch(() => {})
+  await page.getByRole('button', { name: 'replay' }).waitFor({ timeout: 10000 })
+  await page.waitForTimeout(500)
 }
 
 const browser = await chromium.launch({ executablePath: CHROME })
@@ -103,11 +98,11 @@ const browser = await chromium.launch({ executablePath: CHROME })
 
 /* ------------------------------------------------------------- desktop */
 
-const desktop = await returning({ viewport: { width: 1440, height: 1000 } })
+const desktop = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const page = await desktop.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
-await page.goto(BASE, { waitUntil: 'networkidle' })
+await settled(page)
 await page.mouse.move(2, 2)
 
 check('at rest, nothing is faded', (await opacities(page)).every((o) => o > 0.99))
@@ -195,30 +190,43 @@ check('no horizontal overflow at 1024', (await overflow(page)) === 0)
 check('no page errors on desktop', errors.length === 0, errors.join(' | '))
 await desktop.close()
 
-/* ------------------------------------------------------------- first visit */
+/* --------------------------------------------------------- replay on load */
 
 {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   const p = await ctx.newPage()
-  await p.goto(BASE, { waitUntil: 'networkidle' })
   const slider = p.getByRole('slider', { name: 'Year' })
-  const [min, max] = [await slider.getAttribute('min'), await slider.getAttribute('max')]
-  const seen = new Set()
-  for (let i = 0; i < 30 && !(seen.has(min) && (await slider.inputValue()) === max && seen.size > 1); i++) {
-    seen.add(await slider.inputValue())
-    await p.waitForTimeout(250)
+
+  /** Load (or reload) the page and record the years the slider passes through. */
+  async function watch(load) {
+    await load()
+    const [min, max] = [await slider.getAttribute('min'), await slider.getAttribute('max')]
+    const seen = []
+    for (let i = 0; i < 30; i++) {
+      const v = await slider.inputValue()
+      if (seen.at(-1) !== v) seen.push(v)
+      if (seen.includes(min) && v === max) break
+      await p.waitForTimeout(250)
+    }
+    return { min, max, seen }
   }
+
+  const first = await watch(() => p.goto(BASE, { waitUntil: 'networkidle' }))
   check(
-    'a first visit replays the timeline by itself, first year to last',
-    seen.has(min) && (await slider.inputValue()) === max,
-    [...seen].join(' → ')
+    'loading the page replays the timeline, first year to last',
+    first.seen.includes(first.min) && first.seen.at(-1) === first.max,
+    first.seen.join(' → ')
   )
   const live = await p.locator('[aria-live="polite"]').first().innerText()
-  check('the first visit’s replay is not read out over the page', live === '', JSON.stringify(live))
+  check('the replay on load is not read out over the page', live === '', JSON.stringify(live))
   await p.getByRole('button', { name: 'replay' }).waitFor({ timeout: 5000 })
-  await p.reload({ waitUntil: 'networkidle' })
-  await p.waitForTimeout(800)
-  check('a second visit opens on the whole graph, without replaying', (await slider.inputValue()) === max)
+
+  const again = await watch(() => p.reload({ waitUntil: 'networkidle' }))
+  check(
+    'reloading replays it again',
+    again.seen.includes(again.min) && again.seen.at(-1) === again.max,
+    again.seen.join(' → ')
+  )
   await ctx.close()
 }
 
@@ -231,9 +239,9 @@ await desktop.close()
  * The centre's name, dark on the amber disc, is measured against the accent.
  */
 for (const colorScheme of ['light', 'dark']) {
-  const ctx = await returning({ viewport: { width: 1440, height: 1000 }, colorScheme })
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme })
   const p = await ctx.newPage()
-  await p.goto(BASE, { waitUntil: 'networkidle' })
+  await settled(p)
   await p.mouse.move(2, 2)
   const failures = await p.evaluate(() => {
     // Computed colours come back in whatever space the stylesheet used —
@@ -291,13 +299,13 @@ for (const colorScheme of ['light', 'dark']) {
 /* ----------------------------------------------------------- reduced motion */
 
 {
-  // A first visit, so the replay would start by itself if it were allowed to.
+  // A fresh load, so the replay would start by itself if it were allowed to.
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })
   const p = await ctx.newPage()
   await p.goto(BASE, { waitUntil: 'networkidle' })
   await p.waitForTimeout(600)
   const slider = p.getByRole('slider', { name: 'Year' })
-  check('reduced motion: the first visit does not replay by itself', (await slider.inputValue()) === (await slider.getAttribute('max')))
+  check('reduced motion: loading the page does not replay by itself', (await slider.inputValue()) === (await slider.getAttribute('max')))
   check(
     'reduced motion: the centre’s glow holds still',
     (await p.locator('.graph-pulse').evaluate((el) => getComputedStyle(el).animationName)) === 'none'
@@ -324,11 +332,11 @@ for (const colorScheme of ['light', 'dark']) {
 /* ------------------------------------------------------------------ phone */
 
 {
-  const ctx = await returning({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const p = await ctx.newPage()
   const phoneErrors = []
   p.on('pageerror', (e) => phoneErrors.push(String(e)))
-  await p.goto(BASE, { waitUntil: 'networkidle' })
+  await settled(p)
 
   const box = await p.locator(GROUP).locator('..').locator('..').boundingBox()
   check('phone: the drawing is square, cropped to the rings', Math.abs(box.width - box.height) < 2, `${Math.round(box.width)} × ${Math.round(box.height)}`)
