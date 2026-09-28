@@ -5,5 +5,5 @@
  * not a root layout, so moving between pages is still a client navigation.
  */
 export default function ReadingLayout({ children }: LayoutProps<'/'>) {
-  return <div className="mx-auto w-full max-w-3xl px-6">{children}</div>
+  return <div className="mx-auto w-full max-w-3xl px-4 md:px-6">{children}</div>
 }

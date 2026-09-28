@@ -39,7 +39,7 @@ export function EntryArticle({ entry }: { entry: Entry }) {
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-neutral-500">
           <time dateTime={entry.date}>{formatDate(entry.date)}</time>
           {entry.tags.map((tag) => (
-            <span key={tag} className="text-neutral-400 dark:text-neutral-600">
+            <span key={tag}>
               #{tag}
             </span>
           ))}

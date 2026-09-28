@@ -27,6 +27,7 @@ resolve.
 | `pnpm lint` | eslint |
 | `pnpm check:diagrams` | parses every ```` ```mermaid ```` block in the repo's markdown |
 | `pnpm verify:content` | content routes render with JS disabled, and the OS reads the same bytes — **needs `pnpm dev` running** |
+| `pnpm verify:graph` | the home graph in a real browser: no-JS render, tracing that moves nothing, the keyboard walk, AA contrast in both themes, 24px targets, announcements, reduced motion, the timeline, and the phone layout's `<dialog>` — **needs `pnpm dev` running** |
 
 The OS keeps five more browser checks of its own — `verify`,
 `verify:terminal`, `verify:viewer`, `verify:desktop`, `verify:phase2` — listed
@@ -46,7 +47,12 @@ pnpm dev -p 3111
 
 ```bash
 pnpm verify:content
+pnpm verify:graph
 ```
+
+In a sandbox without system Chrome, point `CHROME_PATH` at another Chromium
+(for example `/opt/pw-browsers/chromium`); `check:diagrams` also takes
+`MERMAID_PATH`, a local `mermaid.min.js`, when the CDN is unreachable.
 
 For the default port, set `BASE_URL=http://localhost:3000` (and
 `OS_URL=http://localhost:3000/os` for `pnpm verify`). They must run against

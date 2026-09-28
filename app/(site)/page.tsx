@@ -30,7 +30,7 @@ export default function Home() {
   const presentations = listEntries('presentations')
 
   return (
-    <div className="mx-auto w-full max-w-[82rem] space-y-10 px-6">
+    <div className="mx-auto w-full max-w-[82rem] space-y-10 px-4 md:px-6">
       {/*
         The intro spans from the graph's left edge; the legend sits beside it,
         over the inspector, in the same two columns as the graph below.

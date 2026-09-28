@@ -203,6 +203,16 @@ describe('buildGraph — angles', () => {
 })
 
 describe('buildGraph — short labels', () => {
+  it('carries a node’s short phone name, and only when it has one', () => {
+    const g = buildGraph(
+      spec({ nodes: [{ id: 'lab', kind: 'org', label: 'The Big Lab', short: 'Lab', angle: 30 }, { id: 'physics', kind: 'field', label: 'Physics', angle: 200 }] }),
+      [],
+      options
+    )
+    expect(g.nodes.find((n) => n.id === 'org:lab')).toMatchObject({ label: 'The Big Lab', short: 'Lab' })
+    expect(g.nodes.find((n) => n.id === 'field:physics')).not.toHaveProperty('short')
+  })
+
   it('shows a shorter label on the graph and keeps the full title', () => {
     const g = buildGraph(
       spec({ entries: { 'projects/long': { label: 'Short' } } }),
@@ -272,6 +282,7 @@ describe('buildGraph — validation fails the build, naming the file', () => {
     it('a missing label', () => fails({ nodes: [{ id: 'a', kind: 'org' }] }, [], "node 'a': label must be a non-empty string"))
     it('an angle out of range', () => fails({ nodes: [{ id: 'a', kind: 'org', label: 'A', angle: 360 }] }, [], 'angle must be a number from 0 up to 360'))
     it('a since that is not a year', () => fails({ nodes: [{ id: 'a', kind: 'org', label: 'A', since: '2024' }] }, [], "node 'a': since must be a year"))
+    it('an empty short name', () => fails({ nodes: [{ id: 'a', kind: 'org', label: 'A', short: ' ' }] }, [], "node 'a': short must be a non-empty string"))
     it('an href that is neither local nor https', () => fails({ nodes: [{ id: 'a', kind: 'org', label: 'A', href: 'http://x.org' }] }, [], 'href must start with / or https://'))
     it('a link to an unknown node', () => fails(spec({ links: [['lab', 'ghost']] }), [], "links[0] references unknown node 'ghost'"))
     it('a link from a node to itself', () => fails(spec({ links: [['lab', 'lab']] }), [], "links[0] links 'lab' to itself"))

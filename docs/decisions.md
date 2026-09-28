@@ -1486,3 +1486,57 @@ point at it; the link between them is the panel's title, not the picture.
 
 **Revisit when** visitors need a cue for where to start — then a gentler cue
 than fading (a pulse on the centre, say), not the trace.
+
+---
+
+## D-050 · 2026-09-28 · active
+### The phone layout crops the same drawing and labels only the inner ring; accessibility is measured
+
+**Phone (below `md`, 768px).** The drawing is the desktop frame, cropped to a
+square just around the outer ring (`cropStage`) — no second geometry, no
+recomputed coordinates, and the switch is CSS, so the server render is right on
+every screen. Only the centre and the inner ring are labelled, at 12px, each on
+the side `phoneLabelSides` picks at 360px; a node may give graph.json a `short`
+name for this (Fermilab, Gettysburg). Everything further out is named by
+tapping it: the tap opens the inspector as a bottom sheet on a native
+`<dialog>`. `load.test.ts` holds the phone labels inside the square and clear of
+every label and mark at 360, 390 and 767px, in every year. On a phone a label
+may cross the centre's glow; it must still clear the disc.
+
+**Accessibility is a check, not a claim.** `scripts/verify-graph.mjs` measures
+text contrast (AA, both themes), target size (24px), the keyboard walk, the
+live announcements, reduced motion, the no-JS render and the phone's dialog.
+To pass it: dark mode lifts `neutral-500` to `#8a8a8a` inside `[data-site]`
+only; the tertiary grey (`neutral-400`/`600`) is gone; the hit square grew to
+24px and the label gap shrank to 2px so labels did not move.
+
+**Reduced motion** turns off fades and transitions. Replay still steps year by
+year: it is started by the visitor, can be stopped (WCAG 2.2.2), and moves
+nothing — jumping straight to the end would make the button do nothing.
+
+**Why.** The desktop frame's side margins exist for outer-ring labels; a phone
+cannot show those labels anyway, so cropping the margins buys size for free.
+Two narrower label rules were tried first and failed the tests: labelling what
+a trace lights collided in nine neighbourhoods at 390px, and labelling the
+traced node ran it off the square. Inner-ring-only passed, once the two longest
+names had short forms — no angle had to move. Contrast was assumed fine until
+measured: small grey text failed in dark mode everywhere on the site.
+
+**Cost.** On a phone the work and the tools are unlabelled dots until tapped.
+The site's dark `neutral-500` is no longer Tailwind's. `short` is one more
+thing to keep in step with a node's name. Phones under 360px are not checked.
+
+**Revisit when** a phone visitor needs to read the outer rings without tapping
+— then a list view of the graph, not more labels — or when an inner-ring name
+is too long for `short` to rescue.
+
+Answers to earlier triggers, fired by this phase:
+[D-042](#d-042--2026-09-27--active) (labels may need to scale with the drawing
+on a phone) — did not come to that: labels stay fixed-size HTML, and the phone
+shows fewer of them. [D-045](#d-045--2026-09-28--active) (the phone makes the
+disc too small for the name) — fired: the name drops to 9px below `md`, and
+`verify:graph` checks that it fits. [D-048](#d-048--2026-09-28--active) (the
+phone needs the legend and the panel somewhere else) — they stack under the
+intro and the graph; a selection opens the sheet instead of changing the
+panel. [D-009](#d-009--2026-08-12--active) (Playwright not a dependency) —
+`verify-graph.mjs` resolves it the same way as the OS's checks.

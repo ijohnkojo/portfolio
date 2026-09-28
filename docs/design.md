@@ -104,14 +104,25 @@ it in [authoring.md § Joining the graph](authoring.md#joining-the-graph).)
   client component as plain data, the same shape as `/os` receiving its
   filesystem.
 
-## 5. Phone and accessibility
+## 5. Phone and accessibility — ▸ Built
 
-- **A real phone layout** — a compact graph and a bottom-sheet inspector — not
-  the desktop one shrunk.
+([D-050](decisions.md); as built in
+[architecture.md § Phone and accessibility](architecture.md#phone-and-accessibility).)
+
+- **A real phone layout** — not the desktop one shrunk. Below 768px the drawing
+  is cropped to a square around the rings, only the centre and the inner ring
+  are labelled (by a short name where the full one does not fit), and a tap
+  opens the inspector as a bottom sheet on a native `<dialog>`. Checked down to
+  360px wide. **▸ Built**
 - **Every control is a real `<button>` or `<a>`**, and the graph is navigable
   from the keyboard — one tab stop, arrow keys between nodes. **▸ Built**
-  ([D-042](decisions.md)); a full accessibility pass is Phase 5.
-- **Motion respects `prefers-reduced-motion`.**
+  ([D-042](decisions.md)).
+- **WCAG AA**, measured rather than assumed: text contrast in both themes, 24px
+  targets, a selection and each year of a replay announced to screen readers.
+  **▸ Built**, and held by `pnpm verify:graph`.
+- **Motion respects `prefers-reduced-motion`** — no fades, no transitions.
+  Replay still steps year by year: it is started by the visitor, can be
+  stopped, and moves nothing. **▸ Decided** ([D-050](decisions.md)).
 
 ## 6. Out of scope for now
 

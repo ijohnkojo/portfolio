@@ -27,6 +27,8 @@ export interface GraphNode {
   ring: Ring
   /** What the graph shows — for an entry, its title unless graph.json shortens it. */
   label: string
+  /** A shorter name for a phone, where the drawing is small (D-050). */
+  short?: string
   /** An entry's full title, for the inspector. */
   title?: string
   /** Degrees clockwise from 12 o'clock — hand-set, or derived (D-041). */
@@ -87,6 +89,8 @@ interface SpecNode {
   id: string
   kind: SpecKind
   label: string
+  /** A shorter name for a phone, where the full one does not fit. */
+  short?: string
   angle?: number
   since?: number
   href?: string
@@ -159,7 +163,7 @@ function parseSpec(raw: unknown, where: string): Spec {
   raw.nodes.forEach((n, i) => {
     const what = `nodes[${i}]`
     if (!isObject(n)) fail(where, `${what} must be an object`)
-    onlyKeys(n, ['id', 'kind', 'label', 'angle', 'since', 'href', 'summary'], where, what)
+    onlyKeys(n, ['id', 'kind', 'label', 'short', 'angle', 'since', 'href', 'summary'], where, what)
     if (typeof n.id !== 'string' || !ID.test(n.id)) fail(where, `${what}: id must be lowercase kebab-case, got ${JSON.stringify(n.id)}`)
     const named = `node '${n.id}'`
     if (seen.has(n.id)) fail(where, `duplicate node id '${n.id}'`)
@@ -172,6 +176,7 @@ function parseSpec(raw: unknown, where: string): Spec {
       id: n.id,
       kind: n.kind as SpecKind,
       label: checkText(n.label, where, `${named}: label`, true)!,
+      short: checkText(n.short, where, `${named}: short`, false),
       angle: checkAngle(n.angle, where, named),
       since: n.since as number | undefined,
       href: checkHref(n.href, where, named),
@@ -370,6 +375,7 @@ export function buildGraph(rawSpec: unknown, entries: GraphEntry[], options: Bui
       kind: n.kind,
       ring,
       label: n.label,
+      ...(n.short ? { short: n.short } : {}),
       angle: n.angle ?? NaN,
       year: n.since ?? (years.length > 0 ? Math.min(...years) : null),
       ...(n.href ? { href: n.href } : {}),

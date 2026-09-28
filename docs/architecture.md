@@ -9,8 +9,8 @@ file is right and the design doc needs a patch.
 route per collection. It is being rebuilt around a knowledge graph of the work
 ([plan](plans/2026-09-27-graph-home.md)). The graph is built and drawn on `/`
 — [§ The home graph](#the-home-graph) — with hover tracing, an inspector,
-keyboard navigation and a timeline; the phone layout and the accessibility pass
-are still to come. The
+keyboard navigation, a timeline, a phone layout, and a checked accessibility
+baseline ([§ Phone and accessibility](#phone-and-accessibility)). The
 OS that used to be the site's framing is now a separate, frozen project in
 `os/`, documented in [os/architecture.md](os/architecture.md).
 
@@ -213,6 +213,7 @@ components/graph/Inspector.tsx      the panel: the selected node, or the centre 
 components/graph/Legend.tsx         how to read the marks — above the inspector, beside the intro; no state
 components/graph/columns.ts         GRAPH_COLUMNS, the two-column template the legend row and graph row share
 components/graph/Timeline.tsx       under the drawing: Replay, the year slider, what is shown
+components/graph/InspectorSheet.tsx the phone's inspector: a bottom sheet on a native <dialog>
 ```
 
 The page builds the graph during its static render, so a bad reference in any
@@ -286,6 +287,38 @@ it. What a forward step adds (`joinedIn`) fades in (`.graph-enter` in
 hovered, focused or selected until it returns; the selection is kept and comes
 back with it. The listings under the graph do not follow the timeline.
 
+### Phone and accessibility
+
+([D-050](decisions.md).) **Below `md` (768px)** the drawing's box is square and
+clips: `cropStage` gives the size and offset of the full desktop frame inside a
+square just around the outer ring, and a stage `div` carries both layers at
+those percentages through CSS variables. Nothing is recomputed — every node
+keeps its desktop coordinates — so the switch is pure CSS and cannot flash on
+hydration. Only the centre and the inner ring are labelled (`labelledOnPhone`),
+at 12px, by a node's `short` name when `graph.json` gives one; each takes the
+side `phoneLabelSides` picks at 360px — its desktop side if that fits inside
+the square and clear of every label and mark, else above or below. The centre's
+name drops to 9px. A tap selects; on a phone that opens `InspectorSheet`, a
+native `<dialog>` shown with `showModal()`, so Escape, focus containment, the
+backdrop and focus return are the platform's; closing it clears the selection.
+The panel under the graph keeps showing the centre. Gutters are 16px.
+
+**Accessibility.** Measured by `pnpm verify:graph`, not assumed:
+
+- **Contrast, WCAG AA**, every text node at rest in both themes. Dark mode lifts
+  `neutral-500` to `#8a8a8a` inside `[data-site]` (4.2:1 → 5.7:1); tags and the
+  timeline's count moved off `neutral-400`/`600`, which failed in both themes.
+  Faded nodes (18%) are exempt by design: they are the de-emphasised state, and
+  every one is reachable by hovering it or through the inspector.
+- **Targets, WCAG 2.5.8**: each node's hit square is 24px (`HIT`), with the
+  label 2px beyond it (`LABEL_GAP`), so labels sit where they did.
+- **Announcements**: a polite live region says "Selected …" on a selection and
+  "2024: 6 of 33 nodes" at each step of a replay. Scrubbing by hand says
+  nothing there — the slider's own `aria-valuetext` already does.
+- **Names**: each control's accessible name is the full title, kind and year,
+  even when the visible label is short or hidden.
+- **Reduced motion**: no fades (`.graph-enter`), no opacity transitions.
+
 **No prefetch of `/os`.** Every site link to `/os` sets `prefetch={false}` —
 the graph's OS node, the inspector's button, and the writeup footers. `/os`
 is static, so a prefetch would pull the entire VFS. The one exception is the
@@ -346,5 +379,8 @@ JavaScript disabled and that the OS reads the same bytes.
   [OS backlog](os/backlog.md).
 - **Published summaries are placeholders.** All seven published entries still
   read `DRAFT — replace this.`
-- **No phone layout.** Below `lg` the inspector drops under the graph; on a
-  phone the drawing is too small for its labels. Phase 5.
+- **Phones narrower than 360px** get the phone layout unchecked: at 320 the
+  inner ring's own labels collide (CERN/CMS and Fermilab).
+- **Label sizes are estimated, not measured**, in the legibility tests
+  (`labelBox`); the estimate errs wide. `verify:graph` sees the real page but
+  does not check collisions.

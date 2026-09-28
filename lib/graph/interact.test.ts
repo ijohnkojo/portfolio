@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  labelledOnPhone,
   allWork,
   connections,
   highlight,
@@ -217,5 +218,16 @@ describe('allWork', () => {
 
   it('leaves out what the timeline hides', () => {
     expect(allWork(dated, new Set(['me', 'entry:old'])).map((n) => n.id)).toEqual(['entry:old'])
+  })
+})
+
+describe('labelledOnPhone', () => {
+  it('labels the centre and the inner ring, and nothing further out', () => {
+    const byId = (id: string) => index.byId.get(id)!
+    expect(labelledOnPhone(byId('me'))).toBe(true)
+    expect(labelledOnPhone(byId('org:a'))).toBe(true)
+    expect(labelledOnPhone(byId('field:b'))).toBe(true)
+    expect(labelledOnPhone(byId('entry:e1'))).toBe(false)
+    expect(labelledOnPhone(byId('tool:t'))).toBe(false)
   })
 })

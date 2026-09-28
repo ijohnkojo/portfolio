@@ -42,6 +42,18 @@
   }
 }
 
+/*
+ * The site's secondary text is `text-neutral-500`. On the dark background that
+ * is 4.2:1 — under WCAG AA's 4.5:1 for small text — so inside the site's
+ * chrome, and only there, dark mode lifts that one shade to 5.7:1 (D-050).
+ * Scoped to `[data-site]` so the OS, which shares this file, is untouched.
+ */
+@media (prefers-color-scheme: dark) {
+  [data-site] {
+    --color-neutral-500: #8a8a8a;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

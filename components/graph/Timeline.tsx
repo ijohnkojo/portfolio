@@ -75,9 +75,10 @@ export function Timeline({
         </div>
       </div>
 
-      <output aria-live="off" className="w-28 shrink-0 text-right tabular-nums">
+      {/* Hidden on a phone, where the years need the room; the current one is highlighted on the axis. */}
+      <output aria-live="off" className="w-28 shrink-0 text-right tabular-nums max-sm:hidden">
         {all ? 'everything' : `up to ${year}`}
-        <span className="block text-neutral-400 dark:text-neutral-600">
+        <span className="block">
           {shown} of {total} nodes
         </span>
       </output>

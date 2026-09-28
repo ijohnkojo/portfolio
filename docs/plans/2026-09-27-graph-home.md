@@ -1,8 +1,8 @@
 # The Graph Home — the site becomes a knowledge graph; the OS becomes a project
 
 > **Status:** drafted 2026-09-27 · revised the same day after the reframe
-> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27, Phases 3
-> and 4 on 2026-09-28. Worked on
+> below · **approved 2026-09-27** · Phases 1 and 2 shipped 2026-09-27, Phases 3,
+> 4 and 5 on 2026-09-28 — **the plan is complete.** Worked on
 > `graph-home`, which was fast-forwarded into `main` after Phase 1; later
 > phases commit to `main` directly.
 >
@@ -14,7 +14,7 @@
 > - [x] 3. The graph on `/` — rings, highlighting, inspector, keyboard, the
 >       `(reading)` route group (D-042, D-043, D-044)
 > - [x] 4. Timeline scrubber, and the listings below the graph (D-047)
-> - [ ] 5. Phone layout, reduced motion, accessibility pass
+> - [x] 5. Phone layout, reduced motion, accessibility pass (D-050)
 >
 > **Design pass after Phase 3, 2026-09-28** (not in the plan; asked for after
 > seeing it): the ring circles are no longer drawn, and the centre became a
@@ -24,6 +24,33 @@
 > the design section's quadratic curves (D-046), with a new test that no edge
 > runs through a node it does not connect; three angles moved to satisfy it
 > (CERN/CMS 345 → 335, Gettysburg College 100 → 115, Python 88 → 70).
+>
+> **Phase 5 deviations:**
+>
+> 1. **The phone crops the desktop drawing rather than shrinking its radii.**
+>    The plan said "the same angles on smaller radii". Cropping the frame's
+>    side margins to a square gives the same effect with no second geometry:
+>    one set of coordinates, switched in CSS (`cropStage`).
+> 2. **Only the inner ring is labelled on a phone** — not "the selected node's
+>    neighbourhood" as planned. That rule collided in nine neighbourhoods at
+>    390px; labelling just the traced node ran off the square. Tapping names
+>    everything else, in the sheet.
+> 3. **Inner-ring labels on a phone pick their side** (`phoneLabelSides`) and
+>    are a size smaller; two take a new optional `short` name in graph.json
+>    (Fermilab, Gettysburg). No angle moved.
+> 4. **Accessibility found real failures**: small grey text was under AA in
+>    dark mode across the site (fixed inside `[data-site]`, so the OS is
+>    untouched), the tertiary grey failed in both themes, and node targets were
+>    20px. The contrast check was proven by removing the fix and watching it
+>    fail at 4.18:1.
+> 5. **Replay under reduced motion still steps** — decided in D-050, answering
+>    Phase 4 deviation 6. **Replay is announced**, answering Phase 4
+>    deviation 7, through a live region that also announces selections.
+> 6. **`verify-graph.mjs` checks more than planned**: contrast in both themes,
+>    target size, announcements, the one-tab-stop rule, Replay and the phone's
+>    backdrop, besides the planned opacities, keyboard walk, no-movement,
+>    dialog, reduced motion and no-JS render — 35 checks.
+> 7. **Phone gutters are 16px**, down from 24, on every site page.
 >
 > **Layout pass after Phase 4, 2026-09-28** (not in the plan; asked for with
 > an annotated screenshot): one wide frame, a bigger graph, the legend beside

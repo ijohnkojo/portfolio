@@ -78,8 +78,12 @@ and carry a banner saying so.
 - **Layout pass:** one wide frame, the legend beside the intro, and an
   inspector that shows the centre by default (D-048,
   [plans/2026-09-28-home-layout.md](plans/2026-09-28-home-layout.md)).
-- **Next:** Phase 5, the phone layout, reduced motion and the accessibility
-  pass.
+- **Phase 5 done:** a phone layout (the drawing cropped to the rings, the
+  inner ring labelled, the inspector as a `<dialog>` sheet), and accessibility
+  measured by `pnpm verify:graph` — contrast, targets, keyboard,
+  announcements, reduced motion (D-050). **The graph-home plan is complete.**
+- **Next:** the content — every summary is still a placeholder — and a fresh
+  run of [review.md](review.md).
 
 **Content:** seven entries, all published since `516e366` — but every summary
 still reads `DRAFT — replace this.` That is prose, not code, and it is the

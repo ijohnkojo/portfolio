@@ -1536,3 +1536,51 @@ Asked for straight after the layout pass.
 - In Chromium: no node control faded by default; selecting TreeViz fades 28;
   a click on blank space returns to none faded with the panel back on the
   centre. The legend and the panel read "Organization(s)". No page errors.
+
+---
+
+## 2026-09-28 — Phase 5: the phone, and accessibility measured
+
+Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md), Phase 5 —
+the last phase.
+
+### Built
+
+- **A phone layout** below 768px. The drawing is cropped to a square around
+  the rings (`cropStage`), only the centre and the inner ring are labelled —
+  at 12px, on the side `phoneLabelSides` picks — and a tap opens the inspector
+  as a bottom sheet on a native `<dialog>`. The panel under the graph keeps
+  showing the centre. The centre's name drops to 9px. Gutters are 16px.
+- **`short` names** in graph.json for nodes whose full name does not fit on a
+  phone: Fermilab, Gettysburg. The full name stays everywhere else, and in the
+  accessible name.
+- **Contrast**: dark mode's `neutral-500` is `#8a8a8a` inside the site (not
+  the OS), tool labels are `neutral-400` in dark, and the tertiary grey is gone.
+- **24px targets** (`HIT`), with the label gap cut to 2px so labels stay put.
+- **A live region** announcing selections and each year of a replay.
+- **`pnpm verify:graph`** — 35 browser checks (`scripts/verify-graph.mjs`).
+
+### Decided
+
+- **D-050** — crop, don't rescale; inner ring only on a phone; accessibility
+  is a check; Replay under reduced motion still steps. Answers the triggers of
+  D-042, D-045, D-048 and D-009.
+
+### Verified
+
+- **594 unit tests** (+13 across the phase: `cropStage`, `labelledOnPhone`,
+  `short` in the model, the new label geometry, and phone legibility at 360,
+  390 and 767px in every year).
+- **`pnpm verify:graph` 35/35.** The contrast check was shown to catch the
+  failure it guards against: with the dark-mode fix removed it fails at
+  4.18:1 on the nav, the legend and the timeline.
+- Screenshotted at 360 (light) and 390 (dark), at rest and with the sheet
+  open; the desktop at 1440 is unchanged apart from the lighter tool labels.
+- `pnpm build` and `eslint` clean; 19/19 diagrams parse; all 148 OS browser
+  checks pass.
+
+### Deliberately left out
+
+- **Phones under 360px** — the inner ring collides at 320; not checked.
+- **Measured label collisions** — the tests estimate label widths; the browser
+  check does not compare boxes.

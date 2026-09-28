@@ -12,8 +12,9 @@ import Link from 'next/link'
  */
 export default function SiteLayout({ children }: LayoutProps<'/'>) {
   return (
-    <div className="flex min-h-dvh w-full flex-col">
-      <header className="mx-auto flex w-full max-w-[82rem] items-center gap-6 px-6 py-8 font-mono text-sm">
+    // `data-site` scopes the site's dark-mode contrast fix in globals.css (D-050).
+    <div data-site className="flex min-h-dvh w-full flex-col">
+      <header className="mx-auto flex w-full max-w-[82rem] items-center gap-6 px-4 py-8 font-mono text-sm md:px-6">
         {/*
           `home`, not a brand: the site is the person's work, and the page
           heading already says whose. `personal-os` is the OS project's title
@@ -40,7 +41,7 @@ export default function SiteLayout({ children }: LayoutProps<'/'>) {
 
       <main className="flex-1 py-8">{children}</main>
 
-      <footer className="mx-auto w-full max-w-[82rem] px-6">
+      <footer className="mx-auto w-full max-w-[82rem] px-4 md:px-6">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-neutral-200 py-8 font-mono text-xs text-neutral-500 dark:border-neutral-800">
           <a
             href="mailto:ijohnkojo@gmail.com"

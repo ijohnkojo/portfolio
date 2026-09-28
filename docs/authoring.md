@@ -172,6 +172,7 @@ Everything in the graph that is not an entry, plus the layout:
 | `nodes[].id` | lowercase kebab-case, unique — what frontmatter refers to |
 | `nodes[].kind` | `org` or `field` (inner ring), `tool` (outer ring) |
 | `nodes[].label` | what the graph shows |
+| `nodes[].short` | optional; a shorter name for phones, where only the inner ring is labelled and space is tight. Everything else, the accessible name included, keeps `label` |
 | `angle` | degrees **clockwise from 12 o'clock**, like a clock face. Optional — see below |
 | `since` | the year a node joins the timeline, when no entry dates it well. Otherwise it joins with its earliest published entry |
 | `href` | optional; a site path or an `https://` URL |
@@ -192,6 +193,11 @@ and every angle on it, and the fix is to hand-set one.
 another node's mark — checked at full size and at 80%, in every year. The
 message names both nodes. The usual fixes are moving one of them a few degrees,
 or giving a long entry a short `label`.
+
+On a phone only the inner ring is labelled, and `pnpm test` checks those labels
+too — inside the cropped frame and clear of everything, at 360, 390 and 767px
+([D-050](decisions.md)). If an organisation or field's name fails there, give it
+a `short` name rather than moving it.
 
 **Adding a new tool** is one line in `nodes`, then its id in an entry's
 `tools`. A new entry needs no `graph.json` change at all unless the fallback

@@ -7,8 +7,9 @@ import { describe, expect, it } from 'vitest'
 
 import { allEntries, getHomeFile, listAllPublished, listHomeFiles } from '@/lib/content'
 
-import { visibleAt } from './interact'
+import { labelledOnPhone, visibleAt } from './interact'
 import {
+  cropStage,
   DESKTOP,
   labelBox,
   labelSide,
@@ -16,6 +17,11 @@ import {
   minSeparation,
   nodePoint,
   overlaps,
+  PHONE_DISC_CLEARANCE,
+  PHONE_GUTTER,
+  PHONE_LABEL_FONT,
+  phoneFrame,
+  phoneLabelSides,
   scaleGeometry,
   type Box,
 } from './layout'
@@ -102,6 +108,48 @@ describe('the real graph', () => {
       }
     }
     expect([...clashes].sort()).toEqual([])
+  })
+
+  // On a phone the frame is cropped to a square around the outer ring, and
+  // only the inner ring is labelled, each on the side `phoneLabelSides` picks
+  // (D-050). Those labels must stay inside the square — it clips — and clear
+  // of each other and of every mark, in every year, from the narrowest phone
+  // supported to the widest before the desktop layout takes over.
+  it.each([360, 390, 767])('keeps phone labels inside the frame and clear at %ipx wide', (viewport) => {
+    const sides = phoneLabelSides(graph.nodes)
+    const scale = (viewport - 2 * PHONE_GUTTER) / cropStage(DESKTOP).side
+    const geometry = scaleGeometry(DESKTOP, scale)
+    const frame = phoneFrame(scale)
+    const mark = 7 * scale
+    const disc = geometry.centreRadius + PHONE_DISC_CLEARANCE
+    const { first, last } = graph.years!
+    const problems = new Set<string>()
+
+    for (let year = first; year <= last; year++) {
+      const shown = graph.nodes.filter((n) => visibleAt(graph, year).nodes.has(n.id))
+      const at = new Map(shown.map((n) => [n.id, nodePoint(n.angle, n.ring, geometry)]))
+      const labelled = shown
+        .filter((n) => n.id !== 'me' && labelledOnPhone(n))
+        .map((n) => ({ id: n.id, box: labelBox(n.short ?? n.label, at.get(n.id)!, sides.get(n.id)!, n.ring, PHONE_LABEL_FONT) }))
+      for (const a of labelled) {
+        const { box } = a
+        if (box.left < frame.left || box.right > frame.right || box.top < frame.top || box.bottom > frame.bottom) {
+          problems.add(`${a.id} label leaves the frame`)
+        }
+        for (const b of labelled) {
+          if (a.id < b.id && overlaps(a.box, b.box, 2)) problems.add(`${a.id} label × ${b.id} label`)
+        }
+        for (const n of shown) {
+          if (n.id === a.id) continue
+          const p = at.get(n.id)!
+          const r = n.id === 'me' ? disc : mark
+          if (overlaps(box, { left: p.x - r, right: p.x + r, top: p.y - r, bottom: p.y + r }, 1)) {
+            problems.add(`${a.id} label × ${n.id} mark`)
+          }
+        }
+      }
+    }
+    expect([...problems].sort()).toEqual([])
   })
 
   // Edges are straight lines, so an edge can run through a node it has nothing

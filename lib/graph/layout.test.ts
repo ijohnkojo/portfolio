@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  cropStage,
   angularDistance,
   circularMean,
   labelBox,
@@ -128,12 +129,13 @@ describe('labelBox', () => {
 
   it('sits beyond the hit square, on the given side', () => {
     const right = labelBox('abcd', at, 'right', 2)
-    expect(right.left).toBe(116)
-    expect(right.right).toBeCloseTo(116 + 4 * 12 * 0.55)
+    // Half the 24px hit square, then the 2px gap.
+    expect(right.left).toBe(114)
+    expect(right.right).toBeCloseTo(114 + 4 * 12 * 0.55)
     const left = labelBox('abcd', at, 'left', 2)
-    expect(left.right).toBe(84)
-    expect(labelBox('abcd', at, 'above', 2).bottom).toBe(84)
-    expect(labelBox('abcd', at, 'below', 2).top).toBe(116)
+    expect(left.right).toBe(86)
+    expect(labelBox('abcd', at, 'above', 2).bottom).toBe(86)
+    expect(labelBox('abcd', at, 'below', 2).top).toBe(114)
   })
 
   it('never grows past the truncation width', () => {
@@ -161,5 +163,22 @@ describe('scaleGeometry', () => {
     expect(g.width).toBe(DESKTOP.width / 2)
     expect(g.radii[3]).toBe(DESKTOP.radii[3] / 2)
     expect(g.centreRadius).toBe(DESKTOP.centreRadius / 2)
+  })
+})
+
+describe('cropStage', () => {
+  const stage = cropStage(DESKTOP)
+
+  it('crops to a square just around the outer ring', () => {
+    expect(stage.side).toBe(2 * (DESKTOP.radii[3] + 20))
+  })
+
+  it('places the full frame so its centre is the square’s centre', () => {
+    const cx = stage.left + stage.width / 2
+    const cy = stage.top + stage.height / 2
+    expect(cx).toBeCloseTo(50)
+    expect(cy).toBeCloseTo(50)
+    expect(stage.width).toBeGreaterThan(100)
+    expect(stage.left).toBeLessThan(0)
   })
 })

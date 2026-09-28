@@ -87,6 +87,20 @@ export function joinedIn(graph: GraphData, year: number): { nodes: Set<string>; 
   }
 }
 
+/**
+ * Whether a node's label shows on a phone, where the drawing is too small for
+ * all of them (D-050): the centre and the inner ring. Everything further out
+ * is named by tapping it — the inspector opens with its name — and keeps its
+ * name in the accessibility tree either way. On a desktop every label shows.
+ *
+ * Narrower than it first was. Labelling what a trace lights collided at 390px
+ * (nine neighbourhoods had overlapping labels), and labelling just the traced
+ * node ran it off the cropped frame on either side.
+ */
+export function labelledOnPhone(node: GraphNode): boolean {
+  return node.ring <= 1
+}
+
 /** Clockwise / anticlockwise round a ring, out / in across rings, or home. */
 export type NavMove = 'next' | 'previous' | 'outward' | 'inward' | 'centre'
 

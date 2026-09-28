@@ -2,10 +2,10 @@
   "$comment": "The home page's knowledge graph: every node that is not an entry, and the layout. Angles are degrees clockwise from 12 o'clock. Entries join through their own frontmatter (orgs, fields, tools, related). See docs/authoring.md.",
   "nodes": [
     { "id": "iris-hep", "kind": "org", "label": "IRIS-HEP", "angle": 40, "href": "https://iris-hep.org" },
-    { "id": "gettysburg", "kind": "org", "label": "Gettysburg College", "angle": 115, "since": 2024, "href": "https://www.gettysburg.edu" },
+    { "id": "gettysburg", "kind": "org", "label": "Gettysburg College", "short": "Gettysburg", "angle": 115, "since": 2024, "href": "https://www.gettysburg.edu" },
     { "id": "cs", "kind": "field", "label": "Computer science", "angle": 165 },
     { "id": "physics", "kind": "field", "label": "Physics", "angle": 255 },
-    { "id": "fermilab", "kind": "org", "label": "Fermilab / US-CMS", "angle": 305, "href": "https://www.fnal.gov" },
+    { "id": "fermilab", "kind": "org", "label": "Fermilab / US-CMS", "short": "Fermilab", "angle": 305, "href": "https://www.fnal.gov" },
     { "id": "cern-cms", "kind": "org", "label": "CERN / CMS", "angle": 335, "href": "https://cms.cern" },
 
     { "id": "bun", "kind": "tool", "label": "Bun", "angle": 4 },

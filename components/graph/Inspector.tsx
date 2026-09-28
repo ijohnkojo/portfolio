@@ -22,6 +22,7 @@ export function Inspector({
   groups,
   work,
   titleId,
+  sheet = false,
   onSelect,
   onClear,
 }: {
@@ -32,6 +33,8 @@ export function Inspector({
   /** For the centre: every piece of work, newest first. */
   work: GraphNode[] | null
   titleId: string
+  /** Inside the phone's bottom sheet: no border of its own, and the dialog handles Escape. */
+  sheet?: boolean
   onSelect: (id: string) => void
   onClear: () => void
 }) {
@@ -42,9 +45,13 @@ export function Inspector({
       data-graph-inspector
       aria-labelledby={titleId}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' && selection) onClear()
+        if (e.key === 'Escape' && selection && !sheet) onClear()
       }}
-      className="h-full space-y-4 rounded-md border border-neutral-200 p-5 dark:border-neutral-800"
+      className={
+        sheet
+          ? 'space-y-4 p-5'
+          : 'h-full space-y-4 rounded-md border border-neutral-200 p-5 dark:border-neutral-800'
+      }
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -73,7 +80,7 @@ export function Inspector({
       {node.summary && <p className="text-sm leading-6 text-neutral-700 dark:text-neutral-300">{node.summary}</p>}
 
       {node.tags && node.tags.length > 0 && (
-        <p className="flex flex-wrap gap-x-2 font-mono text-xs text-neutral-400 dark:text-neutral-600">
+        <p className="flex flex-wrap gap-x-2 font-mono text-xs text-neutral-500">
           {node.tags.map((t) => (
             <span key={t}>#{t}</span>
           ))}
