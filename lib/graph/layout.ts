@@ -154,6 +154,7 @@ export function scaleGeometry(geometry: Geometry, scale: number): Geometry {
       2: geometry.radii[2] * scale,
       3: geometry.radii[3] * scale,
     },
+    centreRadius: geometry.centreRadius * scale,
   }
 }
 
@@ -193,12 +194,15 @@ export interface Geometry {
   width: number
   height: number
   radii: Record<Ring, number>
+  /** The centre is a disc, not a dot: its name sits inside it. */
+  centreRadius: number
 }
 
 export const DESKTOP: Geometry = {
   width: 800,
   height: 660,
   radii: { 0: 0, 1: 110, 2: 200, 3: 290 },
+  centreRadius: 48,
 }
 
 /** Where a node sits in a geometry's frame. */

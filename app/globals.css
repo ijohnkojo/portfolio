@@ -20,6 +20,12 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /*
+   * The site's one accent — the centre of the home graph, and nothing else
+   * yet (D-045). Dark text on it in both themes.
+   */
+  --accent: #f5b83d;
+  --accent-ink: #1c1405;
 }
 
 @theme inline {

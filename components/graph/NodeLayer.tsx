@@ -5,7 +5,7 @@ import { kindLabel } from '@/lib/graph/interact'
 import { HIT, labelSide, nodePoint, type Geometry, type LabelSide } from '@/lib/graph/layout'
 import type { GraphData, GraphNode } from '@/lib/graph/model'
 
-import { FADED, type Lit } from './GraphCanvas'
+import { FADED, FADED_CENTRE, type Lit } from './GraphCanvas'
 
 /** Shift each control so its hit square, not its corner, sits on the node. */
 const TRANSFORM: Record<LabelSide, string> = {
@@ -117,6 +117,47 @@ export function NodeLayer({
               </span>
             </>
           )
+
+          if (n.kind === 'me') {
+            // The centre is a disc with the first name inside it, sized in
+            // percentages of the frame so it grows and shrinks with the
+            // drawing — unlike the other labels, which stay a fixed size.
+            const d = geometry.centreRadius * 2
+            return (
+              <button
+                key={n.id}
+                ref={(el) => register(n.id, el)}
+                type="button"
+                tabIndex={n.id === focused ? 0 : -1}
+                aria-pressed={isSelected}
+                onClick={() => onSelect(n.id)}
+                onPointerEnter={() => onHover(n.id)}
+                onPointerLeave={() => onHover(null)}
+                onFocus={() => onFocusNode(n.id)}
+                className={[
+                  'pointer-events-auto absolute flex items-center justify-center rounded-full outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:focus-visible:ring-neutral-100',
+                  'transition-opacity duration-150 motion-reduce:transition-none',
+                ].join(' ')}
+                style={{
+                  left: `${((at.x - geometry.centreRadius) / geometry.width) * 100}%`,
+                  top: `${((at.y - geometry.centreRadius) / geometry.height) * 100}%`,
+                  width: `${(d / geometry.width) * 100}%`,
+                  height: `${(d / geometry.height) * 100}%`,
+                  opacity: faded ? FADED_CENTRE : 1,
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-xs font-semibold tracking-[0.18em] uppercase"
+                  style={{ color: 'var(--accent-ink)' }}
+                >
+                  {n.label.split(' ')[0]}
+                </span>
+                <span className="sr-only">{n.label}</span>
+              </button>
+            )
+          }
 
           const common = {
             ref: (el: HTMLElement | null) => register(n.id, el),

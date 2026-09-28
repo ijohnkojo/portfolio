@@ -118,6 +118,11 @@ describe('nodePoint', () => {
   it('leaves room inside the frame for every ring', () => {
     expect(DESKTOP.radii[3] * 2).toBeLessThan(Math.min(DESKTOP.width, DESKTOP.height))
   })
+
+  it('keeps the centre disc well clear of the inner ring', () => {
+    // At least its own radius of daylight between the disc and an inner mark.
+    expect(DESKTOP.radii[1] - 6.5 - DESKTOP.centreRadius).toBeGreaterThanOrEqual(DESKTOP.centreRadius)
+  })
 })
 
 describe('edgePath', () => {
@@ -178,5 +183,6 @@ describe('scaleGeometry', () => {
     const g = scaleGeometry(DESKTOP, 0.5)
     expect(g.width).toBe(DESKTOP.width / 2)
     expect(g.radii[3]).toBe(DESKTOP.radii[3] / 2)
+    expect(g.centreRadius).toBe(DESKTOP.centreRadius / 2)
   })
 })

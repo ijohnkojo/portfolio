@@ -160,7 +160,7 @@ flowchart LR
 | Module | Pure? | Does |
 |---|---|---|
 | `lib/graph/model.ts` | yes | types; `buildGraph(spec, entries, options)` — parses and validates `graph.json`, resolves every entry's references, builds nodes and edges, dates them for the timeline, fills in missing angles |
-| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`, `edgeBend`, `edgePath`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP`, `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
+| `lib/graph/layout.ts` | yes | clock-angle geometry: `polar`, `nodePoint`, `circularMean`, `widestGapMidpoint`, `minSeparation`, `edgeBend`, `edgePath`; labels: `labelSide`, `labelBox`, `overlaps`; the frame: `DESKTOP` (with `centreRadius`), `scaleGeometry`, `HIT`, `LABEL_FONT`, `MIN_SEPARATION` |
 | `lib/graph/interact.ts` | yes | `indexGraph`, `highlight` (node, neighbours, the edges from it), `visibleAt(year)`, `nextNode` (keyboard moves), `kindLabel`, `connections` (the inspector's groups) |
 | `lib/graph/load.ts` | no | `loadGraph()` — reads `graph.json` and every entry, memoised like the content loader |
 
@@ -195,8 +195,9 @@ circular mean of its neighbours on the ring inside, else the widest empty arc,
 in id order. An entry with a long title can take a short `label` in
 `graph.json`; its full title stays in the inspector. `load.test.ts` holds the
 real graph to two legibility rules in every timeline year: a minimum angle
-between nodes on a ring, and no label overlapping another label or another
-node's mark, checked at full size and at 80% ([D-042](decisions.md)).
+between nodes on a ring, and no label overlapping another label, another
+node's mark, or the centre disc and its glow, checked at full size and at 80%
+([D-042](decisions.md)).
 
 The real graph, as of this commit: 33 nodes, 49 edges, 2023–2026.
 
@@ -205,7 +206,7 @@ The real graph, as of this commit: 33 nodes, 49 edges, 2023–2026.
 ```
 app/(site)/page.tsx                 server — loadGraph(), then <KnowledgeGraph graph={…} />
 components/graph/KnowledgeGraph.tsx 'use client' — interaction state only
-components/graph/GraphCanvas.tsx    the SVG: rings, edges, marks. aria-hidden, no pointer events
+components/graph/GraphCanvas.tsx    the SVG: edges and marks. aria-hidden, no pointer events
 components/graph/NodeLayer.tsx      one <button> per node (the OS: a link), over its mark
 components/graph/Inspector.tsx      the panel: legend when empty, the node and its connections when not
 ```
@@ -215,8 +216,15 @@ entry **fails `pnpm build`**, naming the file. `/` is still fully static.
 
 **Two layers, one coordinate function** ([D-042](decisions.md)). The SVG draws;
 the HTML layer above it is what you touch. Both place nodes with `nodePoint` in
-the `DESKTOP` frame (800 × 660, rings at 110 / 200 / 290), and the box keeps
-that aspect ratio, so a control sits exactly over its mark. Each control is an
+the `DESKTOP` frame (800 × 660, rings at 110 / 200 / 290, a centre disc of
+radius 48), and the box keeps that aspect ratio, so a control sits exactly over
+its mark. The rings place nodes but are not drawn ([D-045](decisions.md)).
+
+**The centre** is a disc in the site's accent (`--accent`, amber) with a soft
+glow and the first name inside it; its control is a round button sized in
+percentages of the frame, so it scales with the drawing. It is the only colour
+on the graph. When something else is traced it fades to 35% rather than 18%,
+over a solid disc in the background colour so edges do not show through. Each control is an
 invisible 20px square over the mark plus the label, on the side `labelSide`
 picks — outward, or above and below near 12 and 6 o'clock.
 

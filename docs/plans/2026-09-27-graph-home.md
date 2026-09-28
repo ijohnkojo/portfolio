@@ -16,6 +16,12 @@
 > - [ ] 4. Timeline scrubber, and the listings below the graph
 > - [ ] 5. Phone layout, reduced motion, accessibility pass
 >
+> **Design pass after Phase 3, 2026-09-28** (not in the plan; asked for after
+> seeing it): the ring circles are no longer drawn, and the centre became a
+> large amber disc with "MICHAEL" inside and a soft glow — the site's one
+> accent, `--accent` in `globals.css` (D-045). The label-collision test now
+> keeps every label off the disc and its glow.
+>
 > **Phase 3 deviations:**
 >
 > 1. **Marks stay in the SVG; the buttons carry an invisible hit square.** The

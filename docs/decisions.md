@@ -1326,3 +1326,37 @@ decides to boot it.
 
 **Revisit when** a second node wants to open something — then `opens` is a
 pattern, not an exception, and deserves a visual language of its own.
+
+---
+
+## D-045 · 2026-09-28 · active
+### One accent colour, spent on the centre of the graph; the rings are not drawn
+
+The home graph's centre is a disc in the site's one accent colour — amber,
+`--accent: #f5b83d`, with `--accent-ink: #1c1405` for the text on it, both in
+`app/globals.css` — with a soft two-step glow, and the first name set inside
+it. Everything else on the graph stays neutral. The three ring circles are no
+longer drawn: the layout still places nodes on rings ([D-041](#d-041--2026-09-27--active)),
+but the circles themselves are implied rather than stroked.
+
+**Why.** A design pass after Phase 3, from the author: the centre should read as
+the centre at a glance, bigger and in colour, as on the reference site, and the
+concentric circles competed with the edges. One colour used once keeps the page
+minimal — shape still carries every other distinction (D-042). Amber over the
+reference's lime: the accent is the site's own, not borrowed. It is a CSS
+variable so changing it is one line.
+
+The centre fades less than other nodes when something else is traced (35%
+rather than 18%) and sits on a solid disc in the page's background colour, so
+a faded centre is a muted amber rather than a smear with edges showing through.
+
+**Cost.** The accent is the first colour on a site that was otherwise
+greyscale, so anything that later wants colour — links, the OS's own accent
+(`--os-accent`, separate on purpose), selection states — has to decide whether
+to share it. And the disc is sized in the drawing's units, so it shrinks with
+the graph; the name inside it is fixed-size text, which fits down to about 80%
+scale (a 79px disc holds the 66px name at 1024px wide) and will need handling on
+a phone.
+
+**Revisit when** a second element wants the accent, or the phone layout
+(Phase 5) makes the disc too small for the name.

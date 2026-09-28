@@ -10,10 +10,17 @@ export interface Lit {
 /** How far everything outside a highlight fades. */
 export const FADED = 0.18
 
+/**
+ * The centre fades less: it is the anchor, and should stay findable while
+ * something else is traced.
+ */
+export const FADED_CENTRE = 0.35
+
 const FADE = 'transition-opacity duration-150 motion-reduce:transition-none'
 
 /**
- * The drawing: rings, edges and node marks. Decoration only — `aria-hidden`,
+ * The drawing: edges and node marks. The rings are not drawn — the layout
+ * implies them, and the lines read cleaner without them. Decoration only — `aria-hidden`,
  * and no pointer events — because every interactive thing is a real button in
  * the layer above it (D-042). Both layers place nodes with `nodePoint` in the
  * same frame, so they cannot drift apart.
@@ -34,7 +41,8 @@ export function GraphCanvas({
   const centre = { x: geometry.width / 2, y: geometry.height / 2 }
   const byId = new Map(graph.nodes.map((n) => [n.id, n]))
   const at = new Map(graph.nodes.map((n) => [n.id, nodePoint(n.angle, n.ring, geometry)]))
-  const opacity = (on: boolean) => (lit && !on ? FADED : 1)
+  const opacity = (on: boolean, id?: string) => (lit && !on ? (id === 'me' ? FADED_CENTRE : FADED) : 1)
+  const me = graph.nodes.find((n) => n.kind === 'me')
 
   return (
     <svg
@@ -43,12 +51,6 @@ export function GraphCanvas({
       aria-hidden="true"
       focusable="false"
     >
-      <g className="text-neutral-200 dark:text-neutral-800" fill="none" stroke="currentColor">
-        {([1, 2, 3] as const).map((ring) => (
-          <circle key={ring} cx={centre.x} cy={centre.y} r={geometry.radii[ring]} strokeWidth={1} />
-        ))}
-      </g>
-
       <g fill="none" stroke="currentColor">
         {graph.edges
           .filter((e) => visible.has(e.source) && visible.has(e.target))
@@ -69,11 +71,23 @@ export function GraphCanvas({
       </g>
 
       <g>
+        {/*
+          A solid disc under the centre, outside the fade: without it, a faded
+          centre lets the edges beneath it show through and its name smears.
+        */}
+        {me && (
+          <circle
+            cx={at.get(me.id)!.x}
+            cy={at.get(me.id)!.y}
+            r={geometry.centreRadius}
+            style={{ fill: 'var(--background)' }}
+          />
+        )}
         {graph.nodes
           .filter((n) => visible.has(n.id))
           .map((n) => (
-            <g key={n.id} className={FADE} style={{ opacity: opacity(lit?.nodes.has(n.id) ?? false) }}>
-              <Mark node={n} at={at.get(n.id)!} selected={n.id === selected} />
+            <g key={n.id} className={FADE} style={{ opacity: opacity(lit?.nodes.has(n.id) ?? false, n.id) }}>
+              <Mark node={n} at={at.get(n.id)!} selected={n.id === selected} centreRadius={geometry.centreRadius} />
             </g>
           ))}
       </g>
@@ -81,16 +95,49 @@ export function GraphCanvas({
   )
 }
 
-/** Base size of each kind's mark, in frame units. */
-const SIZE = { me: 9, org: 6.5, field: 6.5, entry: 5.5, tool: 3.25 } as const
+/** Base size of each kind's mark, in frame units. The centre's comes from the geometry. */
+const SIZE = { org: 6.5, field: 6.5, entry: 5.5, tool: 3.25 } as const
 
 /**
- * One node's mark. Shape carries kind, so the graph reads without colour:
+ * One node's mark. The centre is a disc in the site's accent, with a soft glow
+ * and its name set inside it by the control above (D-045). Everything else is
+ * neutral, and shape carries kind, so the graph reads without colour:
  * filled circle for an organisation, hollow for a field; for work, a circle
  * for a project, a square for a paper, a diamond for a talk; a small dot for a
  * tool. A node that opens something (the OS) gets an outer ring.
  */
-export function Mark({ node, at, selected }: { node: GraphNode; at: Point; selected: boolean }) {
+export function Mark({
+  node,
+  at,
+  selected,
+  centreRadius,
+}: {
+  node: GraphNode
+  at: Point
+  selected: boolean
+  centreRadius: number
+}) {
+  if (node.kind === 'me') {
+    const r = centreRadius
+    return (
+      <>
+        <circle cx={at.x} cy={at.y} r={r * 1.55} style={{ fill: 'var(--accent)', opacity: 0.06 }} />
+        <circle cx={at.x} cy={at.y} r={r * 1.25} style={{ fill: 'var(--accent)', opacity: 0.12 }} />
+        <circle cx={at.x} cy={at.y} r={r} style={{ fill: 'var(--accent)' }} />
+        {selected && (
+          <circle
+            cx={at.x}
+            cy={at.y}
+            r={r + 5}
+            fill="none"
+            strokeWidth={1.5}
+            className="stroke-neutral-900 dark:stroke-neutral-100"
+          />
+        )}
+      </>
+    )
+  }
+
   const r = SIZE[node.kind]
   const strong = 'fill-neutral-800 dark:fill-neutral-200'
 
@@ -114,7 +161,7 @@ export function Mark({ node, at, selected }: { node: GraphNode; at: Point; selec
   } else if (node.kind === 'tool') {
     shape = <circle cx={at.x} cy={at.y} r={r} className="fill-neutral-400 dark:fill-neutral-500" />
   } else {
-    shape = <circle cx={at.x} cy={at.y} r={r} className={node.kind === 'me' ? 'fill-neutral-950 dark:fill-neutral-50' : strong} />
+    shape = <circle cx={at.x} cy={at.y} r={r} className={strong} />
   }
 
   return (

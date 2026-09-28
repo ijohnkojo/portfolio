@@ -1304,3 +1304,39 @@ Plan: [plans/2026-09-27-graph-home.md](plans/2026-09-27-graph-home.md)
 - **Rewriting the placeholder copy** — yours.
 - **Centring the circle on the page** — it sits left of centre beside the
   inspector; flagged in the plan.
+
+---
+
+## 2026-09-28 — Design pass: the centre, and no rings
+
+Asked for after Phase 3, with the reference site as the model.
+
+### Built
+
+- **The ring circles are gone.** Nodes still sit on rings at fixed angles; the
+  circles are no longer stroked.
+- **The centre is a large amber disc** with "MICHAEL" inside in dark monospace
+  caps and a soft two-step glow — the only colour on the graph. Its control is
+  a round button sized with the drawing. The full name stays the node's
+  accessible name and the page's heading.
+- **A faded centre stays readable**: it fades to 35% rather than 18%, over a
+  solid disc in the background colour, so edges do not show through it.
+- **The accent is one variable**, `--accent` (with `--accent-ink` for text on
+  it) in `app/globals.css`. The OS's own accent is `--os-accent`, so the two
+  cannot collide.
+
+### Decided
+
+- **D-045** — one accent colour, spent on the centre; the rings are implied,
+  not drawn. Amber rather than the reference's lime, so the accent is the
+  site's own.
+
+### Verified
+
+- **579 unit tests** (+1: the disc clears the inner ring). The label-collision
+  test now keeps labels off the disc and its glow at 100% and 80%.
+- Screenshotted in light and dark; the name fits the disc at 1024px wide
+  (66px of text in a 79px disc); hover on the centre lights its spokes, and a
+  faded centre is a clean muted amber.
+- All 148 OS browser checks pass — `globals.css` is shared with the OS.
+  `pnpm build` and `eslint` clean.

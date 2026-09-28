@@ -75,6 +75,9 @@ describe('the real graph', () => {
   it.each([1, 0.8])('keeps labels clear of each other and of other marks at %s scale', (scale) => {
     const geometry = scaleGeometry(DESKTOP, scale)
     const mark = 7 * scale
+    // The centre is a disc with its name inside: it has no label of its own to
+    // collide, but every other label must stay off it, glow included.
+    const disc = geometry.centreRadius + 6 * scale
     const { first, last } = graph.years!
     const clashes = new Set<string>()
 
@@ -85,17 +88,15 @@ describe('the real graph', () => {
         const text = n.opens ? `${n.label} ↗` : n.label
         return { id: n.id, at, box: labelBox(text, at, labelSide(n.angle, n.ring), n.ring) }
       })
-      const markBox = (p: (typeof placed)[number]): Box => ({
-        left: p.at.x - mark,
-        right: p.at.x + mark,
-        top: p.at.y - mark,
-        bottom: p.at.y + mark,
-      })
+      const markBox = (p: (typeof placed)[number]): Box => {
+        const r = p.id === 'me' ? disc : mark
+        return { left: p.at.x - r, right: p.at.x + r, top: p.at.y - r, bottom: p.at.y + r }
+      }
 
       for (const a of placed) {
         for (const b of placed) {
-          if (a.id === b.id) continue
-          if (a.id < b.id && overlaps(a.box, b.box, 2)) clashes.add(`${a.id} label × ${b.id} label`)
+          if (a.id === b.id || a.id === 'me') continue
+          if (b.id !== 'me' && a.id < b.id && overlaps(a.box, b.box, 2)) clashes.add(`${a.id} label × ${b.id} label`)
           if (overlaps(a.box, markBox(b), 1)) clashes.add(`${a.id} label × ${b.id} mark`)
         }
       }
