@@ -110,7 +110,10 @@ const SIZE = { org: 6.5, field: 6.5, entry: 5.5, tool: 3.25 } as const
 
 /**
  * One node's mark. The centre is a disc in the site's accent, with a soft glow
- * and its name set inside it by the control above (D-045). Everything else is
+ * and its name set inside it by the control above (D-045). The glow breathes,
+ * always; a selected node sends a ring out from itself, on the same beat
+ * (`graph-pulse` and `graph-ping` in globals.css, D-051). Only the glow and the
+ * ring move — the disc, the marks and the name above them stay put. Everything else is
  * neutral, and shape carries kind, so the graph reads without colour:
  * filled circle for an organisation, hollow for a field; for work, a circle
  * for a project, a square for a paper, a diamond for a talk; a small dot for a
@@ -131,19 +134,12 @@ export function Mark({
     const r = centreRadius
     return (
       <>
-        <circle cx={at.x} cy={at.y} r={r * 1.55} style={{ fill: 'var(--accent)', opacity: 0.06 }} />
-        <circle cx={at.x} cy={at.y} r={r * 1.25} style={{ fill: 'var(--accent)', opacity: 0.12 }} />
+        <g className="graph-pulse">
+          <circle cx={at.x} cy={at.y} r={r * 1.55} style={{ fill: 'var(--accent)', opacity: 0.06 }} />
+          <circle cx={at.x} cy={at.y} r={r * 1.25} style={{ fill: 'var(--accent)', opacity: 0.12 }} />
+        </g>
         <circle cx={at.x} cy={at.y} r={r} style={{ fill: 'var(--accent)' }} />
-        {selected && (
-          <circle
-            cx={at.x}
-            cy={at.y}
-            r={r + 5}
-            fill="none"
-            strokeWidth={1.5}
-            className="stroke-neutral-900 dark:stroke-neutral-100"
-          />
-        )}
+        {selected && <SelectionRing at={at} r={r + 5} />}
       </>
     )
   }
@@ -180,16 +176,18 @@ export function Mark({
         <circle cx={at.x} cy={at.y} r={r + 4} fill="none" strokeWidth={1} className="stroke-neutral-500" />
       )}
       {shape}
-      {selected && (
-        <circle
-          cx={at.x}
-          cy={at.y}
-          r={r + (node.opens ? 8 : 5)}
-          fill="none"
-          strokeWidth={1.5}
-          className="stroke-neutral-900 dark:stroke-neutral-100"
-        />
-      )}
+      {selected && <SelectionRing at={at} r={r + (node.opens ? 8 : 5)} />}
+    </>
+  )
+}
+
+/** The ring round a selected node, and a copy of it that pings outward and fades. */
+function SelectionRing({ at, r }: { at: Point; r: number }) {
+  const ring = 'stroke-neutral-900 dark:stroke-neutral-100'
+  return (
+    <>
+      <circle cx={at.x} cy={at.y} r={r} fill="none" strokeWidth={1.5} className={ring} />
+      <circle cx={at.x} cy={at.y} r={r} fill="none" strokeWidth={1.5} className={`graph-ping ${ring}`} />
     </>
   )
 }

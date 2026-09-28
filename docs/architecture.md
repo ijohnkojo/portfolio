@@ -233,6 +233,12 @@ over a solid disc in the background colour so edges do not show through. Each co
 invisible 20px square over the mark plus the label, on the side `labelSide`
 picks — outward, or above and below near 12 and 6 o'clock.
 
+**Two pulses** ([D-051](decisions.md)), on one 2s beat: the centre's glow
+breathes (`.graph-pulse`, always), and a selected node sends a ring out from
+itself (`.graph-ping`, drawn by `SelectionRing`). Both are CSS keyframes in
+`globals.css` on transform and opacity, round their own centres, so the disc,
+the marks and every control stay where they are.
+
 **What lights up** is one rule, in `KnowledgeGraph`:
 
 ```mermaid
@@ -287,6 +293,13 @@ it. What a forward step adds (`joinedIn`) fades in (`.graph-enter` in
 hovered, focused or selected until it returns; the selection is kept and comes
 back with it. The listings under the graph do not follow the timeline.
 
+**The first visit replays** ([D-051](decisions.md)): once the drawing is at
+least half on screen (an `IntersectionObserver`), the timeline replays from the
+first year, and `home-graph:replayed` is set in the visitor's `localStorage`
+so later visits open on the whole graph. Not under reduced motion, and not
+read out by the live region — only a replay the visitor starts is. Clear that
+key (or use a private window) to see it again.
+
 ### Phone and accessibility
 
 ([D-050](decisions.md).) **Below `md` (768px)** the drawing's box is square and
@@ -317,7 +330,8 @@ The panel under the graph keeps showing the centre. Gutters are 16px.
   nothing there — the slider's own `aria-valuetext` already does.
 - **Names**: each control's accessible name is the full title, kind and year,
   even when the visible label is short or hidden.
-- **Reduced motion**: no fades (`.graph-enter`), no opacity transitions.
+- **Reduced motion**: no fades (`.graph-enter`), no opacity transitions, no
+  pulse or ping, and no replay on the first visit.
 
 **No prefetch of `/os`.** Every site link to `/os` sets `prefetch={false}` —
 the graph's OS node, the inspector's button, and the writeup footers. `/os`

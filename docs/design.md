@@ -46,7 +46,8 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
 - **The centre is the one spot of colour** — a large amber disc with the first
   name inside it and a soft glow; everything else is neutral, and shape carries
   kind. The rings place the nodes but are not drawn. **▸ Decided**
-  ([D-045](decisions.md)).
+  ([D-045](decisions.md)). The glow breathes, and a selected node pings, on
+  one 2s beat (**▸ Built**, [D-051](decisions.md)).
 - **Rings at fixed, hand-set angles** — no force simulation, so the layout reads
   as designed and nothing moves when the pointer does. **▸ Decided**
   ([D-041](decisions.md)): angles live in `graph.json`, a deterministic fallback
@@ -73,7 +74,8 @@ the phone layout is Phase 5 of the [plan](plans/2026-09-27-graph-home.md).
   a slider over the years and a Replay that walks them, with what each year
   adds fading in where it will stay. The page without JavaScript, and the
   listings under the graph, always show everything. **▸ Built**
-  ([D-047](decisions.md)).
+  ([D-047](decisions.md)). A visitor's first look replays it once, by itself
+  (**▸ Built**, [D-051](decisions.md)).
 - **Straight edges**, node to node, and none may run through a node it does
   not connect — that would draw a relation that is not there. **▸ Decided**
   ([D-046](decisions.md)).

@@ -22,6 +22,7 @@ import {
 
 import {
   allWork,
+  autoReplays,
   connections,
   highlight,
   indexGraph,
@@ -58,6 +59,16 @@ const KEEPS_SELECTION = 'a, button, input, select, textarea, label, summary, [da
 
 /** How long Replay holds each year. */
 const REPLAY_STEP_MS = 900
+
+/**
+ * Set in the visitor's own browser once the graph has replayed by itself, so
+ * it does so on the first visit only (D-051). A per-visitor convenience: if
+ * storage is unavailable, the replay simply runs again next time.
+ */
+const REPLAYED_KEY = 'home-graph:replayed'
+
+/** Who started a replay: the visitor, with the button, or the first visit. */
+type Replay = 'visitor' | 'first-visit' | null
 
 const NOTHING = { nodes: new Set<string>(), edges: new Set<string>() }
 
@@ -113,8 +124,10 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   // rendered it. `entering` is set when the year moves forward, so what joins
   // fades in; moving back just removes nodes.
   const [time, setTime] = useState({ year: lastYear, entering: false })
-  const [playing, setPlaying] = useState(false)
+  const [replay, setReplay] = useState<Replay>(null)
+  const playing = replay !== null
   const hydrated = useHydrated()
+  const drawing = useRef<HTMLDivElement>(null)
 
   const visible = useMemo(
     () => (time.year === null ? new Set(graph.nodes.map((n) => n.id)) : visibleAt(graph, time.year).nodes),
@@ -135,11 +148,40 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
     if (!playing || time.year === null) return
     const timer = setTimeout(() => {
       const next = years[years.indexOf(time.year!) + 1]
-      if (next === undefined) setPlaying(false)
+      if (next === undefined) setReplay(null)
       else setTime({ year: next, entering: true })
     }, REPLAY_STEP_MS)
     return () => clearTimeout(timer)
   }, [playing, time.year, years])
+
+  // The first visit: replay once, when the graph is at least half on screen —
+  // at load on a desktop, on scrolling down to it on a phone. The server
+  // render and a returning visit show the whole graph (D-047, D-051).
+  useEffect(() => {
+    const box = drawing.current
+    if (!box) return
+    let seen = false
+    try {
+      seen = window.localStorage.getItem(REPLAYED_KEY) !== null
+    } catch {}
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!autoReplays(years.length, seen, reducedMotion)) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return
+        observer.disconnect()
+        try {
+          window.localStorage.setItem(REPLAYED_KEY, '1')
+        } catch {}
+        setTime({ year: years[0], entering: true })
+        setReplay('first-visit')
+      },
+      { threshold: 0.5 }
+    )
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [years])
 
   // A click on blank space — anywhere on the page that is not a control or
   // the inspector — clears the selection, like the inspector's ×. Listening
@@ -179,9 +221,11 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
   const centre = index.byId.get('me')!
 
   // What a screen reader hears when the graph changes without focus moving:
-  // the selection, and each year of a replay. The slider announces its own
-  // value, so scrubbing by hand says nothing here — it would be said twice.
-  const announcement = playing
+  // the selection, and each year of a replay the visitor started. The slider
+  // announces its own value, so scrubbing by hand says nothing here — it
+  // would be said twice — and neither does the first visit's replay, which
+  // would otherwise talk over the page as it loads.
+  const announcement = replay === 'visitor'
     ? `${time.year}: ${visible.size} of ${graph.nodes.length} nodes`
     : shownSelected
       ? `Selected ${inspected.title ?? inspected.label}, ${kindLabel(inspected)}`
@@ -212,6 +256,7 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
     <div className={GRAPH_COLUMNS}>
       <div className="min-w-0">
         <div
+          ref={drawing}
           className="relative aspect-square w-full max-md:overflow-hidden md:aspect-(--frame-aspect)"
           style={BOX_STYLE}
           onFocus={() => setFocusWithin(true)}
@@ -269,15 +314,15 @@ export function KnowledgeGraph({ graph }: { graph: GraphData }) {
             playing={playing}
             ready={hydrated}
             onYear={(year) => {
-              setPlaying(false)
+              setReplay(null)
               goTo(year)
             }}
             onReplay={() => {
               // The first year fades in too, so a replay visibly starts over.
               setTime({ year: years[0], entering: true })
-              setPlaying(true)
+              setReplay('visitor')
             }}
-            onStop={() => setPlaying(false)}
+            onStop={() => setReplay(null)}
           />
         )}
       </div>

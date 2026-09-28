@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  autoReplays,
   labelledOnPhone,
   allWork,
   connections,
@@ -229,5 +230,18 @@ describe('labelledOnPhone', () => {
     expect(labelledOnPhone(byId('field:b'))).toBe(true)
     expect(labelledOnPhone(byId('entry:e1'))).toBe(false)
     expect(labelledOnPhone(byId('tool:t'))).toBe(false)
+  })
+})
+
+describe('autoReplays', () => {
+  it('replays on a first visit, when there is a timeline to show', () => {
+    expect(autoReplays(4, false, false)).toBe(true)
+  })
+
+  it('does not replay for a returning visitor, under reduced motion, or with one year or none', () => {
+    expect(autoReplays(4, true, false)).toBe(false)
+    expect(autoReplays(4, false, true)).toBe(false)
+    expect(autoReplays(1, false, false)).toBe(false)
+    expect(autoReplays(0, false, false)).toBe(false)
   })
 })

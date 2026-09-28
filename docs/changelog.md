@@ -1621,3 +1621,37 @@ written.
 
 - **A redirect from `/papers/hq`** — that URL is the paper's once it is
   published.
+
+---
+
+## 2026-09-28 — The graph breathes, pings, and replays on a first visit
+
+Asked for before the weekend.
+
+### Built
+
+- **The centre's glow breathes**, always, 2s a cycle (`.graph-pulse`).
+- **A selected node pings** — a ring expanding and fading on the same beat
+  (`.graph-ping`, `SelectionRing` in `GraphCanvas.tsx`).
+- **A first visit replays the timeline** when the graph is half on screen,
+  once per browser (`home-graph:replayed` in `localStorage`); not announced to
+  screen readers; `autoReplays` in `interact.ts` decides, tested.
+- All three off under reduced motion.
+
+### Decided
+
+- **D-051** — including its cost: an always-on pulse is a WCAG 2.2.2 finding
+  under a strict audit.
+
+### Verified
+
+- **596 unit tests** (+2, `autoReplays`).
+- **`pnpm verify:graph` 44/44** (+9): the glow's animation and beat, no ping
+  at rest, one ping on a selection, the first-visit replay from first year to
+  last, silence in the live region while it runs, no replay on a second visit,
+  and the reduced-motion versions of all three. The other checks now run as a
+  returning visitor.
+- In Chromium: the glow scales 0.94 → 1.10 → 0.94 over 2s in both themes;
+  screenshots at both ends; on a 390 × 844 phone the replay starts at load
+  (83% of the graph is on screen), and a reload does not replay.
+- `pnpm build`, `eslint`, all 148 OS browser checks.

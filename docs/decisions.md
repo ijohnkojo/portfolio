@@ -1540,3 +1540,45 @@ phone needs the legend and the panel somewhere else) — they stack under the
 intro and the graph; a selection opens the sheet instead of changing the
 panel. [D-009](#d-009--2026-08-12--active) (Playwright not a dependency) —
 `verify-graph.mjs` resolves it the same way as the OS's checks.
+
+---
+
+## D-051 · 2026-09-28 · active
+### The centre breathes, a selection pings, and a first visit replays the timeline
+
+Three animations, asked for together:
+
+- **The centre's glow breathes**, always — the two glow circles scale between
+  0.94 and 1.1 and brighten, 2s a cycle, ease-in-out. The disc and the name on
+  it do not move.
+- **A selected node pings** — a copy of its selection ring expands to 1.9× and
+  fades, on the same 2s beat, for as long as it is selected.
+- **A first visit replays the timeline**, once, when the drawing is at least
+  half on screen. `home-graph:replayed` in the visitor's `localStorage` marks
+  it done; a returning visitor, and the server render, see the whole graph.
+  The replay is not announced — the live region reads only replays the visitor
+  starts — and its button reads "stop" while it runs.
+
+All three are off under reduced motion: no breathing, no ping (the selection
+ring itself stays), no replay by itself. The pulses are CSS keyframes on
+transform and opacity only, so the "nothing moves" rule of
+[D-041](#d-041--2026-09-27--active) still holds for every node and control.
+
+**Why.** The owner's ask: the centre should read as alive, a selection should
+be unmistakable, and a first-time visitor should see the graph grow rather
+than meet it finished. 2s is a resting pulse — slower reads as sluggish,
+faster as an alert. Waiting until the graph is in view means a phone visitor,
+who scrolls to it, still sees the replay.
+
+**Cost.** An always-on pulse is moving content that starts by itself and lasts
+more than five seconds, which WCAG 2.2.2 (Pause, Stop, Hide) says a visitor
+should be able to pause. Reduced motion stops it; nothing else does. It is
+kept to the glow, low contrast, and one element — but under a strict audit it
+is a finding. The first-visit replay is under five seconds and has its stop
+button, so it is not. `verify:graph` now runs its checks as a returning
+visitor, with first visits checked on their own.
+
+**Revisit when** an accessibility audit or a visitor raises the pulse — the
+fix is to stop it after a few cycles, or to pause it once the visitor
+interacts — or when the replay should play on every visit rather than the
+first.
